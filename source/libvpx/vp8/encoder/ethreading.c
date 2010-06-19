@@ -1,10 +1,11 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license and patent
- *  grant that can be found in the LICENSE file in the root of the source
- *  tree. All contributing project authors may be found in the AUTHORS
- *  file in the root of the source tree.
+ *  Use of this source code is governed by a BSD-style license 
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may 
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
 
@@ -259,10 +260,8 @@ static void setup_mbby_copy(MACROBLOCK *mbdst, MACROBLOCK *mbsrc)
     z->short_fdct4x4rd   = x->short_fdct4x4rd;
     z->short_fdct8x4rd   = x->short_fdct8x4rd;
     z->short_fdct8x4rd   = x->short_fdct8x4rd;
-    z->vp8_short_fdct4x4_ptr = x->vp8_short_fdct4x4_ptr;
     z->short_walsh4x4    = x->short_walsh4x4;
     z->quantize_b        = x->quantize_b;
-    z->quantize_brd      = x->quantize_brd;
 
     /*
     z->mvc              = x->mvc;

@@ -1,10 +1,11 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license and patent
- *  grant that can be found in the LICENSE file in the root of the source
- *  tree. All contributing project authors may be found in the AUTHORS
- *  file in the root of the source tree.
+ *  Use of this source code is governed by a BSD-style license 
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may 
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
 
@@ -41,14 +42,7 @@ extern "C" {
 
 #ifndef VPX_CODEC_H
 #define VPX_CODEC_H
-#ifdef HAVE_CONFIG_H
-#  include "vpx_config.h"
-#endif
-#if defined(HAVE_VPX_PORTS) && HAVE_VPX_PORTS
-#  include "vpx_ports/vpx_integer.h"
-#else
-#  include "vpx_integer.h"
-#endif
+#include "vpx_integer.h"
 #include "vpx_image.h"
 
     /*!\brief Decorator indicating a function is deprecated */
@@ -196,7 +190,7 @@ extern "C" {
      * may reference the 'name' member to get a printable description of the
      * algorithm.
      */
-    typedef struct
+    typedef struct vpx_codec_ctx
     {
         const char              *name;        /**< Printable interface name */
         vpx_codec_iface_t       *iface;       /**< Interface pointers */

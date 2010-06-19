@@ -1,10 +1,11 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license and patent
- *  grant that can be found in the LICENSE file in the root of the source
- *  tree. All contributing project authors may be found in the AUTHORS
- *  file in the root of the source tree.
+ *  Use of this source code is governed by a BSD-style license 
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may 
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
 
@@ -101,11 +102,9 @@ typedef struct
     void (*vp8_short_fdct8x4)(short *input, short *output, int pitch);
     void (*short_fdct4x4rd)(short *input, short *output, int pitch);
     void (*short_fdct8x4rd)(short *input, short *output, int pitch);
-    void (*vp8_short_fdct4x4_ptr)(short *input, short *output, int pitch);
     void (*short_walsh4x4)(short *input, short *output, int pitch);
 
     void (*quantize_b)(BLOCK *b, BLOCKD *d);
-    void (*quantize_brd)(BLOCK *b, BLOCKD *d);
 
 
 

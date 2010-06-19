@@ -1,10 +1,11 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license and patent
- *  grant that can be found in the LICENSE file in the root of the source
- *  tree. All contributing project authors may be found in the AUTHORS
- *  file in the root of the source tree.
+ *  Use of this source code is governed by a BSD-style license 
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may 
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
 
@@ -173,9 +174,8 @@ typedef struct
     int dc_diff;
     unsigned char   segment_id;                  // Which set of segmentation parameters should be used for this MB
     int force_no_skip;
-
+    int need_to_clamp_mvs;
     B_MODE_INFO partition_bmi[16];
-
 } MB_MODE_INFO;
 
 

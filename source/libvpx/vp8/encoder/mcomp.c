@@ -1,10 +1,11 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license and patent
- *  grant that can be found in the LICENSE file in the root of the source
- *  tree. All contributing project authors may be found in the AUTHORS
- *  file in the root of the source tree.
+ *  Use of this source code is governed by a BSD-style license 
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may 
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
 
@@ -1137,7 +1138,6 @@ int vp8_diamond_search_sadx4
 }
 
 
-#if !(CONFIG_REALTIME_ONLY)
 int vp8_full_search_sad(MACROBLOCK *x, BLOCK *b, BLOCKD *d, MV *ref_mv, int error_per_bit, int distance, vp8_variance_fn_ptr_t *fn_ptr, int *mvcost[2], int *mvsadcost[2])
 {
     unsigned char *what = (*(b->base_src) + b->src);
@@ -1350,7 +1350,6 @@ int vp8_full_search_sadx3(MACROBLOCK *x, BLOCK *b, BLOCKD *d, MV *ref_mv, int er
     else
         return INT_MAX;
 }
-#endif
 
 #ifdef ENTROPY_STATS
 void print_mode_context(void)

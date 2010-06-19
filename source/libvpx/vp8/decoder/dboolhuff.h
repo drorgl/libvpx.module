@@ -1,10 +1,11 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license and patent
- *  grant that can be found in the LICENSE file in the root of the source
- *  tree. All contributing project authors may be found in the AUTHORS
- *  file in the root of the source tree.
+ *  Use of this source code is governed by a BSD-style license 
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may 
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
 
@@ -12,7 +13,7 @@
 #define DBOOLHUFF_H
 #include "vpx_ports/config.h"
 #include "vpx_ports/mem.h"
-#include "vpx_ports/vpx_integer.h"
+#include "vpx/vpx_integer.h"
 
 /* Size of the bool decoder backing storage
  *

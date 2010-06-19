@@ -1,10 +1,11 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license and patent
- *  grant that can be found in the LICENSE file in the root of the source
- *  tree. All contributing project authors may be found in the AUTHORS
- *  file in the root of the source tree.
+ *  Use of this source code is governed by a BSD-style license 
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may 
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
 
@@ -1063,7 +1064,6 @@ void vp8_calc_pframe_target_size(VP8_COMP *cpi)
 
         if (cpi->common.refresh_golden_frame == TRUE)
         {
-            int isize_adjustment = 0;
 #if 0
 
             if (0)   // p_gw
@@ -1119,8 +1119,9 @@ void vp8_calc_pframe_target_size(VP8_COMP *cpi)
                     cpi->this_frame_target = (baseline_bits_at_q(1, Q, cpi->common.MBs) * cpi->last_boost) / 100;
 
             }
-            // If there is an active ARF at this location use the minimum bits on this frame
-            else
+            // If there is an active ARF at this location use the minimum
+            // bits on this frame unless it was a contructed arf.
+            else if (cpi->oxcf.arnr_max_frames == 0)
             {
                 cpi->this_frame_target = 0;           // Minimial spend on gf that is replacing an arf
             }
@@ -1171,7 +1172,8 @@ void vp8_update_rate_correction_factors(VP8_COMP *cpi, int damp_var)
         while (Z > 0)
         {
             Z --;
-            projected_size_based_on_q *= (int)Factor;
+            projected_size_based_on_q =
+                (int)(Factor * projected_size_based_on_q);
             Factor += factor_adjustment;
 
             if (Factor  >= 0.999)
@@ -1362,7 +1364,8 @@ int vp8_regulate_q(VP8_COMP *cpi, int target_bits_per_frame)
                 if (cpi->zbin_over_quant > zbin_oqmax)
                     cpi->zbin_over_quant = zbin_oqmax;
 
-                bits_per_mb_at_this_q *= (int)Factor;                   // Each over-ruin step is assumed to equate to approximately 3% reduction in bitrate
+                // Adjust bits_per_mb_at_this_q estimate
+                bits_per_mb_at_this_q = (int)(Factor * bits_per_mb_at_this_q);
                 Factor += factor_adjustment;
 
                 if (Factor  >= 0.999)

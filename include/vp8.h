@@ -1,10 +1,11 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license and patent
- *  grant that can be found in the LICENSE file in the root of the source
- *  tree. All contributing project authors may be found in the AUTHORS
- *  file in the root of the source tree.
+ *  Use of this source code is governed by a BSD-style license 
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may 
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
 
@@ -29,7 +30,7 @@
  */
 #ifndef VP8_H
 #define VP8_H
-#include "vpx_codec_impl_top.h"
+#include "vpx/vpx_codec_impl_top.h"
 
 /*!\brief Control functions
  *
@@ -112,5 +113,5 @@ VPX_CTRL_USE_TYPE(VP8_SET_POSTPROC,            vp8_postproc_cfg_t *)
 DECLSPEC_DEPRECATED extern vpx_codec_iface_t vpx_codec_vp8_algo DEPRECATED;
 #endif
 
-#include "vpx_codec_impl_bottom.h"
+#include "vpx/vpx_codec_impl_bottom.h"
 #endif

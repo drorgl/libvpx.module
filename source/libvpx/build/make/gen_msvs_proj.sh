@@ -2,15 +2,17 @@
 ##
 ##  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
 ##
-##  Use of this source code is governed by a BSD-style license and patent
-##  grant that can be found in the LICENSE file in the root of the source
-##  tree. All contributing project authors may be found in the AUTHORS
-##  file in the root of the source tree.
+##  Use of this source code is governed by a BSD-style license 
+##  that can be found in the LICENSE file in the root of the source
+##  tree. An additional intellectual property rights grant can be found
+##  in the file PATENTS.  All contributing project authors may 
+##  be found in the AUTHORS file in the root of the source tree.
 ##
 
 
 self=$0
 self_basename=${self##*/}
+self_dirname=$(dirname "$0")
 EOL=$'\n'
 
 show_help() {
@@ -291,8 +293,8 @@ case "$target" in
     x86*)
         platforms[0]="Win32"
         # these are only used by vs7
-        asm_Debug_cmdline="yasm -Xvc -g cv8 -f \$(PlatformName) ${yasmincs} \$(InputPath)"
-        asm_Release_cmdline="yasm -Xvc -f \$(PlatformName) ${yasmincs} \$(InputPath)"
+        asm_Debug_cmdline="yasm -Xvc -g cv8 -f \$(PlatformName) ${yasmincs} &quot;\$(InputPath)&quot;"
+        asm_Release_cmdline="yasm -Xvc -f \$(PlatformName) ${yasmincs} &quot;\$(InputPath)&quot;"
     ;;
     arm*|iwmmx*)
         case "${name}" in
@@ -342,19 +344,19 @@ generate_vcproj() {
 
     open_tag  ToolFiles
     case "$target" in
-        x86*) $uses_asm && tag DefaultToolFile FileName="yasm.rules"
+        x86*) $uses_asm && tag ToolFile RelativePath="$self_dirname/../x86-msvs/yasm.rules"
         ;;
         arm*|iwmmx*)
             if [ "$name" == "vpx_decoder" ];then
             case "$target" in
                 armv5*)
-                    tag DefaultToolFile FileName="armasmv5.rules"
+                    tag ToolFile RelativePath="$self_dirname/../arm-wince-vs8/armasmv5.rules"
                 ;;
                 armv6*)
-                    tag DefaultToolFile FileName="armasmv6.rules"
+                    tag ToolFile RelativePath="$self_dirname/../arm-wince-vs8/armasmv6.rules"
                 ;;
                 iwmmxt*)
-                    tag DefaultToolFile FileName="armasmxscale.rules"
+                    tag ToolFile RelativePath="$self_dirname/../arm-wince-vs8/armasmxscale.rules"
                 ;;
             esac
             fi
@@ -385,7 +387,7 @@ generate_vcproj() {
                              ExecutionBucket="7" \
                              Optimization="0" \
                              AdditionalIncludeDirectories="$incs" \
-                             PreprocessorDefinitions="_DEBUG;_WIN32_WCE=\$(CEVER);UNDER_CE;\$(PLATFORMDEFINES);WINCE;DEBUG;_LIB;\$(ARCHFAM);\$(_ARCHFAM_);_UNICODE;UNICODE;HAVE_CONFIG_H" \
+                             PreprocessorDefinitions="_DEBUG;_WIN32_WCE=\$(CEVER);UNDER_CE;\$(PLATFORMDEFINES);WINCE;DEBUG;_LIB;\$(ARCHFAM);\$(_ARCHFAM_);_UNICODE;UNICODE;" \
                              MinimalRebuild="true" \
                              RuntimeLibrary="1" \
                              BufferSecurityCheck="false" \
@@ -404,7 +406,7 @@ generate_vcproj() {
                              ExecutionBucket="7" \
                              Optimization="0" \
                              AdditionalIncludeDirectories="$incs" \
-                             PreprocessorDefinitions="_DEBUG;_WIN32_WCE=\$(CEVER);UNDER_CE;\$(PLATFORMDEFINES);WINCE;DEBUG;_CONSOLE;\$(ARCHFAM);\$(_ARCHFAM_);_UNICODE;UNICODE;HAVE_CONFIG_H" \
+                             PreprocessorDefinitions="_DEBUG;_WIN32_WCE=\$(CEVER);UNDER_CE;\$(PLATFORMDEFINES);WINCE;DEBUG;_CONSOLE;\$(ARCHFAM);\$(_ARCHFAM_);_UNICODE;UNICODE;" \
                              MinimalRebuild="true" \
                              RuntimeLibrary="1" \
                              BufferSecurityCheck="false" \
@@ -544,7 +546,7 @@ generate_vcproj() {
                                              Optimization="2" \
                                              FavorSizeOrSpeed="1" \
                                              AdditionalIncludeDirectories="$incs" \
-                                             PreprocessorDefinitions="NDEBUG;_WIN32_WCE=\$(CEVER);UNDER_CE;\$(PLATFORMDEFINES);WINCE;_LIB;\$(ARCHFAM);\$(_ARCHFAM_);_UNICODE;UNICODE;HAVE_CONFIG_H" \
+                                             PreprocessorDefinitions="NDEBUG;_WIN32_WCE=\$(CEVER);UNDER_CE;\$(PLATFORMDEFINES);WINCE;_LIB;\$(ARCHFAM);\$(_ARCHFAM_);_UNICODE;UNICODE;" \
                                              RuntimeLibrary="0" \
                                              BufferSecurityCheck="false" \
                                              UsePrecompiledHeader="0" \
@@ -563,7 +565,7 @@ generate_vcproj() {
                              Optimization="2" \
                              FavorSizeOrSpeed="1" \
                              AdditionalIncludeDirectories="$incs" \
-                             PreprocessorDefinitions="NDEBUG;_WIN32_WCE=\$(CEVER);UNDER_CE;\$(PLATFORMDEFINES);WINCE;_CONSOLE;\$(ARCHFAM);\$(_ARCHFAM_);_UNICODE;UNICODE;HAVE_CONFIG_H" \
+                             PreprocessorDefinitions="NDEBUG;_WIN32_WCE=\$(CEVER);UNDER_CE;\$(PLATFORMDEFINES);WINCE;_CONSOLE;\$(ARCHFAM);\$(_ARCHFAM_);_UNICODE;UNICODE;" \
                              RuntimeLibrary="0" \
                              BufferSecurityCheck="false" \
                              UsePrecompiledHeader="0" \

@@ -1,10 +1,11 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license and patent
- *  grant that can be found in the LICENSE file in the root of the source
- *  tree. All contributing project authors may be found in the AUTHORS
- *  file in the root of the source tree.
+ *  Use of this source code is governed by a BSD-style license
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
 
@@ -125,6 +126,62 @@ static void skip_recon_mb(VP8D_COMP *pbi, MACROBLOCKD *xd)
     }
 }
 
+
+static void clamp_mv_to_umv_border(MV *mv, const MACROBLOCKD *xd)
+{
+    /* If the MV points so far into the UMV border that no visible pixels
+     * are used for reconstruction, the subpel part of the MV can be
+     * discarded and the MV limited to 16 pixels with equivalent results.
+     *
+     * This limit kicks in at 19 pixels for the top and left edges, for
+     * the 16 pixels plus 3 taps right of the central pixel when subpel
+     * filtering. The bottom and right edges use 16 pixels plus 2 pixels
+     * left of the central pixel when filtering.
+     */
+    if (mv->col < (xd->mb_to_left_edge - (19 << 3)))
+        mv->col = xd->mb_to_left_edge - (16 << 3);
+    else if (mv->col > xd->mb_to_right_edge + (18 << 3))
+        mv->col = xd->mb_to_right_edge + (16 << 3);
+
+    if (mv->row < (xd->mb_to_top_edge - (19 << 3)))
+        mv->row = xd->mb_to_top_edge - (16 << 3);
+    else if (mv->row > xd->mb_to_bottom_edge + (18 << 3))
+        mv->row = xd->mb_to_bottom_edge + (16 << 3);
+}
+
+/* A version of the above function for chroma block MVs.*/
+static void clamp_uvmv_to_umv_border(MV *mv, const MACROBLOCKD *xd)
+{
+    if (2*mv->col < (xd->mb_to_left_edge - (19 << 3)))
+        mv->col = (xd->mb_to_left_edge - (16 << 3)) >> 1;
+    else if (2*mv->col > xd->mb_to_right_edge + (18 << 3))
+        mv->col = (xd->mb_to_right_edge + (16 << 3)) >> 1;
+
+    if (2*mv->row < (xd->mb_to_top_edge - (19 << 3)))
+        mv->row = (xd->mb_to_top_edge - (16 << 3)) >> 1;
+    else if (2*mv->row > xd->mb_to_bottom_edge + (18 << 3))
+        mv->row = (xd->mb_to_bottom_edge + (16 << 3)) >> 1;
+}
+
+static void clamp_mvs(MACROBLOCKD *xd)
+{
+    if (xd->mbmi.mode == SPLITMV)
+    {
+        int i;
+
+        for (i=0; i<16; i++)
+            clamp_mv_to_umv_border(&xd->block[i].bmi.mv.as_mv, xd);
+        for (i=16; i<24; i++)
+            clamp_uvmv_to_umv_border(&xd->block[i].bmi.mv.as_mv, xd);
+    }
+    else
+    {
+        clamp_mv_to_umv_border(&xd->mbmi.mv.as_mv, xd);
+        clamp_uvmv_to_umv_border(&xd->block[16].bmi.mv.as_mv, xd);
+    }
+
+}
+
 static void reconstruct_mb(VP8D_COMP *pbi, MACROBLOCKD *xd)
 {
     if (xd->frame_type == KEY_FRAME  ||  xd->mbmi.ref_frame == INTRA_FRAME)
@@ -232,6 +289,8 @@ static void de_quantand_idct(VP8D_COMP *pbi, MACROBLOCKD *xd)
 void vp8_decode_macroblock(VP8D_COMP *pbi, MACROBLOCKD *xd)
 {
     int eobtotal = 0;
+    MV  orig_mvs[24];
+    int i, do_clamp = xd->mbmi.need_to_clamp_mvs;
 
     if (xd->mbmi.mb_skip_coeff)
     {
@@ -242,20 +301,49 @@ void vp8_decode_macroblock(VP8D_COMP *pbi, MACROBLOCKD *xd)
         eobtotal = vp8_decode_mb_tokens(pbi, xd);
     }
 
+    /* Perform temporary clamping of the MV to be used for prediction */
+    if (do_clamp)
+    {
+        if (xd->mbmi.mode == SPLITMV)
+            for (i=0; i<24; i++)
+                orig_mvs[i] = xd->block[i].bmi.mv.as_mv;
+        else
+        {
+            orig_mvs[0] = xd->mbmi.mv.as_mv;
+            orig_mvs[1] = xd->block[16].bmi.mv.as_mv;
+        }
+        clamp_mvs(xd);
+    }
+
     xd->mode_info_context->mbmi.dc_diff = 1;
 
     if (xd->mbmi.mode != B_PRED && xd->mbmi.mode != SPLITMV && eobtotal == 0)
     {
         xd->mode_info_context->mbmi.dc_diff = 0;
         skip_recon_mb(pbi, xd);
-        return;
+    }
+    else
+    {
+        if (xd->segmentation_enabled)
+            mb_init_dequantizer(pbi, xd);
+
+        de_quantand_idct(pbi, xd);
+        reconstruct_mb(pbi, xd);
     }
 
-    if (xd->segmentation_enabled)
-        mb_init_dequantizer(pbi, xd);
 
-    de_quantand_idct(pbi, xd);
-    reconstruct_mb(pbi, xd);
+    /* Restore the original MV so as not to affect the entropy context. */
+    if (do_clamp)
+    {
+        if (xd->mbmi.mode == SPLITMV)
+            for (i=0; i<24; i++)
+                xd->block[i].bmi.mv.as_mv = orig_mvs[i];
+        else
+        {
+            xd->mbmi.mv.as_mv = orig_mvs[0];
+            xd->block[16].bmi.mv.as_mv = orig_mvs[1];
+        }
+    }
 }
 
 static int get_delta_q(vp8_reader *bc, int prev, int *q_update)
@@ -313,7 +401,9 @@ void vp8_decode_mb_row(VP8D_COMP *pbi,
     for (mb_col = 0; mb_col < pc->mb_cols; mb_col++)
     {
         // Take a copy of the mode and Mv information for this macroblock into the xd->mbmi
-        vpx_memcpy(&xd->mbmi, &xd->mode_info_context->mbmi, 32); //sizeof(MB_MODE_INFO) );
+        // the partition_bmi array is unused in the decoder, so don't copy it.
+        vpx_memcpy(&xd->mbmi, &xd->mode_info_context->mbmi,
+                   sizeof(MB_MODE_INFO) - sizeof(xd->mbmi.partition_bmi));
 
         if (xd->mbmi.mode == SPLITMV || xd->mbmi.mode == B_PRED)
         {
@@ -360,7 +450,7 @@ void vp8_decode_mb_row(VP8D_COMP *pbi,
         vp8_build_uvmvs(xd, pc->full_pixel);
 
         /*
-        if(pbi->common.current_video_frame==0 &&mb_col==1 && mb_row==0)
+        if(pc->current_video_frame==0 &&mb_col==1 && mb_row==0)
         pbi->debugoutput =1;
         else
         pbi->debugoutput =0;
@@ -609,7 +699,7 @@ int vp8_decode_frame(VP8D_COMP *pbi)
                                    "Invalid frame height");
             }
 
-            if (vp8_alloc_frame_buffers(&pbi->common, pc->Width, pc->Height))
+            if (vp8_alloc_frame_buffers(pc, pc->Width, pc->Height))
                 vpx_internal_error(&pc->error, VPX_CODEC_MEM_ERROR,
                                    "Failed to allocate frame buffers");
         }
@@ -846,17 +936,17 @@ int vp8_decode_frame(VP8D_COMP *pbi)
     vpx_memcpy(&xd->block[0].bmi, &xd->mode_info_context->bmi[0], sizeof(B_MODE_INFO));
 
 
-    if (pbi->b_multithreaded_lf && pbi->common.filter_level != 0)
+    if (pbi->b_multithreaded_lf && pc->filter_level != 0)
         vp8_start_lfthread(pbi);
 
-    if (pbi->b_multithreaded_rd && pbi->common.multi_token_partition != ONE_PARTITION)
+    if (pbi->b_multithreaded_rd && pc->multi_token_partition != ONE_PARTITION)
     {
         vp8_mtdecode_mb_rows(pbi, xd);
     }
     else
     {
         int ibc = 0;
-        int num_part = 1 << pbi->common.multi_token_partition;
+        int num_part = 1 << pc->multi_token_partition;
 
         // Decode the individual macro block
         for (mb_row = 0; mb_row < pc->mb_rows; mb_row++)
@@ -885,8 +975,11 @@ int vp8_decode_frame(VP8D_COMP *pbi)
     // vpx_log("Decoder: Frame Decoded, Size Roughly:%d bytes  \n",bc->pos+pbi->bc2.pos);
 
     // If this was a kf or Gf note the Q used
-    if ((pc->frame_type == KEY_FRAME) || (pc->refresh_golden_frame) || pbi->common.refresh_alt_ref_frame)
+    if ((pc->frame_type == KEY_FRAME) ||
+         pc->refresh_golden_frame || pc->refresh_alt_ref_frame)
+    {
         pc->last_kf_gf_q = pc->base_qindex;
+    }
 
     if (pc->refresh_entropy_probs == 0)
     {

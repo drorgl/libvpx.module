@@ -1,13 +1,13 @@
 #!/bin/bash
 ##
-##  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
+##  configure.sh
 ##
-##  Use of this source code is governed by a BSD-style license and patent
-##  grant that can be found in the LICENSE file in the root of the source
-##  tree. All contributing project authors may be found in the AUTHORS
-##  file in the root of the source tree.
+##  This script is sourced by the main configure script and contains
+##  utility functions and other common bits that aren't strictly libvpx
+##  related.
 ##
-
+##  This build system is based in part on the FFmpeg configure script.
+##
 
 
 #
@@ -120,8 +120,8 @@ EOF
 
 show_targets() {
     while [ -n "$*" ]; do
-        if [ "${1%%-*}" == "${2%%-*}" ]; then
-            if [ "${2%%-*}" == "${3%%-*}" ]; then
+        if [ "${1%%-*}" = "${2%%-*}" ]; then
+            if [ "${2%%-*}" = "${3%%-*}" ]; then
                 printf "    %-24s %-24s %-24s\n" "$1" "$2" "$3"
                 shift; shift; shift
             else
@@ -348,7 +348,6 @@ true
 }
 
 write_common_target_config_mk() {
-    [ -n "$2" ] && local have_config_h="-DHAVE_CONFIG_H=\"${2##*/}\""
     local CC=${CC}
     enabled ccache && CC="ccache ${CC}"
 
@@ -367,7 +366,7 @@ AS=${AS}
 STRIP=${STRIP}
 NM=${NM}
 
-CFLAGS  = ${CFLAGS} ${have_config_h}
+CFLAGS  = ${CFLAGS}
 ARFLAGS = -rus\$(if \$(quiet),c,v)
 LDFLAGS = ${LDFLAGS}
 ASFLAGS = ${ASFLAGS}
@@ -443,7 +442,13 @@ process_common_cmdline() {
         disable builtin_libc
         alt_libc="${optval}"
         ;;
-        --libc)
+        --prefix=*)
+        prefix="${optval}"
+        ;;
+        --libdir=*)
+        libdir="${optval}"
+        ;;
+        --libc|--prefix|--libdir)
         die "Option ${opt} requires argument"
         ;;
         --help|-h) show_help
@@ -464,6 +469,18 @@ process_cmdline() {
     done
 }
 
+
+post_process_common_cmdline() {
+    prefix="${prefix:-/usr/local}"
+    prefix="${prefix%/}"
+    libdir="${libdir:-${prefix}/lib}"
+    libdir="${libdir%/}"
+    if [ "${libdir#${prefix}}" = "${libdir}" ]; then
+        die "Libdir ${libdir} must be a subdirectory of ${prefix}"
+    fi
+}
+
+
 post_process_cmdline() {
     true;
 }
@@ -479,6 +496,42 @@ setup_gnu_toolchain() {
 }
 
 process_common_toolchain() {
+    if [ -z "$toolchain" ]; then
+	gcctarget="$(gcc -dumpmachine 2> /dev/null)"
+
+        # detect tgt_isa
+        case "$gcctarget" in
+            *x86_64*|*amd64*)
+                tgt_isa=x86_64
+                ;;
+            *i[3456]86*)
+                tgt_isa=x86
+                ;;
+        esac
+
+        # detect tgt_os
+        case "$gcctarget" in
+            *darwin8*)
+                tgt_isa=universal
+                tgt_os=darwin8
+                ;;
+            *darwin9*)
+                tgt_isa=universal
+                tgt_os=darwin9
+                ;;
+            *mingw32*|*cygwin*)
+                tgt_os=win32
+                ;;
+            *linux*|*bsd*)
+                tgt_os=linux
+                ;;
+        esac
+
+        if [ -n "$tgt_isa" ] && [ -n "$tgt_os" ]; then
+            toolchain=${tgt_isa}-${tgt_os}-gcc
+        fi
+    fi
+
     toolchain=${toolchain:-generic-gnu}
 
     is_in ${toolchain} ${all_platforms} || enabled force_toolchain \
@@ -781,6 +834,7 @@ process_common_toolchain() {
     ;;
     universal*|*-gcc|generic-gnu)
         link_with_cc=gcc
+        enable gcc
     setup_gnu_toolchain
     ;;
     esac
@@ -844,8 +898,8 @@ process_toolchain() {
 }
 
 print_config_mk() {
-    prefix=$1
-    makefile=$2
+    local prefix=$1
+    local makefile=$2
     shift 2
     for cfg; do
         upname="`toupper $cfg`"
@@ -856,8 +910,8 @@ print_config_mk() {
 }
 
 print_config_h() {
-    prefix=$1
-    header=$2
+    local prefix=$1
+    local header=$2
     shift 2
     for cfg; do
         upname="`toupper $cfg`"
@@ -888,6 +942,7 @@ process() {
     else
         echo "# ${self} $@" > ${logfile}
     fi
+    post_process_common_cmdline
     post_process_cmdline
     process_toolchain
     process_detect

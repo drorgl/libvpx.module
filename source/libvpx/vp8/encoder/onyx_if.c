@@ -1,10 +1,11 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license and patent
- *  grant that can be found in the LICENSE file in the root of the source
- *  tree. All contributing project authors may be found in the AUTHORS
- *  file in the root of the source tree.
+ *  Use of this source code is governed by a BSD-style license 
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may 
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
 
@@ -281,7 +282,6 @@ static void segmentation_test_function(VP8_PTR ptr)
 
     unsigned char *seg_map;
     signed char feature_data[MB_LVL_MAX][MAX_MB_SEGMENTS];
-    int i, j;
 
     // Create a temporary map for segmentation data.
     CHECK_MEM_ERROR(seg_map, vpx_calloc(cpi->common.mb_rows * cpi->common.mb_cols, 1));
@@ -811,7 +811,7 @@ void vp8_set_speed_features(VP8_COMP *cpi)
         sf->full_freq[1] = 31;
         sf->search_method = NSTEP;
 
-        if (!cpi->ref_frame_flags & VP8_LAST_FLAG)
+        if (!(cpi->ref_frame_flags & VP8_LAST_FLAG))
         {
             sf->thresh_mult[THR_NEWMV    ] = INT_MAX;
             sf->thresh_mult[THR_NEARESTMV] = INT_MAX;
@@ -820,7 +820,7 @@ void vp8_set_speed_features(VP8_COMP *cpi)
             sf->thresh_mult[THR_SPLITMV  ] = INT_MAX;
         }
 
-        if (!cpi->ref_frame_flags & VP8_GOLD_FLAG)
+        if (!(cpi->ref_frame_flags & VP8_GOLD_FLAG))
         {
             sf->thresh_mult[THR_NEARESTG ] = INT_MAX;
             sf->thresh_mult[THR_ZEROG    ] = INT_MAX;
@@ -829,7 +829,7 @@ void vp8_set_speed_features(VP8_COMP *cpi)
             sf->thresh_mult[THR_SPLITG   ] = INT_MAX;
         }
 
-        if (!cpi->ref_frame_flags & VP8_ALT_FLAG)
+        if (!(cpi->ref_frame_flags & VP8_ALT_FLAG))
         {
             sf->thresh_mult[THR_NEARESTA ] = INT_MAX;
             sf->thresh_mult[THR_ZEROA    ] = INT_MAX;
@@ -1144,18 +1144,15 @@ void vp8_set_speed_features(VP8_COMP *cpi)
         cpi->mb.short_fdct4x4rd = FDCT_INVOKE(&cpi->rtcd.fdct, fast4x4);
     }
 
-    cpi->mb.vp8_short_fdct4x4_ptr = FDCT_INVOKE(&cpi->rtcd.fdct, short4x4);
     cpi->mb.short_walsh4x4 = FDCT_INVOKE(&cpi->rtcd.fdct, walsh_short4x4);
 
     if (cpi->sf.improved_quant)
     {
         cpi->mb.quantize_b    = QUANTIZE_INVOKE(&cpi->rtcd.quantize, quantb);
-        cpi->mb.quantize_brd  = QUANTIZE_INVOKE(&cpi->rtcd.quantize, quantb);
     }
     else
     {
         cpi->mb.quantize_b      = QUANTIZE_INVOKE(&cpi->rtcd.quantize, fastquantb);
-        cpi->mb.quantize_brd    = QUANTIZE_INVOKE(&cpi->rtcd.quantize, fastquantb);
     }
 
 #if CONFIG_RUNTIME_CPU_DETECT
@@ -2252,7 +2249,7 @@ void vp8_remove_compressor(VP8_PTR *ptr)
                 double total_psnr2 = vp8_mse2psnr(samples, 255.0, cpi->total_sq_error2);
                 double total_ssim = 100 * pow(cpi->summed_quality / cpi->summed_weights, 8.0);
 
-                fprintf(f, "Bitrate\AVGPsnr\tGLBPsnr\tAVPsnrP\tGLPsnrP\tVPXSSIM\t  Time(us)\n");
+                fprintf(f, "Bitrate\tAVGPsnr\tGLBPsnr\tAVPsnrP\tGLPsnrP\tVPXSSIM\t  Time(us)\n");
                 fprintf(f, "%7.3f\t%7.3f\t%7.3f\t%7.3f\t%7.3f\t%7.3f %8.0f\n",
                         dr, cpi->total / cpi->count, total_psnr, cpi->totalp / cpi->count, total_psnr2, total_ssim,
                         total_encode_time);
@@ -4739,7 +4736,6 @@ void vp8_check_gf_quality(VP8_COMP *cpi)
 #if !(CONFIG_REALTIME_ONLY)
 static void Pass2Encode(VP8_COMP *cpi, unsigned long *size, unsigned char *dest, unsigned int *frame_flags)
 {
-    double two_pass_min_rate = (double)(cpi->oxcf.target_bandwidth * cpi->oxcf.two_pass_vbrmin_section / 100);
 
     if (!cpi->common.refresh_alt_ref_frame)
         vp8_second_pass(cpi);
@@ -4748,7 +4744,11 @@ static void Pass2Encode(VP8_COMP *cpi, unsigned long *size, unsigned char *dest,
     cpi->bits_left -= 8 * *size;
 
     if (!cpi->common.refresh_alt_ref_frame)
+    {
+        double two_pass_min_rate = (double)(cpi->oxcf.target_bandwidth
+            *cpi->oxcf.two_pass_vbrmin_section / 100);
         cpi->bits_left += (long long)(two_pass_min_rate / cpi->oxcf.frame_rate);
+    }
 }
 #endif
 
@@ -5402,7 +5402,7 @@ int vp8_calc_low_ss_err(YV12_BUFFER_CONFIG *source, YV12_BUFFER_CONFIG *dest, co
     {
         for (j = 0; j < source->y_width; j += 16)
         {
-            unsigned int sse, sse2, sum2;
+            unsigned int sse;
             VARIANCE_INVOKE(rtcd, mse16x16)(src + j, source->y_stride, dst + j, dest->y_stride, &sse);
 
             if (sse < 8096)

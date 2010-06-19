@@ -1,10 +1,11 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license and patent
- *  grant that can be found in the LICENSE file in the root of the source
- *  tree. All contributing project authors may be found in the AUTHORS
- *  file in the root of the source tree.
+ *  Use of this source code is governed by a BSD-style license 
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may 
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
 
@@ -25,7 +26,7 @@
 #include "entropy.h"
 #include "threading.h"
 #include "vpx_ports/mem.h"
-#include "vpx_codec/internal/vpx_codec_internal.h"
+#include "vpx/internal/vpx_codec_internal.h"
 #include "mcomp.h"
 
 #define INTRARDOPT
@@ -522,8 +523,8 @@ typedef struct
     int motion_lvl;
     int motion_speed;
     int motion_var;
-    int next_iiratio;
-    int this_iiratio;
+    unsigned int next_iiratio;
+    unsigned int this_iiratio;
     int this_frame_modified_error;
 
     double norm_intra_err_per_mb;

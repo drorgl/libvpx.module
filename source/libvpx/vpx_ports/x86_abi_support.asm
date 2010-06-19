@@ -1,10 +1,11 @@
 ;
 ;  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
 ;
-;  Use of this source code is governed by a BSD-style license and patent
-;  grant that can be found in the LICENSE file in the root of the source
-;  tree. All contributing project authors may be found in the AUTHORS
-;  file in the root of the source tree.
+;  Use of this source code is governed by a BSD-style license 
+;  that can be found in the LICENSE file in the root of the source
+;  tree. An additional intellectual property rights grant can be found
+;  in the file PATENTS.  All contributing project authors may 
+;  be found in the AUTHORS file in the root of the source tree.
 ;
 
 
@@ -198,22 +199,38 @@
         push r9
     %endif
     %if %1 > 6
-        mov rax,[rbp+16]
+      %assign i %1-6
+      %assign off 16
+      %rep i
+        mov rax,[rbp+off]
         push rax
-    %endif
-    %if %1 > 7
-        mov rax,[rbp+24]
-        push rax
-    %endif
-    %if %1 > 8
-        mov rax,[rbp+32]
-        push rax
+        %assign off off+8
+      %endrep
     %endif
   %endm
 %endif
   %define UNSHADOW_ARGS mov rsp, rbp
 %endif
 
+; must keep XMM6:XMM15 (libvpx uses XMM6 and XMM7) on Win64 ABI
+; rsp register has to be aligned
+%ifidn __OUTPUT_FORMAT__,x64
+%macro SAVE_XMM 0
+  sub rsp, 32
+  movdqa XMMWORD PTR [rsp], xmm6
+  movdqa XMMWORD PTR [rsp+16], xmm7
+%endmacro
+%macro RESTORE_XMM 0
+  movdqa xmm6, XMMWORD PTR [rsp]
+  movdqa xmm7, XMMWORD PTR [rsp+16]
+  add rsp, 32
+%endmacro
+%else
+%macro SAVE_XMM 0
+%endmacro
+%macro RESTORE_XMM 0
+%endmacro
+%endif
 
 ; Name of the rodata section
 ;
@@ -229,3 +246,14 @@ fake_got:
 %else
 %define SECTION_RODATA section .rodata
 %endif
+
+
+; Tell GNU ld that we don't require an executable stack.
+%ifidn __OUTPUT_FORMAT__,elf32
+section .note.GNU-stack noalloc noexec nowrite progbits
+section .text
+%elifidn __OUTPUT_FORMAT__,elf64
+section .note.GNU-stack noalloc noexec nowrite progbits
+section .text
+%endif
+

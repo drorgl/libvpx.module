@@ -1,10 +1,11 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license and patent
- *  grant that can be found in the LICENSE file in the root of the source
- *  tree. All contributing project authors may be found in the AUTHORS
- *  file in the root of the source tree.
+ *  Use of this source code is governed by a BSD-style license 
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may 
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
 
@@ -21,7 +22,7 @@
  */
 #ifndef VP8CX_H
 #define VP8CX_H
-#include "vpx_codec_impl_top.h"
+#include "vpx/vpx_codec_impl_top.h"
 
 /*!\brief Algorithm interface for VP8
  *
@@ -257,5 +258,5 @@ VPX_CTRL_USE_TYPE(VP8E_GET_LAST_QUANTIZER,     int *)
 VPX_CTRL_USE_TYPE(VP8E_GET_LAST_QUANTIZER_64,  int *)
 
 /*! @} - end defgroup vp8_encoder */
-#include "vpx_codec_impl_bottom.h"
+#include "vpx/vpx_codec_impl_bottom.h"
 #endif

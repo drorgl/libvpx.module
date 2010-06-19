@@ -1,10 +1,11 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license and patent
- *  grant that can be found in the LICENSE file in the root of the source
- *  tree. All contributing project authors may be found in the AUTHORS
- *  file in the root of the source tree.
+ *  Use of this source code is governed by a BSD-style license 
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may 
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
 
@@ -55,9 +56,7 @@ void vp8_fast_quantize_b_c(BLOCK *b, BLOCKD *d)
             }
         }
     }
-
     d->eob = eob + 1;
-
 }
 
 void vp8_regular_quantize_b(BLOCK *b, BLOCKD *d)
@@ -111,61 +110,40 @@ void vp8_regular_quantize_b(BLOCK *b, BLOCKD *d)
 
     d->eob = eob + 1;
 }
+
 void vp8_quantize_mby(MACROBLOCK *x)
 {
     int i;
+    int has_2nd_order = (x->e_mbd.mbmi.mode != B_PRED
+        && x->e_mbd.mbmi.mode != SPLITMV);
 
-    if (x->e_mbd.mbmi.mode != B_PRED && x->e_mbd.mbmi.mode != SPLITMV)
+    for (i = 0; i < 16; i++)
     {
-        for (i = 0; i < 16; i++)
-        {
-            x->quantize_b(&x->block[i], &x->e_mbd.block[i]);
-            x->e_mbd.mbmi.mb_skip_coeff &= (x->e_mbd.block[i].eob < 2);
-        }
+        x->quantize_b(&x->block[i], &x->e_mbd.block[i]);
+        x->e_mbd.mbmi.mb_skip_coeff &=
+            (x->e_mbd.block[i].eob <= has_2nd_order);
+    }
 
+    if(has_2nd_order)
+    {
         x->quantize_b(&x->block[24], &x->e_mbd.block[24]);
         x->e_mbd.mbmi.mb_skip_coeff &= (!x->e_mbd.block[24].eob);
-
-    }
-    else
-    {
-        for (i = 0; i < 16; i++)
-        {
-            x->quantize_b(&x->block[i], &x->e_mbd.block[i]);
-            x->e_mbd.mbmi.mb_skip_coeff &= (!x->e_mbd.block[i].eob);
-        }
     }
 }
 
 void vp8_quantize_mb(MACROBLOCK *x)
 {
     int i;
+    int has_2nd_order=(x->e_mbd.mbmi.mode != B_PRED
+        && x->e_mbd.mbmi.mode != SPLITMV);
 
     x->e_mbd.mbmi.mb_skip_coeff = 1;
-
-    if (x->e_mbd.mbmi.mode != B_PRED && x->e_mbd.mbmi.mode != SPLITMV)
+    for (i = 0; i < 24+has_2nd_order; i++)
     {
-        for (i = 0; i < 16; i++)
-        {
-            x->quantize_b(&x->block[i], &x->e_mbd.block[i]);
-            x->e_mbd.mbmi.mb_skip_coeff &= (x->e_mbd.block[i].eob < 2);
-        }
-
-        for (i = 16; i < 25; i++)
-        {
-            x->quantize_b(&x->block[i], &x->e_mbd.block[i]);
-            x->e_mbd.mbmi.mb_skip_coeff &= (!x->e_mbd.block[i].eob);
-        }
+        x->quantize_b(&x->block[i], &x->e_mbd.block[i]);
+        x->e_mbd.mbmi.mb_skip_coeff &=
+            (x->e_mbd.block[i].eob <= (has_2nd_order && i<16));
     }
-    else
-    {
-        for (i = 0; i < 24; i++)
-        {
-            x->quantize_b(&x->block[i], &x->e_mbd.block[i]);
-            x->e_mbd.mbmi.mb_skip_coeff &= (!x->e_mbd.block[i].eob);
-        }
-    }
-
 }
 
 
@@ -177,73 +155,5 @@ void vp8_quantize_mbuv(MACROBLOCK *x)
     {
         x->quantize_b(&x->block[i], &x->e_mbd.block[i]);
         x->e_mbd.mbmi.mb_skip_coeff &= (!x->e_mbd.block[i].eob);
-    }
-}
-
-// This function is not currently called
-void vp8_quantize_mbrd(MACROBLOCK *x)
-{
-    int i;
-
-    x->e_mbd.mbmi.mb_skip_coeff = 1;
-
-    if (x->e_mbd.mbmi.mode != B_PRED && x->e_mbd.mbmi.mode != SPLITMV)
-    {
-        for (i = 0; i < 16; i++)
-        {
-            x->quantize_brd(&x->block[i], &x->e_mbd.block[i]);
-            x->e_mbd.mbmi.mb_skip_coeff &= (x->e_mbd.block[i].eob < 2);
-        }
-
-        for (i = 16; i < 25; i++)
-        {
-            x->quantize_brd(&x->block[i], &x->e_mbd.block[i]);
-            x->e_mbd.mbmi.mb_skip_coeff &= (!x->e_mbd.block[i].eob);
-        }
-    }
-    else
-    {
-        for (i = 0; i < 24; i++)
-        {
-            x->quantize_brd(&x->block[i], &x->e_mbd.block[i]);
-            x->e_mbd.mbmi.mb_skip_coeff &= (!x->e_mbd.block[i].eob);
-        }
-    }
-}
-
-void vp8_quantize_mbuvrd(MACROBLOCK *x)
-{
-    int i;
-
-    for (i = 16; i < 24; i++)
-    {
-        x->quantize_brd(&x->block[i], &x->e_mbd.block[i]);
-        x->e_mbd.mbmi.mb_skip_coeff &= (!x->e_mbd.block[i].eob);
-    }
-}
-
-void vp8_quantize_mbyrd(MACROBLOCK *x)
-{
-    int i;
-
-    if (x->e_mbd.mbmi.mode != B_PRED && x->e_mbd.mbmi.mode != SPLITMV)
-    {
-        for (i = 0; i < 16; i++)
-        {
-            x->quantize_brd(&x->block[i], &x->e_mbd.block[i]);
-            x->e_mbd.mbmi.mb_skip_coeff &= (x->e_mbd.block[i].eob < 2);
-        }
-
-        x->quantize_brd(&x->block[24], &x->e_mbd.block[24]);
-        x->e_mbd.mbmi.mb_skip_coeff &= (!x->e_mbd.block[24].eob);
-
-    }
-    else
-    {
-        for (i = 0; i < 16; i++)
-        {
-            x->quantize_brd(&x->block[i], &x->e_mbd.block[i]);
-            x->e_mbd.mbmi.mb_skip_coeff &= (!x->e_mbd.block[i].eob);
-        }
     }
 }

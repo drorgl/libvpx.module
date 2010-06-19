@@ -1,10 +1,11 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license and patent
- *  grant that can be found in the LICENSE file in the root of the source
- *  tree. All contributing project authors may be found in the AUTHORS
- *  file in the root of the source tree.
+ *  Use of this source code is governed by a BSD-style license 
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may 
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
 
@@ -65,25 +66,43 @@ void vp8_reset_mb_tokens_context(MACROBLOCKD *x)
 
     ENTROPY_CONTEXT *a;
     ENTROPY_CONTEXT *l;
-    int i;
 
-    for (i = 0; i < 24; i++)
-    {
+    /* Clear entropy contexts for Y blocks */
+    a = A[Y1CONTEXT];
+    l = L[Y1CONTEXT];
+    *a = 0;
+    *(a+1) = 0;
+    *(a+2) = 0;
+    *(a+3) = 0;
+    *l = 0;
+    *(l+1) = 0;
+    *(l+2) = 0;
+    *(l+3) = 0;
 
-        a = A[ vp8_block2context[i] ] + vp8_block2above[i];
-        l = L[ vp8_block2context[i] ] + vp8_block2left[i];
+    /* Clear entropy contexts for U blocks */
+    a = A[UCONTEXT];
+    l = L[UCONTEXT];
+    *a = 0;
+    *(a+1) = 0;
+    *l = 0;
+    *(l+1) = 0;
 
-        *a = *l = 0;
-    }
+    /* Clear entropy contexts for V blocks */
+    a = A[VCONTEXT];
+    l = L[VCONTEXT];
+    *a = 0;
+    *(a+1) = 0;
+    *l = 0;
+    *(l+1) = 0;
 
+    /* Clear entropy contexts for Y2 blocks */
     if (x->mbmi.mode != B_PRED && x->mbmi.mode != SPLITMV)
     {
-        a = A[Y2CONTEXT] + vp8_block2above[24];
-        l = L[Y2CONTEXT] + vp8_block2left[24];
-        *a = *l = 0;
+        a = A[Y2CONTEXT];
+        l = L[Y2CONTEXT];
+        *a = 0;
+        *l = 0;
     }
-
-
 }
 DECLARE_ALIGNED(16, extern const unsigned int, vp8dx_bitreader_norm[256]);
 #define NORMALIZE \

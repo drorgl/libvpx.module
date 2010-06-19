@@ -1,10 +1,11 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license and patent
- *  grant that can be found in the LICENSE file in the root of the source
- *  tree. All contributing project authors may be found in the AUTHORS
- *  file in the root of the source tree.
+ *  Use of this source code is governed by a BSD-style license 
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may 
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
 
@@ -170,13 +171,11 @@ static void fill_token_costs(
 
 }
 
-static int rd_iifactor [ 32 ] =  {    16,  16,  16,  12,   8,   4,   2,   0,
+static int rd_iifactor [ 32 ] =  {    4,   4,   3,   2,   1,   0,   0,   0,
                                       0,   0,   0,   0,   0,   0,   0,   0,
                                       0,   0,   0,   0,   0,   0,   0,   0,
                                       0,   0,   0,   0,   0,   0,   0,   0,
                                  };
-
-
 
 
 // The values in this table should be reviewed
@@ -237,36 +236,32 @@ void vp8_initialize_rd_consts(VP8_COMP *cpi, int Qvalue)
 
     vp8_clear_system_state();  //__asm emms;
 
-    cpi->RDMULT = (int)((0.00007 * (capped_q * capped_q * capped_q * capped_q)) - (0.0125 * (capped_q * capped_q * capped_q)) +
-                        (2.25 * (capped_q * capped_q)) - (12.5 * capped_q) + 25.0);
+    cpi->RDMULT = (int)( (0.0001 * (capped_q * capped_q * capped_q * capped_q))
+                        -(0.015 * (capped_q * capped_q * capped_q))
+                        +(3.25 * (capped_q * capped_q))
+                        -(17.5 * capped_q) + 125.0);
 
-    if (cpi->RDMULT < 25)
-        cpi->RDMULT = 25;
+    if (cpi->RDMULT < 125)
+        cpi->RDMULT = 125;
 
-    if (cpi->pass == 2)
+    if (cpi->pass == 2 && (cpi->common.frame_type != KEY_FRAME))
     {
-        if (cpi->common.frame_type == KEY_FRAME)
-            cpi->RDMULT += (cpi->RDMULT * rd_iifactor[0]) / 16;
-        else if (cpi->next_iiratio > 31)
-            cpi->RDMULT += (cpi->RDMULT * rd_iifactor[31]) / 16;
+        if (cpi->next_iiratio > 31)
+            cpi->RDMULT += (cpi->RDMULT * rd_iifactor[31]) >> 4;
         else
-            cpi->RDMULT += (cpi->RDMULT * rd_iifactor[cpi->next_iiratio]) / 16;
+            cpi->RDMULT += (cpi->RDMULT * rd_iifactor[cpi->next_iiratio]) >> 4;
     }
 
 
     // Extend rate multiplier along side quantizer zbin increases
     if (cpi->zbin_over_quant  > 0)
     {
-        // Extend rate multiplier along side quantizer zbin increases
-        if (cpi->zbin_over_quant  > 0)
-        {
-            double oq_factor = pow(1.006,  cpi->zbin_over_quant);
+        double oq_factor = pow(1.006,  cpi->zbin_over_quant);
 
-            if (oq_factor > (1.0 + ((double)cpi->zbin_over_quant / 64.0)))
-                oq_factor = (1.0 + (double)cpi->zbin_over_quant / 64.0);
+        if (oq_factor > (1.0 + ((double)cpi->zbin_over_quant / 64.0)))
+            oq_factor = (1.0 + (double)cpi->zbin_over_quant / 64.0);
 
-            cpi->RDMULT *= (int)oq_factor;
-        }
+        cpi->RDMULT = (int)(oq_factor * cpi->RDMULT);
     }
 
     cpi->mb.errorperbit = (cpi->RDMULT / 100);
@@ -1037,7 +1032,7 @@ static unsigned int vp8_encode_inter_mb_segment(MACROBLOCK *x, int const *labels
 
             // set to 0 no way to account for 2nd order DC so discount
             //be->coeff[0] = 0;
-            x->quantize_brd(be, bd);
+            x->quantize_b(be, bd);
 
             distortion += ENCODEMB_INVOKE(rtcd, berr)(be->coeff, bd->dqcoeff);
         }
@@ -1075,7 +1070,7 @@ static void macro_block_yrd(MACROBLOCK *mb, int *Rate, int *Distortion, const vp
     // Quantization
     for (b = 0; b < 16; b++)
     {
-        mb->quantize_brd(&mb->block[b], &mb->e_mbd.block[b]);
+        mb->quantize_b(&mb->block[b], &mb->e_mbd.block[b]);
     }
 
     // DC predication and Quantization of 2nd Order block
@@ -1083,7 +1078,7 @@ static void macro_block_yrd(MACROBLOCK *mb, int *Rate, int *Distortion, const vp
     {
 
         {
-            mb->quantize_brd(mb_y2, x_y2);
+            mb->quantize_b(mb_y2, x_y2);
         }
     }
 
@@ -1129,6 +1124,9 @@ static int vp8_rd_pick_best_mbsegmentation(VP8_COMP *cpi, MACROBLOCK *x, MV *bes
 
     MV bmvs[16];
     int beobs[16];
+
+    vpx_memset(beobs, 0, sizeof(beobs));
+
 
     for (segmentation = 0; segmentation < VP8_NUMMBSPLITS; segmentation++)
     {
@@ -1463,6 +1461,8 @@ int vp8_rd_pick_inter_mode(VP8_COMP *cpi, MACROBLOCK *x, int recon_yoffset, int 
     int force_no_skip = 0;
 
     *returnintra = INT_MAX;
+
+    vpx_memset(&best_mbmode, 0, sizeof(best_mbmode)); // clean
 
     cpi->mbs_tested_so_far++;          // Count of the number of MBs tested so far this frame
 

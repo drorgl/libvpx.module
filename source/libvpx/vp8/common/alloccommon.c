@@ -1,13 +1,15 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license and patent
- *  grant that can be found in the LICENSE file in the root of the source
- *  tree. All contributing project authors may be found in the AUTHORS
- *  file in the root of the source tree.
+ *  Use of this source code is governed by a BSD-style license 
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may 
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
 
+#include "vpx_ports/config.h"
 #include "blockd.h"
 #include "vpx_mem/vpx_mem.h"
 #include "onyxc_int.h"
@@ -16,9 +18,6 @@
 #include "systemdependent.h"
 #include "vpxerrors.h"
 
-#ifdef HAVE_CONFIG_H
-#include "vpx_config.h"
-#endif
 
 extern  void vp8_init_scan_order_mask();
 

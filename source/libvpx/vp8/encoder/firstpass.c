@@ -1,10 +1,11 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license and patent
- *  grant that can be found in the LICENSE file in the root of the source
- *  tree. All contributing project authors may be found in the AUTHORS
- *  file in the root of the source tree.
+ *  Use of this source code is governed by a BSD-style license 
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may 
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
 
@@ -175,7 +176,6 @@ static double calculate_modified_err(VP8_COMP *cpi, FIRSTPASS_STATS *this_frame)
 double vp8_simple_weight(YV12_BUFFER_CONFIG *source)
 {
     int i, j;
-    int Total = 0;
 
     unsigned char *src = source->y_buffer;
     unsigned char value;
@@ -779,7 +779,6 @@ void vp8_first_pass(VP8_COMP *cpi)
     vp8_clear_system_state();  //__asm emms;
     {
         double weight = 0.0;
-        double weigth2 = 0.0;
 
         FIRSTPASS_STATS fps;
 
@@ -1193,7 +1192,6 @@ static void define_gf_group(VP8_COMP *cpi, FIRSTPASS_STATS *this_frame)
     FIRSTPASS_STATS next_frame;
     FIRSTPASS_STATS *start_pos;
     int i;
-    int count = 0;
     int image_size = cpi->common.last_frame.y_width  * cpi->common.last_frame.y_height;
     double boost_score = 0.0;
     double old_boost_score = 0.0;
@@ -1233,6 +1231,8 @@ static void define_gf_group(VP8_COMP *cpi, FIRSTPASS_STATS *this_frame)
 #endif
 
     start_pos = cpi->stats_in;
+
+    vpx_memset(&next_frame, 0, sizeof(next_frame)); // assure clean
 
     // Preload the stats for the next frame.
     mod_frame_err = calculate_modified_err(cpi, this_frame);
@@ -1871,6 +1871,18 @@ void vp8_second_pass(VP8_COMP *cpi)
         }
     }
 
+    // Keep a globally available copy of this and the next frame's iiratio.
+    cpi->this_iiratio = this_frame_intra_error /
+                        DOUBLE_DIVIDE_CHECK(this_frame_coded_error);
+    {
+        FIRSTPASS_STATS next_frame;
+        if ( lookup_next_frame_stats(cpi, &next_frame) != EOF )
+        {
+            cpi->next_iiratio = next_frame.intra_error /
+                                DOUBLE_DIVIDE_CHECK(next_frame.coded_error);
+        }
+    }
+
     // Set nominal per second bandwidth for this frame
     cpi->target_bandwidth = cpi->per_frame_bandwidth * cpi->output_frame_rate;
     if (cpi->target_bandwidth < 0)
@@ -2027,6 +2039,8 @@ void vp8_find_next_key_frame(VP8_COMP *cpi, FIRSTPASS_STATS *this_frame)
     double kf_group_intra_err = 0.0;
     double kf_group_coded_err = 0.0;
     double two_pass_min_rate = (double)(cpi->oxcf.target_bandwidth * cpi->oxcf.two_pass_vbrmin_section / 100);
+
+    vpx_memset(&next_frame, 0, sizeof(next_frame)); // assure clean
 
     vp8_clear_system_state();  //__asm emms;
     start_position = cpi->stats_in;
