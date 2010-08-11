@@ -126,7 +126,6 @@ static void skip_recon_mb(VP8D_COMP *pbi, MACROBLOCKD *xd)
     }
 }
 
-
 static void clamp_mv_to_umv_border(MV *mv, const MACROBLOCKD *xd)
 {
     /* If the MV points so far into the UMV border that no visible pixels
@@ -182,110 +181,6 @@ static void clamp_mvs(MACROBLOCKD *xd)
 
 }
 
-static void reconstruct_mb(VP8D_COMP *pbi, MACROBLOCKD *xd)
-{
-    if (xd->frame_type == KEY_FRAME  ||  xd->mbmi.ref_frame == INTRA_FRAME)
-    {
-        vp8_build_intra_predictors_mbuv(xd);
-
-        if (xd->mbmi.mode != B_PRED)
-        {
-            vp8_build_intra_predictors_mby_ptr(xd);
-            vp8_recon16x16mb(RTCD_VTABLE(recon), xd);
-        }
-        else
-        {
-            vp8_recon_intra4x4mb(RTCD_VTABLE(recon), xd);
-        }
-    }
-    else
-    {
-        vp8_build_inter_predictors_mb(xd);
-        vp8_recon16x16mb(RTCD_VTABLE(recon), xd);
-    }
-}
-
-
-static void de_quantand_idct(VP8D_COMP *pbi, MACROBLOCKD *xd)
-{
-    int i;
-    BLOCKD *b = &xd->block[24];
-
-
-    if (xd->mbmi.mode != B_PRED && xd->mbmi.mode != SPLITMV)
-    {
-        DEQUANT_INVOKE(&pbi->dequant, block)(b);
-
-        // do 2nd order transform on the dc block
-        if (b->eob > 1)
-        {
-            IDCT_INVOKE(RTCD_VTABLE(idct), iwalsh16)(&b->dqcoeff[0], b->diff);
-            ((int *)b->qcoeff)[0] = 0;
-            ((int *)b->qcoeff)[1] = 0;
-            ((int *)b->qcoeff)[2] = 0;
-            ((int *)b->qcoeff)[3] = 0;
-            ((int *)b->qcoeff)[4] = 0;
-            ((int *)b->qcoeff)[5] = 0;
-            ((int *)b->qcoeff)[6] = 0;
-            ((int *)b->qcoeff)[7] = 0;
-        }
-        else
-        {
-            IDCT_INVOKE(RTCD_VTABLE(idct), iwalsh1)(&b->dqcoeff[0], b->diff);
-            ((int *)b->qcoeff)[0] = 0;
-        }
-
-
-        for (i = 0; i < 16; i++)
-        {
-
-            b = &xd->block[i];
-
-            if (b->eob > 1)
-            {
-                DEQUANT_INVOKE(&pbi->dequant, idct_dc)(b->qcoeff, &b->dequant[0][0], b->diff, 32, xd->block[24].diff[i]);
-            }
-            else
-            {
-                IDCT_INVOKE(RTCD_VTABLE(idct), idct1_scalar)(xd->block[24].diff[i], b->diff, 32);
-            }
-        }
-
-        for (i = 16; i < 24; i++)
-        {
-            b = &xd->block[i];
-
-            if (b->eob > 1)
-            {
-                DEQUANT_INVOKE(&pbi->dequant, idct)(b->qcoeff, &b->dequant[0][0], b->diff, 16);
-            }
-            else
-            {
-                IDCT_INVOKE(RTCD_VTABLE(idct), idct1_scalar)(b->qcoeff[0] * b->dequant[0][0], b->diff, 16);
-                ((int *)b->qcoeff)[0] = 0;
-            }
-        }
-    }
-    else
-    {
-        for (i = 0; i < 24; i++)
-        {
-
-            b = &xd->block[i];
-
-            if (b->eob > 1)
-            {
-                DEQUANT_INVOKE(&pbi->dequant, idct)(b->qcoeff, &b->dequant[0][0], b->diff, (32 - (i & 16)));
-            }
-            else
-            {
-                IDCT_INVOKE(RTCD_VTABLE(idct), idct1_scalar)(b->qcoeff[0] * b->dequant[0][0], b->diff, (32 - (i & 16)));
-                ((int *)b->qcoeff)[0] = 0;
-            }
-        }
-    }
-}
-
 void vp8_decode_macroblock(VP8D_COMP *pbi, MACROBLOCKD *xd)
 {
     int eobtotal = 0;
@@ -321,27 +216,124 @@ void vp8_decode_macroblock(VP8D_COMP *pbi, MACROBLOCKD *xd)
     {
         xd->mode_info_context->mbmi.dc_diff = 0;
         skip_recon_mb(pbi, xd);
+        return;
+    }
+
+    if (xd->segmentation_enabled)
+        mb_init_dequantizer(pbi, xd);
+
+    // do prediction
+    if (xd->frame_type == KEY_FRAME  ||  xd->mbmi.ref_frame == INTRA_FRAME)
+    {
+        vp8_build_intra_predictors_mbuv(xd);
+
+        if (xd->mbmi.mode != B_PRED)
+        {
+            vp8_build_intra_predictors_mby_ptr(xd);
+        } else {
+            vp8_intra_prediction_down_copy(xd);
+        }
     }
     else
     {
-        if (xd->segmentation_enabled)
-            mb_init_dequantizer(pbi, xd);
-
-        de_quantand_idct(pbi, xd);
-        reconstruct_mb(pbi, xd);
+        vp8_build_inter_predictors_mb(xd);
     }
 
-
-    /* Restore the original MV so as not to affect the entropy context. */
-    if (do_clamp)
+    // dequantization and idct
+    if (xd->mbmi.mode != B_PRED && xd->mbmi.mode != SPLITMV)
     {
-        if (xd->mbmi.mode == SPLITMV)
-            for (i=0; i<24; i++)
-                xd->block[i].bmi.mv.as_mv = orig_mvs[i];
+        BLOCKD *b = &xd->block[24];
+        DEQUANT_INVOKE(&pbi->dequant, block)(b);
+
+        // do 2nd order transform on the dc block
+        if (b->eob > 1)
+        {
+            IDCT_INVOKE(RTCD_VTABLE(idct), iwalsh16)(&b->dqcoeff[0], b->diff);
+            ((int *)b->qcoeff)[0] = 0;
+            ((int *)b->qcoeff)[1] = 0;
+            ((int *)b->qcoeff)[2] = 0;
+            ((int *)b->qcoeff)[3] = 0;
+            ((int *)b->qcoeff)[4] = 0;
+            ((int *)b->qcoeff)[5] = 0;
+            ((int *)b->qcoeff)[6] = 0;
+            ((int *)b->qcoeff)[7] = 0;
+        }
         else
         {
-            xd->mbmi.mv.as_mv = orig_mvs[0];
-            xd->block[16].bmi.mv.as_mv = orig_mvs[1];
+            IDCT_INVOKE(RTCD_VTABLE(idct), iwalsh1)(&b->dqcoeff[0], b->diff);
+            ((int *)b->qcoeff)[0] = 0;
+        }
+
+
+        for (i = 0; i < 16; i++)
+        {
+
+            b = &xd->block[i];
+
+            if (b->eob > 1)
+            {
+                DEQUANT_INVOKE(&pbi->dequant, dc_idct_add)
+                    (b->qcoeff, &b->dequant[0][0], b->predictor,
+                     *(b->base_dst) + b->dst, 16, b->dst_stride,
+                     xd->block[24].diff[i]);
+            }
+            else
+            {
+                IDCT_INVOKE(RTCD_VTABLE(idct), idct1_scalar_add)(xd->block[24].diff[i], b->predictor, *(b->base_dst) + b->dst, 16, b->dst_stride);
+            }
+        }
+    }
+    else if ((xd->frame_type == KEY_FRAME  ||  xd->mbmi.ref_frame == INTRA_FRAME) && xd->mbmi.mode == B_PRED)
+    {
+        for (i = 0; i < 16; i++)
+        {
+
+            BLOCKD *b = &xd->block[i];
+            vp8_predict_intra4x4(b, b->bmi.mode, b->predictor);
+
+            if (b->eob > 1)
+            {
+                DEQUANT_INVOKE(&pbi->dequant, idct_add)(b->qcoeff, &b->dequant[0][0],  b->predictor, *(b->base_dst) + b->dst, 16, b->dst_stride);
+            }
+            else
+            {
+                IDCT_INVOKE(RTCD_VTABLE(idct), idct1_scalar_add)(b->qcoeff[0] * b->dequant[0][0], b->predictor, *(b->base_dst) + b->dst, 16, b->dst_stride);
+                ((int *)b->qcoeff)[0] = 0;
+            }
+        }
+
+    }
+    else
+    {
+        for (i = 0; i < 16; i++)
+        {
+            BLOCKD *b = &xd->block[i];
+
+            if (b->eob > 1)
+            {
+                DEQUANT_INVOKE(&pbi->dequant, idct_add)(b->qcoeff, &b->dequant[0][0],  b->predictor, *(b->base_dst) + b->dst, 16, b->dst_stride);
+            }
+            else
+            {
+                IDCT_INVOKE(RTCD_VTABLE(idct), idct1_scalar_add)(b->qcoeff[0] * b->dequant[0][0], b->predictor, *(b->base_dst) + b->dst, 16, b->dst_stride);
+                ((int *)b->qcoeff)[0] = 0;
+            }
+        }
+    }
+
+    for (i = 16; i < 24; i++)
+    {
+
+        BLOCKD *b = &xd->block[i];
+
+        if (b->eob > 1)
+        {
+            DEQUANT_INVOKE(&pbi->dequant, idct_add)(b->qcoeff, &b->dequant[0][0],  b->predictor, *(b->base_dst) + b->dst, 8, b->dst_stride);
+        }
+        else
+        {
+            IDCT_INVOKE(RTCD_VTABLE(idct), idct1_scalar_add)(b->qcoeff[0] * b->dequant[0][0], b->predictor, *(b->base_dst) + b->dst, 8, b->dst_stride);
+            ((int *)b->qcoeff)[0] = 0;
         }
     }
 }
@@ -381,8 +373,10 @@ void vp8_decode_mb_row(VP8D_COMP *pbi,
     int i;
     int recon_yoffset, recon_uvoffset;
     int mb_col;
-    int recon_y_stride = pc->last_frame.y_stride;
-    int recon_uv_stride = pc->last_frame.uv_stride;
+    int ref_fb_idx = pc->lst_fb_idx;
+    int dst_fb_idx = pc->new_fb_idx;
+    int recon_y_stride = pc->yv12_fb[ref_fb_idx].y_stride;
+    int recon_uv_stride = pc->yv12_fb[ref_fb_idx].uv_stride;
 
     vpx_memset(pc->left_context, 0, sizeof(pc->left_context));
     recon_yoffset = mb_row * recon_y_stride * 16;
@@ -419,33 +413,23 @@ void vp8_decode_mb_row(VP8D_COMP *pbi,
         xd->mb_to_left_edge = -((mb_col * 16) << 3);
         xd->mb_to_right_edge = ((pc->mb_cols - 1 - mb_col) * 16) << 3;
 
-        xd->dst.y_buffer = pc->new_frame.y_buffer + recon_yoffset;
-        xd->dst.u_buffer = pc->new_frame.u_buffer + recon_uvoffset;
-        xd->dst.v_buffer = pc->new_frame.v_buffer + recon_uvoffset;
+        xd->dst.y_buffer = pc->yv12_fb[dst_fb_idx].y_buffer + recon_yoffset;
+        xd->dst.u_buffer = pc->yv12_fb[dst_fb_idx].u_buffer + recon_uvoffset;
+        xd->dst.v_buffer = pc->yv12_fb[dst_fb_idx].v_buffer + recon_uvoffset;
 
         xd->left_available = (mb_col != 0);
 
         // Select the appropriate reference frame for this MB
         if (xd->mbmi.ref_frame == LAST_FRAME)
-        {
-            xd->pre.y_buffer = pc->last_frame.y_buffer + recon_yoffset;
-            xd->pre.u_buffer = pc->last_frame.u_buffer + recon_uvoffset;
-            xd->pre.v_buffer = pc->last_frame.v_buffer + recon_uvoffset;
-        }
+            ref_fb_idx = pc->lst_fb_idx;
         else if (xd->mbmi.ref_frame == GOLDEN_FRAME)
-        {
-            // Golden frame reconstruction buffer
-            xd->pre.y_buffer = pc->golden_frame.y_buffer + recon_yoffset;
-            xd->pre.u_buffer = pc->golden_frame.u_buffer + recon_uvoffset;
-            xd->pre.v_buffer = pc->golden_frame.v_buffer + recon_uvoffset;
-        }
+            ref_fb_idx = pc->gld_fb_idx;
         else
-        {
-            // Alternate reference frame reconstruction buffer
-            xd->pre.y_buffer = pc->alt_ref_frame.y_buffer + recon_yoffset;
-            xd->pre.u_buffer = pc->alt_ref_frame.u_buffer + recon_uvoffset;
-            xd->pre.v_buffer = pc->alt_ref_frame.v_buffer + recon_uvoffset;
-        }
+            ref_fb_idx = pc->alt_fb_idx;
+
+        xd->pre.y_buffer = pc->yv12_fb[ref_fb_idx].y_buffer + recon_yoffset;
+        xd->pre.u_buffer = pc->yv12_fb[ref_fb_idx].u_buffer + recon_uvoffset;
+        xd->pre.v_buffer = pc->yv12_fb[ref_fb_idx].v_buffer + recon_uvoffset;
 
         vp8_build_uvmvs(xd, pc->full_pixel);
 
@@ -455,7 +439,6 @@ void vp8_decode_mb_row(VP8D_COMP *pbi,
         else
         pbi->debugoutput =0;
         */
-        vp8dx_bool_decoder_fill(xd->current_bc);
         vp8_decode_macroblock(pbi, xd);
 
 
@@ -476,7 +459,7 @@ void vp8_decode_mb_row(VP8D_COMP *pbi,
 
     // adjust to the next row of mbs
     vp8_extend_mb_row(
-        &pc->new_frame,
+        &pc->yv12_fb[dst_fb_idx],
         xd->dst.y_buffer + 16, xd->dst.u_buffer + 8, xd->dst.v_buffer + 8
     );
 
@@ -563,18 +546,7 @@ static void stop_token_decoder(VP8D_COMP *pbi)
     VP8_COMMON *pc = &pbi->common;
 
     if (pc->multi_token_partition != ONE_PARTITION)
-    {
-        int num_part = (1 << pc->multi_token_partition);
-
-        for (i = 0; i < num_part; i++)
-        {
-            vp8dx_stop_decode(&pbi->mbc[i]);
-        }
-
         vpx_free(pbi->mbc);
-    }
-    else
-        vp8dx_stop_decode(& pbi->bc2);
 }
 
 static void init_frame(VP8D_COMP *pbi)
@@ -883,7 +855,6 @@ int vp8_decode_frame(VP8D_COMP *pbi)
     }
 
 
-    vp8dx_bool_decoder_fill(bc);
     {
         // read coef probability tree
 
@@ -903,11 +874,11 @@ int vp8_decode_frame(VP8D_COMP *pbi)
                     }
     }
 
-    vpx_memcpy(&xd->pre, &pc->last_frame, sizeof(YV12_BUFFER_CONFIG));
-    vpx_memcpy(&xd->dst, &pc->new_frame, sizeof(YV12_BUFFER_CONFIG));
+    vpx_memcpy(&xd->pre, &pc->yv12_fb[pc->lst_fb_idx], sizeof(YV12_BUFFER_CONFIG));
+    vpx_memcpy(&xd->dst, &pc->yv12_fb[pc->new_fb_idx], sizeof(YV12_BUFFER_CONFIG));
 
     // set up frame new frame for intra coded blocks
-    vp8_setup_intra_recon(&pc->new_frame);
+    vp8_setup_intra_recon(&pc->yv12_fb[pc->new_fb_idx]);
 
     vp8_setup_block_dptrs(xd);
 
@@ -969,8 +940,6 @@ int vp8_decode_frame(VP8D_COMP *pbi)
 
 
     stop_token_decoder(pbi);
-
-    vp8dx_stop_decode(bc);
 
     // vpx_log("Decoder: Frame Decoded, Size Roughly:%d bytes  \n",bc->pos+pbi->bc2.pos);
 

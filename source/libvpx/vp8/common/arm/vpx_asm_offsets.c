@@ -1,10 +1,10 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license 
+ *  Use of this source code is governed by a BSD-style license
  *  that can be found in the LICENSE file in the root of the source
  *  tree. An additional intellectual property rights grant can be found
- *  in the file PATENTS.  All contributing project authors may 
+ *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
@@ -70,15 +70,11 @@ DEFINE(detok_current_bc,                         offsetof(DETOK, current_bc));
 DEFINE(detok_coef_probs,                         offsetof(DETOK, coef_probs));
 DEFINE(detok_eob,                               offsetof(DETOK, eob));
 
-DEFINE(bool_decoder_lowvalue,                   offsetof(BOOL_DECODER, lowvalue));
-DEFINE(bool_decoder_range,                      offsetof(BOOL_DECODER, range));
+DEFINE(bool_decoder_user_buffer_end,            offsetof(BOOL_DECODER, user_buffer_end));
+DEFINE(bool_decoder_user_buffer,                offsetof(BOOL_DECODER, user_buffer));
 DEFINE(bool_decoder_value,                      offsetof(BOOL_DECODER, value));
 DEFINE(bool_decoder_count,                      offsetof(BOOL_DECODER, count));
-DEFINE(bool_decoder_user_buffer,                offsetof(BOOL_DECODER, user_buffer));
-DEFINE(bool_decoder_user_buffer_sz,             offsetof(BOOL_DECODER, user_buffer_sz));
-DEFINE(bool_decoder_decode_buffer,              offsetof(BOOL_DECODER, decode_buffer));
-DEFINE(bool_decoder_read_ptr,                   offsetof(BOOL_DECODER, read_ptr));
-DEFINE(bool_decoder_write_ptr,                  offsetof(BOOL_DECODER, write_ptr));
+DEFINE(bool_decoder_range,                      offsetof(BOOL_DECODER, range));
 
 DEFINE(tokenextrabits_min_val,                   offsetof(TOKENEXTRABITS, min_val));
 DEFINE(tokenextrabits_length,                   offsetof(TOKENEXTRABITS, Length));

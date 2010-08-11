@@ -1,11 +1,11 @@
 ##
 ##  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
-##  
-##  Use of this source code is governed by a BSD-style license 
+##
+##  Use of this source code is governed by a BSD-style license
 ##  that can be found in the LICENSE file in the root of the source
 ##  tree. An additional intellectual property rights grant can be found
-##  in the file PATENTS.  All contributing project authors may 
-##  be found in the AUTHORS file in the root of the source tree.    
+##  in the file PATENTS.  All contributing project authors may
+##  be found in the AUTHORS file in the root of the source tree.
 ##
 
 
@@ -39,13 +39,8 @@ dist:
 	@if [ -d "$(DIST_DIR)/src" ]; then \
             mkdir -p "$(DIST_DIR)/build"; \
             cd "$(DIST_DIR)/build"; \
-            if [ "$(TGT_CC)" = "rvct" ] ; then \
-				echo "../src/configure --target=$(TOOLCHAIN) --libc=$(ALT_LIBC)"; \
-				../src/configure --target=$(TOOLCHAIN) --libc=$(ALT_LIBC); \
-			else \
-				echo "../src/configure --target=$(TOOLCHAIN)"; \
-				../src/configure --target=$(TOOLCHAIN); \
-			fi; \
+            echo "Rerunning configure $(CONFIGURE_ARGS)"; \
+            ../src/configure $(CONFIGURE_ARGS); \
             $(if $(filter vs%,$(TGT_CC)),make NO_LAUNCH_DEVENV=1;) \
         fi
 	@if [ -d "$(DIST_DIR)" ]; then \
@@ -57,7 +52,6 @@ dist:
         fi
 
 
-svnstat: ALL_TARGETS:=$(firstword $(ALL_TARGETS))
 endif
 
 ifneq ($(target),)
@@ -335,6 +329,7 @@ ifneq ($(call enabled,DIST-SRCS),)
     DIST-SRCS-$(CONFIG_MSVS)  += build/make/gen_msvs_def.sh
     DIST-SRCS-$(CONFIG_MSVS)  += build/make/gen_msvs_proj.sh
     DIST-SRCS-$(CONFIG_MSVS)  += build/make/gen_msvs_sln.sh
+    DIST-SRCS-$(CONFIG_MSVS)  += build/x86-msvs/yasm.rules
     DIST-SRCS-$(CONFIG_RVCT) += build/make/armlink_adapter.sh
     #
     # This isn't really ARCH_ARM dependent, it's dependant on whether we're
@@ -363,12 +358,3 @@ INSTALL_TARGETS += .install-docs .install-srcs .install-libs .install-bins
 all-$(target): $(BUILD_TARGETS)
 install:: $(INSTALL_TARGETS)
 dist: $(INSTALL_TARGETS)
-
-#
-# Development helper targets
-#
-ifneq ($(SRC_PATH_BARE),)
-.PHONY: svnstat
-svnstat:
-	svn stat $(SRC_PATH_BARE)
-endif

@@ -1,10 +1,10 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license 
+ *  Use of this source code is governed by a BSD-style license
  *  that can be found in the LICENSE file in the root of the source
  *  tree. An additional intellectual property rights grant can be found
- *  in the file PATENTS.  All contributing project authors may 
+ *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
@@ -56,8 +56,10 @@ THREAD_FUNCTION thread_encoding_proc(void *p_data)
                     int i;
                     int recon_yoffset, recon_uvoffset;
                     int mb_col;
-                    int recon_y_stride = cm->last_frame.y_stride;
-                    int recon_uv_stride = cm->last_frame.uv_stride;
+                    int ref_fb_idx = cm->lst_fb_idx;
+                    int dst_fb_idx = cm->new_fb_idx;
+                    int recon_y_stride = cm->yv12_fb[ref_fb_idx].y_stride;
+                    int recon_uv_stride = cm->yv12_fb[ref_fb_idx].uv_stride;
                     volatile int *last_row_current_mb_col;
 
                     if (ithread > 0)
@@ -107,9 +109,9 @@ THREAD_FUNCTION thread_encoding_proc(void *p_data)
                         x->mv_row_min = -((mb_row * 16) + (VP8BORDERINPIXELS - 16));
                         x->mv_row_max = ((cm->mb_rows - 1 - mb_row) * 16) + (VP8BORDERINPIXELS - 16);
 
-                        xd->dst.y_buffer = cm->new_frame.y_buffer + recon_yoffset;
-                        xd->dst.u_buffer = cm->new_frame.u_buffer + recon_uvoffset;
-                        xd->dst.v_buffer = cm->new_frame.v_buffer + recon_uvoffset;
+                        xd->dst.y_buffer = cm->yv12_fb[dst_fb_idx].y_buffer + recon_yoffset;
+                        xd->dst.u_buffer = cm->yv12_fb[dst_fb_idx].u_buffer + recon_uvoffset;
+                        xd->dst.v_buffer = cm->yv12_fb[dst_fb_idx].v_buffer + recon_uvoffset;
                         xd->left_available = (mb_col != 0);
 
                         // Is segmentation enabled
@@ -195,7 +197,7 @@ THREAD_FUNCTION thread_encoding_proc(void *p_data)
 
                     //extend the recon for intra prediction
                     vp8_extend_mb_row(
-                        &cm->new_frame,
+                        &cm->yv12_fb[dst_fb_idx],
                         xd->dst.y_buffer + 16,
                         xd->dst.u_buffer + 8,
                         xd->dst.v_buffer + 8);
@@ -257,9 +259,6 @@ static void setup_mbby_copy(MACROBLOCK *mbdst, MACROBLOCK *mbsrc)
 
     z->vp8_short_fdct4x4     = x->vp8_short_fdct4x4;
     z->vp8_short_fdct8x4     = x->vp8_short_fdct8x4;
-    z->short_fdct4x4rd   = x->short_fdct4x4rd;
-    z->short_fdct8x4rd   = x->short_fdct8x4rd;
-    z->short_fdct8x4rd   = x->short_fdct8x4rd;
     z->short_walsh4x4    = x->short_walsh4x4;
     z->quantize_b        = x->quantize_b;
 
@@ -289,6 +288,7 @@ static void setup_mbby_copy(MACROBLOCK *mbdst, MACROBLOCK *mbsrc)
     for (i = 0; i < 25; i++)
     {
         z->block[i].quant           = x->block[i].quant;
+        z->block[i].quant_shift     = x->block[i].quant_shift;
         z->block[i].zbin            = x->block[i].zbin;
         z->block[i].zrun_zbin_boost   = x->block[i].zrun_zbin_boost;
         z->block[i].round           = x->block[i].round;
@@ -388,8 +388,8 @@ void vp8cx_init_mbrthread_data(VP8_COMP *cpi,
         mbd->frames_till_alt_ref_frame = cm->frames_till_alt_ref_frame;
 
         mb->src = * cpi->Source;
-        mbd->pre = cm->last_frame;
-        mbd->dst = cm->new_frame;
+        mbd->pre = cm->yv12_fb[cm->lst_fb_idx];
+        mbd->dst = cm->yv12_fb[cm->new_fb_idx];
 
         mb->src.y_buffer += 16 * x->src.y_stride * (i + 1);
         mb->src.u_buffer +=  8 * x->src.uv_stride * (i + 1);

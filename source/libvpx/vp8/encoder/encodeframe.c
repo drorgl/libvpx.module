@@ -1,10 +1,10 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license 
+ *  Use of this source code is governed by a BSD-style license
  *  that can be found in the LICENSE file in the root of the source
  *  tree. An additional intellectual property rights grant can be found
- *  in the file PATENTS.  All contributing project authors may 
+ *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
@@ -102,7 +102,90 @@ static const int qzbin_factors[129] =
     80, 80, 80, 80, 80, 80, 80, 80,
     80,
 };
+//#define EXACT_QUANT
+#ifdef EXACT_QUANT
+static void vp8cx_invert_quant(short *quant, short *shift, short d)
+{
+    unsigned t;
+    int l;
+    t = d;
+    for(l = 0; t > 1; l++)
+        t>>=1;
+    t = 1 + (1<<(16+l))/d;
+    *quant = (short)(t - (1<<16));
+    *shift = l;
+}
 
+void vp8cx_init_quantizer(VP8_COMP *cpi)
+{
+    int r, c;
+    int i;
+    int quant_val;
+    int Q;
+
+    int zbin_boost[16] = {0, 0, 8, 10, 12, 14, 16, 20, 24, 28, 32, 36, 40, 44, 44, 44};
+
+    for (Q = 0; Q < QINDEX_RANGE; Q++)
+    {
+        // dc values
+        quant_val = vp8_dc_quant(Q, cpi->common.y1dc_delta_q);
+        vp8cx_invert_quant(cpi->Y1quant[Q][0] + 0,
+                           cpi->Y1quant_shift[Q][0] + 0, quant_val);
+        cpi->Y1zbin[Q][0][0] = ((qzbin_factors[Q] * quant_val) + 64) >> 7;
+        cpi->Y1round[Q][0][0] = (qrounding_factors[Q] * quant_val) >> 7;
+        cpi->common.Y1dequant[Q][0][0] = quant_val;
+        cpi->zrun_zbin_boost_y1[Q][0] = (quant_val * zbin_boost[0]) >> 7;
+
+        quant_val = vp8_dc2quant(Q, cpi->common.y2dc_delta_q);
+        vp8cx_invert_quant(cpi->Y2quant[Q][0] + 0,
+                           cpi->Y2quant_shift[Q][0] + 0, quant_val);
+        cpi->Y2zbin[Q][0][0] = ((qzbin_factors[Q] * quant_val) + 64) >> 7;
+        cpi->Y2round[Q][0][0] = (qrounding_factors[Q] * quant_val) >> 7;
+        cpi->common.Y2dequant[Q][0][0] = quant_val;
+        cpi->zrun_zbin_boost_y2[Q][0] = (quant_val * zbin_boost[0]) >> 7;
+
+        quant_val = vp8_dc_uv_quant(Q, cpi->common.uvdc_delta_q);
+        vp8cx_invert_quant(cpi->UVquant[Q][0] + 0,
+                           cpi->UVquant_shift[Q][0] + 0, quant_val);
+        cpi->UVzbin[Q][0][0] = ((qzbin_factors[Q] * quant_val) + 64) >> 7;;
+        cpi->UVround[Q][0][0] = (qrounding_factors[Q] * quant_val) >> 7;
+        cpi->common.UVdequant[Q][0][0] = quant_val;
+        cpi->zrun_zbin_boost_uv[Q][0] = (quant_val * zbin_boost[0]) >> 7;
+
+        // all the ac values = ;
+        for (i = 1; i < 16; i++)
+        {
+            int rc = vp8_default_zig_zag1d[i];
+            r = (rc >> 2);
+            c = (rc & 3);
+
+            quant_val = vp8_ac_yquant(Q);
+            vp8cx_invert_quant(cpi->Y1quant[Q][r] + c,
+                               cpi->Y1quant_shift[Q][r] + c, quant_val);
+            cpi->Y1zbin[Q][r][c] = ((qzbin_factors[Q] * quant_val) + 64) >> 7;
+            cpi->Y1round[Q][r][c] = (qrounding_factors[Q] * quant_val) >> 7;
+            cpi->common.Y1dequant[Q][r][c] = quant_val;
+            cpi->zrun_zbin_boost_y1[Q][i] = (quant_val * zbin_boost[i]) >> 7;
+
+            quant_val = vp8_ac2quant(Q, cpi->common.y2ac_delta_q);
+            vp8cx_invert_quant(cpi->Y2quant[Q][r] + c,
+                               cpi->Y2quant_shift[Q][r] + c, quant_val);
+            cpi->Y2zbin[Q][r][c] = ((qzbin_factors[Q] * quant_val) + 64) >> 7;
+            cpi->Y2round[Q][r][c] = (qrounding_factors[Q] * quant_val) >> 7;
+            cpi->common.Y2dequant[Q][r][c] = quant_val;
+            cpi->zrun_zbin_boost_y2[Q][i] = (quant_val * zbin_boost[i]) >> 7;
+
+            quant_val = vp8_ac_uv_quant(Q, cpi->common.uvac_delta_q);
+            vp8cx_invert_quant(cpi->UVquant[Q][r] + c,
+                               cpi->UVquant_shift[Q][r] + c, quant_val);
+            cpi->UVzbin[Q][r][c] = ((qzbin_factors[Q] * quant_val) + 64) >> 7;
+            cpi->UVround[Q][r][c] = (qrounding_factors[Q] * quant_val) >> 7;
+            cpi->common.UVdequant[Q][r][c] = quant_val;
+            cpi->zrun_zbin_boost_uv[Q][i] = (quant_val * zbin_boost[i]) >> 7;
+        }
+    }
+}
+#else
 void vp8cx_init_quantizer(VP8_COMP *cpi)
 {
     int r, c;
@@ -166,7 +249,7 @@ void vp8cx_init_quantizer(VP8_COMP *cpi)
         }
     }
 }
-
+#endif
 void vp8cx_mb_init_quantizer(VP8_COMP *cpi, MACROBLOCK *x)
 {
     int i;
@@ -198,6 +281,7 @@ void vp8cx_mb_init_quantizer(VP8_COMP *cpi, MACROBLOCK *x)
     for (i = 0; i < 16; i++)
     {
         x->block[i].quant = cpi->Y1quant[QIndex];
+        x->block[i].quant_shift = cpi->Y1quant_shift[QIndex];
         x->block[i].zbin = cpi->Y1zbin[QIndex];
         x->block[i].round = cpi->Y1round[QIndex];
         x->e_mbd.block[i].dequant = cpi->common.Y1dequant[QIndex];
@@ -211,6 +295,7 @@ void vp8cx_mb_init_quantizer(VP8_COMP *cpi, MACROBLOCK *x)
     for (i = 16; i < 24; i++)
     {
         x->block[i].quant = cpi->UVquant[QIndex];
+        x->block[i].quant_shift = cpi->UVquant_shift[QIndex];
         x->block[i].zbin = cpi->UVzbin[QIndex];
         x->block[i].round = cpi->UVround[QIndex];
         x->e_mbd.block[i].dequant = cpi->common.UVdequant[QIndex];
@@ -221,6 +306,7 @@ void vp8cx_mb_init_quantizer(VP8_COMP *cpi, MACROBLOCK *x)
     // Y2
     zbin_extra = (cpi->common.Y2dequant[QIndex][0][1] * ((cpi->zbin_over_quant / 2) + cpi->zbin_mode_boost)) >> 7;
     x->block[24].quant = cpi->Y2quant[QIndex];
+    x->block[24].quant_shift = cpi->Y2quant_shift[QIndex];
     x->block[24].zbin = cpi->Y2zbin[QIndex];
     x->block[24].round = cpi->Y2round[QIndex];
     x->e_mbd.block[24].dequant = cpi->common.Y2dequant[QIndex];
@@ -256,8 +342,10 @@ void encode_mb_row(VP8_COMP *cpi,
     int i;
     int recon_yoffset, recon_uvoffset;
     int mb_col;
-    int recon_y_stride = cm->last_frame.y_stride;
-    int recon_uv_stride = cm->last_frame.uv_stride;
+    int ref_fb_idx = cm->lst_fb_idx;
+    int dst_fb_idx = cm->new_fb_idx;
+    int recon_y_stride = cm->yv12_fb[ref_fb_idx].y_stride;
+    int recon_uv_stride = cm->yv12_fb[ref_fb_idx].uv_stride;
     int seg_map_index = (mb_row * cpi->common.mb_cols);
 
 
@@ -290,9 +378,9 @@ void encode_mb_row(VP8_COMP *cpi,
         x->mv_row_min = -((mb_row * 16) + (VP8BORDERINPIXELS - 16));
         x->mv_row_max = ((cm->mb_rows - 1 - mb_row) * 16) + (VP8BORDERINPIXELS - 16);
 
-        xd->dst.y_buffer = cm->new_frame.y_buffer + recon_yoffset;
-        xd->dst.u_buffer = cm->new_frame.u_buffer + recon_uvoffset;
-        xd->dst.v_buffer = cm->new_frame.v_buffer + recon_uvoffset;
+        xd->dst.y_buffer = cm->yv12_fb[dst_fb_idx].y_buffer + recon_yoffset;
+        xd->dst.u_buffer = cm->yv12_fb[dst_fb_idx].u_buffer + recon_uvoffset;
+        xd->dst.v_buffer = cm->yv12_fb[dst_fb_idx].v_buffer + recon_uvoffset;
         xd->left_available = (mb_col != 0);
 
         // Is segmentation enabled
@@ -398,7 +486,7 @@ void encode_mb_row(VP8_COMP *cpi,
 
     //extend the recon for intra prediction
     vp8_extend_mb_row(
-        &cm->new_frame,
+        &cm->yv12_fb[dst_fb_idx],
         xd->dst.y_buffer + 16,
         xd->dst.u_buffer + 8,
         xd->dst.v_buffer + 8);
@@ -468,7 +556,7 @@ void vp8_encode_frame(VP8_COMP *cpi)
 
 #if 0
     // Experimental code
-    cpi->frame_distortion = 0;     
+    cpi->frame_distortion = 0;
     cpi->last_mb_distortion = 0;
 #endif
 
@@ -510,12 +598,12 @@ void vp8_encode_frame(VP8_COMP *cpi)
     // Copy data over into macro block data sturctures.
 
     x->src = * cpi->Source;
-    xd->pre = cm->last_frame;
-    xd->dst = cm->new_frame;
+    xd->pre = cm->yv12_fb[cm->lst_fb_idx];
+    xd->dst = cm->yv12_fb[cm->new_fb_idx];
 
     // set up frame new frame for intra coded blocks
 
-    vp8_setup_intra_recon(&cm->new_frame);
+    vp8_setup_intra_recon(&cm->yv12_fb[cm->new_fb_idx]);
 
     vp8_build_block_offsets(x);
 
@@ -1136,34 +1224,23 @@ int vp8cx_encode_inter_macroblock
         MV best_ref_mv;
         MV nearest, nearby;
         int mdcounts[4];
+        int ref_fb_idx;
 
         vp8_find_near_mvs(xd, xd->mode_info_context,
                           &nearest, &nearby, &best_ref_mv, mdcounts, xd->mbmi.ref_frame, cpi->common.ref_frame_sign_bias);
 
         vp8_build_uvmvs(xd, cpi->common.full_pixel);
 
-        // store motion vectors in our motion vector list
         if (xd->mbmi.ref_frame == LAST_FRAME)
-        {
-            // Set up pointers for this macro block into the previous frame recon buffer
-            xd->pre.y_buffer = cpi->common.last_frame.y_buffer + recon_yoffset;
-            xd->pre.u_buffer = cpi->common.last_frame.u_buffer + recon_uvoffset;
-            xd->pre.v_buffer = cpi->common.last_frame.v_buffer + recon_uvoffset;
-        }
+            ref_fb_idx = cpi->common.lst_fb_idx;
         else if (xd->mbmi.ref_frame == GOLDEN_FRAME)
-        {
-            // Set up pointers for this macro block into the golden frame recon buffer
-            xd->pre.y_buffer = cpi->common.golden_frame.y_buffer + recon_yoffset;
-            xd->pre.u_buffer = cpi->common.golden_frame.u_buffer + recon_uvoffset;
-            xd->pre.v_buffer = cpi->common.golden_frame.v_buffer + recon_uvoffset;
-        }
+            ref_fb_idx = cpi->common.gld_fb_idx;
         else
-        {
-            // Set up pointers for this macro block into the alternate reference frame recon buffer
-            xd->pre.y_buffer = cpi->common.alt_ref_frame.y_buffer + recon_yoffset;
-            xd->pre.u_buffer = cpi->common.alt_ref_frame.u_buffer + recon_uvoffset;
-            xd->pre.v_buffer = cpi->common.alt_ref_frame.v_buffer + recon_uvoffset;
-        }
+            ref_fb_idx = cpi->common.alt_fb_idx;
+
+        xd->pre.y_buffer = cpi->common.yv12_fb[ref_fb_idx].y_buffer + recon_yoffset;
+        xd->pre.u_buffer = cpi->common.yv12_fb[ref_fb_idx].u_buffer + recon_uvoffset;
+        xd->pre.v_buffer = cpi->common.yv12_fb[ref_fb_idx].v_buffer + recon_uvoffset;
 
         if (xd->mbmi.mode == SPLITMV)
         {

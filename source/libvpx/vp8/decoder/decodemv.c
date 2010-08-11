@@ -1,10 +1,10 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license 
+ *  Use of this source code is governed by a BSD-style license
  *  that can be found in the LICENSE file in the root of the source
  *  tree. An additional intellectual property rights grant can be found
- *  in the file PATENTS.  All contributing project authors may 
+ *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
@@ -172,8 +172,6 @@ void vp8_decode_mode_mvs(VP8D_COMP *pbi)
             MACROBLOCKD *xd = &pbi->mb;
 
             mbmi->need_to_clamp_mvs = 0;
-            vp8dx_bool_decoder_fill(bc);
-
             // Distance of Mb to the various image edges.
             // These specified to 8th pel as they are always compared to MV values that are in 1/8th pel units
             xd->mb_to_left_edge = -((mb_col * 16) << 3);
@@ -228,13 +226,14 @@ void vp8_decode_mode_mvs(VP8D_COMP *pbi)
                         int mv_contz;
 
                         while (j != L[++k])
-                            if (k >= 16)
+                        {
 #if CONFIG_DEBUG
+                            if (k >= 16)
+                            {
                                 assert(0);
-
-#else
-                                ;
+                            }
 #endif
+                        }
 
                         mv_contz = vp8_mv_cont(&(vp8_left_bmi(mi, k)->mv.as_mv), &(vp8_above_bmi(mi, k, mis)->mv.as_mv));
 

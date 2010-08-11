@@ -1,10 +1,10 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license 
+ *  Use of this source code is governed by a BSD-style license
  *  that can be found in the LICENSE file in the root of the source
  *  tree. An additional intellectual property rights grant can be found
- *  in the file PATENTS.  All contributing project authors may 
+ *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
@@ -95,20 +95,22 @@ typedef struct VP8Decompressor
     int current_mb_col_main;
     int decoding_thread_count;
     int allocated_decoding_thread_count;
+    int *current_mb_col;                  //Each row remembers its already decoded column.
+    int mt_baseline_filter_level[MAX_MB_SEGMENTS];
 
     // variable for threading
     DECLARE_ALIGNED(16, MACROBLOCKD, lpfmb);
 #if CONFIG_MULTITHREAD
-    pthread_t           h_thread_lpf;         // thread for postprocessing
-    sem_t               h_event_lpf;          // Event for post_proc completed
-    sem_t               h_event_start_lpf;
+    //pthread_t           h_thread_lpf;         // thread for postprocessing
+    sem_t               h_event_end_lpf;          // Event for post_proc completed
+    sem_t               *h_event_start_lpf;
 #endif
     MB_ROW_DEC           *mb_row_di;
     DECODETHREAD_DATA   *de_thread_data;
 #if CONFIG_MULTITHREAD
     pthread_t           *h_decoding_thread;
-    sem_t               *h_event_mbrdecoding;
-    sem_t               h_event_main;
+    sem_t               *h_event_start_decoding;
+    sem_t               h_event_end_decoding;
     // end of threading data
 #endif
     vp8_reader *mbc;

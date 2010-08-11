@@ -1,10 +1,10 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license 
+ *  Use of this source code is governed by a BSD-style license
  *  that can be found in the LICENSE file in the root of the source
  *  tree. An additional intellectual property rights grant can be found
- *  in the file PATENTS.  All contributing project authors may 
+ *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
@@ -33,6 +33,7 @@ typedef struct
 
     // 16 Y blocks, 4 U blocks, 4 V blocks each with 16 entries
     short(*quant)[4];
+    short(*quant_shift)[4];
     short(*zbin)[4];
     short(*zrun_zbin_boost);
     short(*round)[4];
@@ -100,13 +101,8 @@ typedef struct
 
     void (*vp8_short_fdct4x4)(short *input, short *output, int pitch);
     void (*vp8_short_fdct8x4)(short *input, short *output, int pitch);
-    void (*short_fdct4x4rd)(short *input, short *output, int pitch);
-    void (*short_fdct8x4rd)(short *input, short *output, int pitch);
     void (*short_walsh4x4)(short *input, short *output, int pitch);
-
     void (*quantize_b)(BLOCK *b, BLOCKD *d);
-
-
 
 } MACROBLOCK;
 

@@ -1,15 +1,17 @@
 ##
 ##  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
 ##
-##  Use of this source code is governed by a BSD-style license 
+##  Use of this source code is governed by a BSD-style license
 ##  that can be found in the LICENSE file in the root of the source
 ##  tree. An additional intellectual property rights grant can be found
-##  in the file PATENTS.  All contributing project authors may 
+##  in the file PATENTS.  All contributing project authors may
 ##  be found in the AUTHORS file in the root of the source tree.
 ##
 
 
 ASM:=$(if $(filter yes,$(CONFIG_GCC)),.asm.s,.asm)
+
+CODEC_SRCS-yes += libs.mk
 
 include $(SRC_PATH_BARE)/vpx/vpx_codec.mk
 CODEC_SRCS-yes += $(addprefix vpx/,$(call enabled,API_SRCS))
@@ -59,7 +61,6 @@ CODEC_LIB=$(if $(CONFIG_STATIC_MSVCRT),vpxmt,vpxmd)
 # This variable uses deferred expansion intentionally, since the results of
 # $(wildcard) may change during the course of the Make.
 VS_PLATFORMS = $(foreach d,$(wildcard */Release/$(CODEC_LIB).lib),$(word 1,$(subst /, ,$(d))))
-CODEC_SRCS-yes += $(SRC_PATH_BARE)/libs.mk # to show up in the msvs workspace
 endif
 
 # The following pairs define a mapping of locations in the distribution
@@ -144,7 +145,6 @@ obj_int_extract.vcproj: $(SRC_PATH_BARE)/build/make/obj_int_extract.c
 
 PROJECTS-$(BUILD_LIBVPX) += obj_int_extract.vcproj
 PROJECTS-$(BUILD_LIBVPX) += obj_int_extract.bat
-PROJECTS-$(BUILD_LIBVPX) += armasm$(ARM_ARCH).rules
 endif
 
 vpx.def: $(call enabled,CODEC_EXPORTS)

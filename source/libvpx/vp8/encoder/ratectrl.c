@@ -1,10 +1,10 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license 
+ *  Use of this source code is governed by a BSD-style license
  *  that can be found in the LICENSE file in the root of the source
  *  tree. An additional intellectual property rights grant can be found
- *  in the file PATENTS.  All contributing project authors may 
+ *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
@@ -1120,10 +1120,12 @@ void vp8_calc_pframe_target_size(VP8_COMP *cpi)
 
             }
             // If there is an active ARF at this location use the minimum
-            // bits on this frame unless it was a contructed arf.
-            else if (cpi->oxcf.arnr_max_frames == 0)
+            // bits on this frame even if it is a contructed arf.
+            // The active maximum quantizer insures that an appropriate
+            // number of bits will be spent if needed for contstructed ARFs.
+            else
             {
-                cpi->this_frame_target = 0;           // Minimial spend on gf that is replacing an arf
+                cpi->this_frame_target = 0;
             }
 
             cpi->current_gf_interval = cpi->frames_till_gf_update_due;

@@ -1,10 +1,10 @@
 /*
  *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
  *
- *  Use of this source code is governed by a BSD-style license 
+ *  Use of this source code is governed by a BSD-style license
  *  that can be found in the LICENSE file in the root of the source
  *  tree. An additional intellectual property rights grant can be found
- *  in the file PATENTS.  All contributing project authors may 
+ *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
@@ -231,18 +231,29 @@ void vp8_initialize_rd_consts(VP8_COMP *cpi, int Qvalue)
     int i;
     int *thresh;
     int threshmult;
-
-    int capped_q = (Qvalue < 160) ? Qvalue : 160;
+    double capped_q = (Qvalue < 160) ? (double)Qvalue : 160.0;
+    double rdconst = 3.00;
 
     vp8_clear_system_state();  //__asm emms;
 
-    cpi->RDMULT = (int)( (0.0001 * (capped_q * capped_q * capped_q * capped_q))
-                        -(0.015 * (capped_q * capped_q * capped_q))
-                        +(3.25 * (capped_q * capped_q))
-                        -(17.5 * capped_q) + 125.0);
+    // Further tests required to see if optimum is different
+    // for key frames, golden frames and arf frames.
+    // if (cpi->common.refresh_golden_frame ||
+    //     cpi->common.refresh_alt_ref_frame)
+    cpi->RDMULT = (int)(rdconst * (capped_q * capped_q));
 
-    if (cpi->RDMULT < 125)
-        cpi->RDMULT = 125;
+    // Extend rate multiplier along side quantizer zbin increases
+    if (cpi->zbin_over_quant  > 0)
+    {
+        double oq_factor;
+        double modq;
+
+        // Experimental code using the same basic equation as used for Q above
+        // The units of cpi->zbin_over_quant are 1/128 of Q bin size
+        oq_factor = 1.0 + ((double)0.0015625 * cpi->zbin_over_quant);
+        modq = (int)((double)capped_q * oq_factor);
+        cpi->RDMULT = (int)(rdconst * (modq * modq));
+    }
 
     if (cpi->pass == 2 && (cpi->common.frame_type != KEY_FRAME))
     {
@@ -252,17 +263,8 @@ void vp8_initialize_rd_consts(VP8_COMP *cpi, int Qvalue)
             cpi->RDMULT += (cpi->RDMULT * rd_iifactor[cpi->next_iiratio]) >> 4;
     }
 
-
-    // Extend rate multiplier along side quantizer zbin increases
-    if (cpi->zbin_over_quant  > 0)
-    {
-        double oq_factor = pow(1.006,  cpi->zbin_over_quant);
-
-        if (oq_factor > (1.0 + ((double)cpi->zbin_over_quant / 64.0)))
-            oq_factor = (1.0 + (double)cpi->zbin_over_quant / 64.0);
-
-        cpi->RDMULT = (int)(oq_factor * cpi->RDMULT);
-    }
+    if (cpi->RDMULT < 125)
+        cpi->RDMULT = 125;
 
     cpi->mb.errorperbit = (cpi->RDMULT / 100);
 
@@ -1028,7 +1030,7 @@ static unsigned int vp8_encode_inter_mb_segment(MACROBLOCK *x, int const *labels
 
             vp8_build_inter_predictors_b(bd, 16, x->e_mbd.subpixel_predict);
             ENCODEMB_INVOKE(rtcd, subb)(be, bd, 16);
-            x->short_fdct4x4rd(be->src_diff, be->coeff, 32);
+            x->vp8_short_fdct4x4(be->src_diff, be->coeff, 32);
 
             // set to 0 no way to account for 2nd order DC so discount
             //be->coeff[0] = 0;
@@ -1056,7 +1058,7 @@ static void macro_block_yrd(MACROBLOCK *mb, int *Rate, int *Distortion, const vp
     // Fdct and building the 2nd order block
     for (beptr = mb->block; beptr < mb->block + 16; beptr += 2)
     {
-        mb->short_fdct8x4rd(beptr->src_diff, beptr->coeff, 32);
+        mb->vp8_short_fdct8x4(beptr->src_diff, beptr->coeff, 32);
         *Y2DCPtr++ = beptr->coeff[0];
         *Y2DCPtr++ = beptr->coeff[16];
     }
@@ -1541,7 +1543,7 @@ int vp8_rd_pick_inter_mode(VP8_COMP *cpi, MACROBLOCK *x, int recon_yoffset, int 
         //all_rds[mode_index] = -1;
         //all_rates[mode_index] = -1;
         //all_dist[mode_index] = -1;
-        //intermodecost[mode_index] = -1;  
+        //intermodecost[mode_index] = -1;
 
         // Test best rd so far against threshold for trying this mode.
         if (best_rd <= cpi->rd_threshes[mode_index])
@@ -1576,18 +1578,21 @@ int vp8_rd_pick_inter_mode(VP8_COMP *cpi, MACROBLOCK *x, int recon_yoffset, int 
 
         if (x->e_mbd.mbmi.ref_frame == LAST_FRAME)
         {
+            YV12_BUFFER_CONFIG *lst_yv12 = &cpi->common.yv12_fb[cpi->common.lst_fb_idx];
+
             if (!(cpi->ref_frame_flags & VP8_LAST_FLAG))
                 continue;
 
             lf_or_gf = 0;  // Local last frame vs Golden frame flag
 
             // Set up pointers for this macro block into the previous frame recon buffer
-            x->e_mbd.pre.y_buffer = cpi->common.last_frame.y_buffer + recon_yoffset;
-            x->e_mbd.pre.u_buffer = cpi->common.last_frame.u_buffer + recon_uvoffset;
-            x->e_mbd.pre.v_buffer = cpi->common.last_frame.v_buffer + recon_uvoffset;
+            x->e_mbd.pre.y_buffer = lst_yv12->y_buffer + recon_yoffset;
+            x->e_mbd.pre.u_buffer = lst_yv12->u_buffer + recon_uvoffset;
+            x->e_mbd.pre.v_buffer = lst_yv12->v_buffer + recon_uvoffset;
         }
         else if (x->e_mbd.mbmi.ref_frame == GOLDEN_FRAME)
         {
+            YV12_BUFFER_CONFIG *gld_yv12 = &cpi->common.yv12_fb[cpi->common.gld_fb_idx];
 
             // not supposed to reference gold frame
             if (!(cpi->ref_frame_flags & VP8_GOLD_FLAG))
@@ -1596,12 +1601,14 @@ int vp8_rd_pick_inter_mode(VP8_COMP *cpi, MACROBLOCK *x, int recon_yoffset, int 
             lf_or_gf = 1;  // Local last frame vs Golden frame flag
 
             // Set up pointers for this macro block into the previous frame recon buffer
-            x->e_mbd.pre.y_buffer = cpi->common.golden_frame.y_buffer + recon_yoffset;
-            x->e_mbd.pre.u_buffer = cpi->common.golden_frame.u_buffer + recon_uvoffset;
-            x->e_mbd.pre.v_buffer = cpi->common.golden_frame.v_buffer + recon_uvoffset;
+            x->e_mbd.pre.y_buffer = gld_yv12->y_buffer + recon_yoffset;
+            x->e_mbd.pre.u_buffer = gld_yv12->u_buffer + recon_uvoffset;
+            x->e_mbd.pre.v_buffer = gld_yv12->v_buffer + recon_uvoffset;
         }
         else if (x->e_mbd.mbmi.ref_frame == ALTREF_FRAME)
         {
+            YV12_BUFFER_CONFIG *alt_yv12 = &cpi->common.yv12_fb[cpi->common.alt_fb_idx];
+
             // not supposed to reference alt ref frame
             if (!(cpi->ref_frame_flags & VP8_ALT_FLAG))
                 continue;
@@ -1612,9 +1619,9 @@ int vp8_rd_pick_inter_mode(VP8_COMP *cpi, MACROBLOCK *x, int recon_yoffset, int 
             lf_or_gf = 1;  // Local last frame vs Golden frame flag
 
             // Set up pointers for this macro block into the previous frame recon buffer
-            x->e_mbd.pre.y_buffer = cpi->common.alt_ref_frame.y_buffer + recon_yoffset;
-            x->e_mbd.pre.u_buffer = cpi->common.alt_ref_frame.u_buffer + recon_uvoffset;
-            x->e_mbd.pre.v_buffer = cpi->common.alt_ref_frame.v_buffer + recon_uvoffset;
+            x->e_mbd.pre.y_buffer = alt_yv12->y_buffer + recon_yoffset;
+            x->e_mbd.pre.u_buffer = alt_yv12->u_buffer + recon_uvoffset;
+            x->e_mbd.pre.v_buffer = alt_yv12->v_buffer + recon_uvoffset;
         }
 
         vp8_find_near_mvs(&x->e_mbd,

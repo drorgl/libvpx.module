@@ -1,10 +1,10 @@
 ;
 ;  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
 ;
-;  Use of this source code is governed by a BSD-style license 
+;  Use of this source code is governed by a BSD-style license
 ;  that can be found in the LICENSE file in the root of the source
 ;  tree. An additional intellectual property rights grant can be found
-;  in the file PATENTS.  All contributing project authors may 
+;  in the file PATENTS.  All contributing project authors may
 ;  be found in the AUTHORS file in the root of the source tree.
 ;
 
@@ -138,12 +138,16 @@
     %endmacro
   %endif
   %endif
+  %define HIDDEN_DATA(x) x
 %else
   %macro GET_GOT 1
   %endmacro
   %define GLOBAL wrt rip
   %ifidn __OUTPUT_FORMAT__,elf64
     %define WRT_PLT wrt ..plt
+    %define HIDDEN_DATA(x) x:data hidden
+  %else
+    %define HIDDEN_DATA(x) x
   %endif
 %endif
 %ifnmacro GET_GOT
