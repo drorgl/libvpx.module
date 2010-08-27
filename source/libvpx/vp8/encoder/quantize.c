@@ -215,37 +215,96 @@ void vp8_regular_quantize_b(BLOCK *b, BLOCKD *d)
 }
 
 #endif
+
+/* Perform regular quantization, with unbiased rounding and no zero bin. */
+void vp8_strict_quantize_b(BLOCK *b, BLOCKD *d)
+{
+    int i;
+    int rc;
+    int eob;
+    int x;
+    int y;
+    int z;
+    int sz;
+    short *coeff_ptr;
+    short *quant_ptr;
+    short *quant_shift_ptr;
+    short *qcoeff_ptr;
+    short *dqcoeff_ptr;
+    short *dequant_ptr;
+
+    coeff_ptr = &b->coeff[0];
+    quant_ptr = &b->quant[0][0];
+    quant_shift_ptr = &b->quant_shift[0][0];
+    qcoeff_ptr = d->qcoeff;
+    dqcoeff_ptr = d->dqcoeff;
+    dequant_ptr = &d->dequant[0][0];
+    eob = - 1;
+    vpx_memset(qcoeff_ptr, 0, 32);
+    vpx_memset(dqcoeff_ptr, 0, 32);
+    for (i = 0; i < 16; i++)
+    {
+        int dq;
+        int round;
+
+        /*TODO: These arrays should be stored in zig-zag order.*/
+        rc = vp8_default_zig_zag1d[i];
+        z = coeff_ptr[rc];
+        dq = dequant_ptr[rc];
+        round = dq >> 1;
+        /* Sign of z. */
+        sz = -(z < 0);
+        x = (z + sz) ^ sz;
+        x += round;
+        if (x >= dq)
+        {
+            /* Quantize x. */
+            y  = (((x * quant_ptr[rc]) >> 16) + x) >> quant_shift_ptr[rc];
+            /* Put the sign back. */
+            x = (y + sz) ^ sz;
+            /* Save the coefficient and its dequantized value. */
+            qcoeff_ptr[rc] = x;
+            dqcoeff_ptr[rc] = x * dq;
+            /* Remember the last non-zero coefficient. */
+            if (y)
+                eob = i;
+        }
+    }
+
+    d->eob = eob + 1;
+}
+
 void vp8_quantize_mby(MACROBLOCK *x)
 {
     int i;
-    int has_2nd_order = (x->e_mbd.mbmi.mode != B_PRED
-        && x->e_mbd.mbmi.mode != SPLITMV);
+    int has_2nd_order = (x->e_mbd.mode_info_context->mbmi.mode != B_PRED
+        && x->e_mbd.mode_info_context->mbmi.mode != SPLITMV);
 
     for (i = 0; i < 16; i++)
     {
         x->quantize_b(&x->block[i], &x->e_mbd.block[i]);
-        x->e_mbd.mbmi.mb_skip_coeff &=
+        x->e_mbd.mode_info_context->mbmi.mb_skip_coeff &=
             (x->e_mbd.block[i].eob <= has_2nd_order);
     }
 
     if(has_2nd_order)
     {
         x->quantize_b(&x->block[24], &x->e_mbd.block[24]);
-        x->e_mbd.mbmi.mb_skip_coeff &= (!x->e_mbd.block[24].eob);
+        x->e_mbd.mode_info_context->mbmi.mb_skip_coeff &= (!x->e_mbd.block[24].eob);
     }
 }
 
 void vp8_quantize_mb(MACROBLOCK *x)
 {
     int i;
-    int has_2nd_order=(x->e_mbd.mbmi.mode != B_PRED
-        && x->e_mbd.mbmi.mode != SPLITMV);
+    int has_2nd_order=(x->e_mbd.mode_info_context->mbmi.mode != B_PRED
+        && x->e_mbd.mode_info_context->mbmi.mode != SPLITMV);
 
-    x->e_mbd.mbmi.mb_skip_coeff = 1;
+    x->e_mbd.mode_info_context->mbmi.mb_skip_coeff = 1;
     for (i = 0; i < 24+has_2nd_order; i++)
     {
         x->quantize_b(&x->block[i], &x->e_mbd.block[i]);
-        x->e_mbd.mbmi.mb_skip_coeff &=
+        x->e_mbd.mode_info_context->mbmi.mb_skip_coeff &=
             (x->e_mbd.block[i].eob <= (has_2nd_order && i<16));
     }
 }
@@ -258,6 +317,6 @@ void vp8_quantize_mbuv(MACROBLOCK *x)
     for (i = 16; i < 24; i++)
     {
         x->quantize_b(&x->block[i], &x->e_mbd.block[i]);
-        x->e_mbd.mbmi.mb_skip_coeff &= (!x->e_mbd.block[i].eob);
+        x->e_mbd.mode_info_context->mbmi.mb_skip_coeff &= (!x->e_mbd.block[i].eob);
     }
 }

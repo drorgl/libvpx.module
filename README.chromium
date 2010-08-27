@@ -4,5 +4,24 @@ Chromium.
 The libvpx source is from webmproject.org:
   git://review.webmproject.org/libvpx
 
-Date: Tuesday August 10 2010
-Commit: e4fe866949951c8eb79c5ebdb0a6dab37cef37a9
+Date: Friday August 27 2010
+Commit: 00358cb9742d454debc8b788690119a1e6e83c4a
+
+Notes
+
+The mac and linux libvpx builds were built with built with icc v11.1.  In 
+addition to the configuration args listed in vpx_config.c for each target, the
+following additions were made to CFLAGS:
+
+- linux/x64 CFLAGS: -fPIC -ffreestanding
+- mac and linux ia32 CFLAGS: -ffreestanding
+
+The -ffreestanding argument removes dependencies on intel memcpy and memset 
+functions.
+
+For example, the following could be used at libvpx configure time to reproduce 
+the linux x64 build:
+
+CFLAGS="-fPIC -ffreestanding" /path/to/libvpx/configure \
+--target=x86_64-linux-icc --enable-pic --disable-install-docs \
+--disable-install-srcs --disable-examples --disable-postproc --disable-psnr

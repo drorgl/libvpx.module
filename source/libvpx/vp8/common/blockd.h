@@ -215,9 +215,10 @@ typedef struct
 {
     DECLARE_ALIGNED(16, short, diff[400]);      // from idct diff
     DECLARE_ALIGNED(16, unsigned char,  predictor[384]);
-    DECLARE_ALIGNED(16, short, reference[384]);
+//not used    DECLARE_ALIGNED(16, short, reference[384]);
     DECLARE_ALIGNED(16, short, qcoeff[400]);
     DECLARE_ALIGNED(16, short, dqcoeff[400]);
+    DECLARE_ALIGNED(16, char,  eobs[25]);
 
     // 16 Y blocks, 4 U, 4 V, 1 DC 2nd order block, each with 16 entries.
     BLOCKD block[25];
@@ -231,8 +232,6 @@ typedef struct
     int mode_info_stride;
 
     FRAME_TYPE frame_type;
-
-    MB_MODE_INFO mbmi;
 
     int up_available;
     int left_available;
@@ -274,9 +273,6 @@ typedef struct
     int mb_to_right_edge;
     int mb_to_top_edge;
     int mb_to_bottom_edge;
-
-    //char * gf_active_ptr;
-    signed char *gf_active_ptr;
 
     unsigned int frames_since_golden;
     unsigned int frames_till_alt_ref_frame;
