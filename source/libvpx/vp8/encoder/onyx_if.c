@@ -29,6 +29,8 @@
 #include "swapyv12buffer.h"
 #include "threading.h"
 #include "vpx_ports/vpx_timer.h"
+#include "vpxerrors.h"
+
 #include <math.h>
 #include <stdio.h>
 #include <limits.h>
@@ -229,6 +231,11 @@ void vp8_dealloc_compressor_data(VP8_COMP *cpi)
         vpx_free(cpi->gf_active_flags);
 
     cpi->gf_active_flags = 0;
+
+    if(cpi->mb.pip)
+        vpx_free(cpi->mb.pip);
+
+    cpi->mb.pip = 0;
 
 }
 
@@ -1221,6 +1228,20 @@ static void alloc_raw_frame_buffers(VP8_COMP *cpi)
 
     cpi->source_buffer_count = 0;
 }
+
+static int vp8_alloc_partition_data(VP8_COMP *cpi)
+{
+    cpi->mb.pip = vpx_calloc((cpi->common.mb_cols + 1) *
+                                (cpi->common.mb_rows + 1),
+                                sizeof(PARTITION_INFO));
+    if(!cpi->mb.pip)
+        return ALLOC_FAILURE;
+
+    cpi->mb.pi = cpi->mb.pip + cpi->common.mode_info_stride + 1;
+
+    return 0;
+}
+
 void vp8_alloc_compressor_data(VP8_COMP *cpi)
 {
     VP8_COMMON *cm = & cpi->common;
@@ -1231,6 +1252,11 @@ void vp8_alloc_compressor_data(VP8_COMP *cpi)
     if (vp8_alloc_frame_buffers(cm, width, height))
         vpx_internal_error(&cpi->common.error, VPX_CODEC_MEM_ERROR,
                            "Failed to allocate frame buffers");
+
+    if (vp8_alloc_partition_data(cpi))
+        vpx_internal_error(&cpi->common.error, VPX_CODEC_MEM_ERROR,
+                           "Failed to allocate partition data");
+
 
     if ((width & 0xf) != 0)
         width += 16 - (width & 0xf);
@@ -2818,23 +2844,17 @@ static int pick_frame_size(VP8_COMP *cpi)
         cm->frame_type = KEY_FRAME;
 
     }
-    // Auto key frames (Only two pass will enter here)
+    // Special case for forced key frames
+    // The frame sizing here is still far from ideal for 2 pass.
+    else if (cm->frame_flags & FRAMEFLAGS_KEY)
+    {
+        cm->frame_type = KEY_FRAME;
+        resize_key_frame(cpi);
+        vp8_calc_iframe_target_size(cpi);
+    }
     else if (cm->frame_type == KEY_FRAME)
     {
         vp8_calc_auto_iframe_target_size(cpi);
-    }
-    // Forced key frames (by interval or an external signal)
-    else if ((cm->frame_flags & FRAMEFLAGS_KEY) ||
-             (cpi->oxcf.auto_key && (cpi->frames_since_key % cpi->key_frame_frequency == 0)))
-    {
-        // Key frame from VFW/auto-keyframe/first frame
-        cm->frame_type = KEY_FRAME;
-
-        resize_key_frame(cpi);
-
-        // Compute target frame size
-        if (cpi->pass != 2)
-            vp8_calc_iframe_target_size(cpi);
     }
     else
     {

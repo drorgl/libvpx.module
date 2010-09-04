@@ -101,6 +101,49 @@ static const int qzbin_factors[129] =
     80, 80, 80, 80, 80, 80, 80, 80,
     80,
 };
+
+static const int qrounding_factors_y2[129] =
+{
+    56, 56, 56, 56, 48, 48, 56, 56,
+    48, 48, 48, 48, 48, 48, 48, 48,
+    48, 48, 48, 48, 48, 48, 48, 48,
+    48, 48, 48, 48, 48, 48, 48, 48,
+    48, 48, 48, 48, 48, 48, 48, 48,
+    48, 48, 48, 48, 48, 48, 48, 48,
+    48, 48, 48, 48, 48, 48, 48, 48,
+    48, 48, 48, 48, 48, 48, 48, 48,
+    48, 48, 48, 48, 48, 48, 48, 48,
+    48, 48, 48, 48, 48, 48, 48, 48,
+    48, 48, 48, 48, 48, 48, 48, 48,
+    48, 48, 48, 48, 48, 48, 48, 48,
+    48, 48, 48, 48, 48, 48, 48, 48,
+    48, 48, 48, 48, 48, 48, 48, 48,
+    48, 48, 48, 48, 48, 48, 48, 48,
+    48, 48, 48, 48, 48, 48, 48, 48,
+    48,
+};
+
+static const int qzbin_factors_y2[129] =
+{
+    72, 72, 72, 72, 80, 80, 72, 72,
+    80, 80, 80, 80, 80, 80, 80, 80,
+    80, 80, 80, 80, 80, 80, 80, 80,
+    80, 80, 80, 80, 80, 80, 80, 80,
+    80, 80, 80, 80, 80, 80, 80, 80,
+    80, 80, 80, 80, 80, 80, 80, 80,
+    80, 80, 80, 80, 80, 80, 80, 80,
+    80, 80, 80, 80, 80, 80, 80, 80,
+    80, 80, 80, 80, 80, 80, 80, 80,
+    80, 80, 80, 80, 80, 80, 80, 80,
+    80, 80, 80, 80, 80, 80, 80, 80,
+    80, 80, 80, 80, 80, 80, 80, 80,
+    80, 80, 80, 80, 80, 80, 80, 80,
+    80, 80, 80, 80, 80, 80, 80, 80,
+    80, 80, 80, 80, 80, 80, 80, 80,
+    80, 80, 80, 80, 80, 80, 80, 80,
+    80,
+};
+
 //#define EXACT_QUANT
 #ifdef EXACT_QUANT
 static void vp8cx_invert_quant(short *quant, short *shift, short d)
@@ -138,8 +181,8 @@ void vp8cx_init_quantizer(VP8_COMP *cpi)
         quant_val = vp8_dc2quant(Q, cpi->common.y2dc_delta_q);
         vp8cx_invert_quant(cpi->Y2quant[Q][0] + 0,
                            cpi->Y2quant_shift[Q][0] + 0, quant_val);
-        cpi->Y2zbin[Q][0][0] = ((qzbin_factors[Q] * quant_val) + 64) >> 7;
-        cpi->Y2round[Q][0][0] = (qrounding_factors[Q] * quant_val) >> 7;
+        cpi->Y2zbin[Q][0][0] = ((qzbin_factors_y2[Q] * quant_val) + 64) >> 7;
+        cpi->Y2round[Q][0][0] = (qrounding_factors_y2[Q] * quant_val) >> 7;
         cpi->common.Y2dequant[Q][0][0] = quant_val;
         cpi->zrun_zbin_boost_y2[Q][0] = (quant_val * zbin_boost[0]) >> 7;
 
@@ -169,8 +212,8 @@ void vp8cx_init_quantizer(VP8_COMP *cpi)
             quant_val = vp8_ac2quant(Q, cpi->common.y2ac_delta_q);
             vp8cx_invert_quant(cpi->Y2quant[Q][r] + c,
                                cpi->Y2quant_shift[Q][r] + c, quant_val);
-            cpi->Y2zbin[Q][r][c] = ((qzbin_factors[Q] * quant_val) + 64) >> 7;
-            cpi->Y2round[Q][r][c] = (qrounding_factors[Q] * quant_val) >> 7;
+            cpi->Y2zbin[Q][r][c] = ((qzbin_factors_y2[Q] * quant_val) + 64) >> 7;
+            cpi->Y2round[Q][r][c] = (qrounding_factors_y2[Q] * quant_val) >> 7;
             cpi->common.Y2dequant[Q][r][c] = quant_val;
             cpi->zrun_zbin_boost_y2[Q][i] = (quant_val * zbin_boost[i]) >> 7;
 
@@ -206,8 +249,8 @@ void vp8cx_init_quantizer(VP8_COMP *cpi)
 
         quant_val = vp8_dc2quant(Q, cpi->common.y2dc_delta_q);
         cpi->Y2quant[Q][0][0] = (1 << 16) / quant_val;
-        cpi->Y2zbin[Q][0][0] = ((qzbin_factors[Q] * quant_val) + 64) >> 7;
-        cpi->Y2round[Q][0][0] = (qrounding_factors[Q] * quant_val) >> 7;
+        cpi->Y2zbin[Q][0][0] = ((qzbin_factors_y2[Q] * quant_val) + 64) >> 7;
+        cpi->Y2round[Q][0][0] = (qrounding_factors_y2[Q] * quant_val) >> 7;
         cpi->common.Y2dequant[Q][0][0] = quant_val;
         cpi->zrun_zbin_boost_y2[Q][0] = (quant_val * zbin_boost[0]) >> 7;
 
@@ -234,8 +277,8 @@ void vp8cx_init_quantizer(VP8_COMP *cpi)
 
             quant_val = vp8_ac2quant(Q, cpi->common.y2ac_delta_q);
             cpi->Y2quant[Q][r][c] = (1 << 16) / quant_val;
-            cpi->Y2zbin[Q][r][c] = ((qzbin_factors[Q] * quant_val) + 64) >> 7;
-            cpi->Y2round[Q][r][c] = (qrounding_factors[Q] * quant_val) >> 7;
+            cpi->Y2zbin[Q][r][c] = ((qzbin_factors_y2[Q] * quant_val) + 64) >> 7;
+            cpi->Y2round[Q][r][c] = (qrounding_factors_y2[Q] * quant_val) >> 7;
             cpi->common.Y2dequant[Q][r][c] = quant_val;
             cpi->zrun_zbin_boost_y2[Q][i] = (quant_val * zbin_boost[i]) >> 7;
 
@@ -415,7 +458,7 @@ void encode_mb_row(VP8_COMP *cpi,
 
                 for (b = 0; b < xd->mbmi.partition_count; b++)
                 {
-                    inter_b_modes[xd->mbmi.partition_bmi[b].mode] ++;
+                    inter_b_modes[x->partition->bmi[b].mode] ++;
                 }
             }
 
@@ -468,6 +511,7 @@ void encode_mb_row(VP8_COMP *cpi,
 
         // skip to next mb
         xd->mode_info_context++;
+        x->partition_info++;
 
         xd->above_context++;
         cpi->current_mb_col_main = mb_col;
@@ -482,6 +526,7 @@ void encode_mb_row(VP8_COMP *cpi,
 
     // this is to account for the border
     xd->mode_info_context++;
+    x->partition_info++;
 }
 
 
@@ -551,7 +596,7 @@ void vp8_encode_frame(VP8_COMP *cpi)
 
     totalrate = 0;
 
-    xd->mode_info = cm->mi - 1;
+    x->partition_info = x->pi;
 
     xd->mode_info_context = cm->mi;
     xd->mode_info_stride = cm->mode_info_stride;
@@ -687,6 +732,7 @@ void vp8_encode_frame(VP8_COMP *cpi)
                 x->src.v_buffer +=  8 * x->src.uv_stride * (cpi->encoding_thread_count + 1) - 8 * cm->mb_cols;
 
                 xd->mode_info_context += xd->mode_info_stride * cpi->encoding_thread_count;
+                x->partition_info  += xd->mode_info_stride * cpi->encoding_thread_count;
 
                 if (mb_row < cm->mb_rows - 1)
                     //WaitForSingleObject(cpi->h_event_main, INFINITE);

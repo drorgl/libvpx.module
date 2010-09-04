@@ -52,7 +52,6 @@ void vp8_setup_decoding_thread_data(VP8D_COMP *pbi, MACROBLOCKD *xd, MB_ROW_DEC 
         mbd->subpixel_predict8x8     = xd->subpixel_predict8x8;
         mbd->subpixel_predict16x16   = xd->subpixel_predict16x16;
 
-        mbd->mode_info        = pc->mi - 1;
         mbd->mode_info_context = pc->mi   + pc->mode_info_stride * (i + 1);
         mbd->mode_info_stride  = pc->mode_info_stride;
 
@@ -105,7 +104,6 @@ void vp8_setup_loop_filter_thread_data(VP8D_COMP *pbi, MACROBLOCKD *xd, MB_ROW_D
         //mbd->subpixel_predict8x8     = xd->subpixel_predict8x8;
         //mbd->subpixel_predict16x16   = xd->subpixel_predict16x16;
 
-        mbd->mode_info        = pc->mi - 1;
         mbd->mode_info_context = pc->mi   + pc->mode_info_stride * (i + 1);
         mbd->mode_info_stride  = pc->mode_info_stride;
 
@@ -161,6 +159,8 @@ THREAD_FUNCTION vp8_thread_decoding_proc(void *p_data)
 
     while (1)
     {
+        int current_filter_level = 0;
+
         if (pbi->b_multithreaded_rd == 0)
             break;
 
@@ -279,6 +279,11 @@ THREAD_FUNCTION vp8_thread_decoding_proc(void *p_data)
                 }
             }
         }
+
+        // If |pbi->common.filter_level| is 0 the value can change in-between
+        // the sem_post and the check to call vp8_thread_loop_filter.
+        current_filter_level = pbi->common.filter_level;
+
         //  add this to each frame
         if ((mbrd->mb_row == pbi->common.mb_rows-1) || ((mbrd->mb_row == pbi->common.mb_rows-2) && (pbi->common.mb_rows % (pbi->decoding_thread_count+1))==1))
         {
@@ -286,7 +291,7 @@ THREAD_FUNCTION vp8_thread_decoding_proc(void *p_data)
             sem_post(&pbi->h_event_end_decoding);
         }
 
-        if ((pbi->b_multithreaded_lf) &&(pbi->common.filter_level))
+        if ((pbi->b_multithreaded_lf) && (current_filter_level))
             vp8_thread_loop_filter(pbi, mbrd, ithread);
 
     }
