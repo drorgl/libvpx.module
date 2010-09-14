@@ -21,7 +21,7 @@ following additions were made to CFLAGS:
 - linux/x64 CFLAGS: -fPIC -ffreestanding
 - mac and linux ia32 CFLAGS: -ffreestanding
 
-The -ffreestanding argument removes dependencies on intel memcpy and memset 
+The -ffreestanding argument removes dependencies on Intel memcpy and memset 
 functions.
 
 For example, the following could be used at libvpx configure time to reproduce 
