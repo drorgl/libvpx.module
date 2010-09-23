@@ -8,9 +8,9 @@ Chromium.
 The libvpx source is from webmproject.org:
   git://review.webmproject.org/libvpx
 
-Date: Saturday September 4 2010
-Commit: 0de458f6b9627844160768c0b2417058c7a865bc
-Version: v0.9.2-1-g0de458f
+Date: Thursday September 23 2010
+Commit: a8a38bcf10f2beba39a41ce3c469ff02caebd2ca
+Version: v0.9.2-35-ga8a38bc
 
 Notes
 

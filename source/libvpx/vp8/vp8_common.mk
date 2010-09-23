@@ -1,5 +1,5 @@
 ##
-##  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
+##  Copyright (c) 2010 The WebM project authors. All Rights Reserved.
 ##
 ##  Use of this source code is governed by a BSD-style license
 ##  that can be found in the LICENSE file in the root of the source
@@ -81,6 +81,8 @@ VP8_COMMON_SRCS-yes += common/recon.c
 VP8_COMMON_SRCS-yes += common/reconinter.c
 VP8_COMMON_SRCS-yes += common/reconintra.c
 VP8_COMMON_SRCS-yes += common/reconintra4x4.c
+VP8_COMMON_SRCS-yes += common/reconintra_mt.h
+VP8_COMMON_SRCS-yes += common/reconintra_mt.c
 VP8_COMMON_SRCS-yes += common/setupintrarecon.c
 VP8_COMMON_SRCS-yes += common/swapyv12buffer.c
 VP8_COMMON_SRCS-yes += common/textblit.c

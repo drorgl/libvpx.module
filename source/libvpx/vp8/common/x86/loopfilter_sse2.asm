@@ -1,5 +1,5 @@
 ;
-;  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
+;  Copyright (c) 2010 The WebM project authors. All Rights Reserved.
 ;
 ;  Use of this source code is governed by a BSD-style license
 ;  that can be found in the LICENSE file in the root of the source
@@ -11,6 +11,8 @@
 
 %include "vpx_ports/x86_abi_support.asm"
 
+; Use of pmaxub instead of psubusb to compute filter mask was seen
+; in ffvp8
 
 %macro LFH_FILTER_MASK 1
 %if %1
@@ -33,8 +35,6 @@
         psubusb     xmm2,                   xmm6              ; q3-=q2
         por         xmm1,                   xmm2              ; abs(q3-q2)
 
-        psubusb     xmm1,                   xmm7
-
 %if %1
         movdqa      xmm4,                   [rsi+rax]         ; q1
 %else
@@ -49,9 +49,7 @@
         psubusb     xmm4,                   xmm6              ; q1-=q2
         psubusb     xmm6,                   xmm3              ; q2-=q1
         por         xmm4,                   xmm6              ; abs(q2-q1)
-        psubusb     xmm4,                   xmm7
-
-        por         xmm1,                   xmm4
+        pmaxub      xmm1,                   xmm4
 
 %if %1
         movdqa      xmm4,                   [rsi]             ; q0
@@ -67,9 +65,7 @@
         psubusb     xmm3,                   xmm0              ; q1-=q0
         por         xmm4,                   xmm3              ; abs(q0-q1)
         movdqa      t0,                     xmm4              ; save to t0
-
-        psubusb     xmm4,                   xmm7
-        por         xmm1,                   xmm4
+        pmaxub      xmm1,                   xmm4
 
 %if %1
         neg         rax                     ; negate pitch to deal with above border
@@ -95,9 +91,7 @@
         psubusb     xmm4,                   xmm2              ; p2-=p3
         psubusb     xmm2,                   xmm5              ; p3-=p2
         por         xmm4,                   xmm2              ; abs(p3 - p2)
-
-        psubusb     xmm4,                   xmm7
-        por         xmm1,                   xmm4
+        pmaxub      xmm1,                   xmm4
 
 %if %1
         movdqa      xmm4,                   [rsi+2*rax]       ; p1
@@ -113,9 +107,8 @@
         psubusb     xmm4,                   xmm5              ; p1-=p2
         psubusb     xmm5,                   xmm3              ; p2-=p1
         por         xmm4,                   xmm5              ; abs(p2 - p1)
-        psubusb     xmm4,                   xmm7
+        pmaxub      xmm1,                   xmm4
 
-        por         xmm1,                   xmm4
         movdqa      xmm2,                   xmm3              ; p1
 
 %if %1
@@ -133,8 +126,8 @@
         por         xmm4,                   xmm3              ; abs(p1 - p0)
         movdqa        t1,                   xmm4              ; save to t1
 
-        psubusb     xmm4,                   xmm7
-        por         xmm1,                   xmm4
+        pmaxub      xmm1,                   xmm4
+        psubusb     xmm1,                   xmm7
 
 %if %1
         movdqa      xmm3,                   [rdi]             ; q1
@@ -196,12 +189,12 @@
         pxor        xmm7,                   [t80 GLOBAL]      ; q1 offset to convert to signed values
 
         psubsb      xmm2,                   xmm7              ; p1 - q1
-        pand        xmm2,                   xmm4              ; high var mask (hvm)(p1 - q1)
         pxor        xmm6,                   [t80 GLOBAL]      ; offset to convert to signed values
 
+        pand        xmm2,                   xmm4              ; high var mask (hvm)(p1 - q1)
         pxor        xmm0,                   [t80 GLOBAL]      ; offset to convert to signed values
-        movdqa      xmm3,                   xmm0              ; q0
 
+        movdqa      xmm3,                   xmm0              ; q0
         psubsb      xmm0,                   xmm6              ; q0 - p0
         paddsb      xmm2,                   xmm0              ; 1 * (q0 - p0) + hvm(p1 - q1)
         paddsb      xmm2,                   xmm0              ; 2 * (q0 - p0) + hvm(p1 - q1)
@@ -211,29 +204,28 @@
         paddsb      xmm1,                   [t4 GLOBAL]       ; 3* (q0 - p0) + hvm(p1 - q1) + 4
         paddsb      xmm2,                   [t3 GLOBAL]       ; 3* (q0 - p0) + hvm(p1 - q1) + 3
 
-        pxor        xmm0,                   xmm0
-        pxor        xmm5,                   xmm5
-        punpcklbw   xmm0,                   xmm2
-        punpckhbw   xmm5,                   xmm2
-        psraw       xmm0,                   11
-        psraw       xmm5,                   11
-        packsswb    xmm0,                   xmm5
-        movdqa      xmm2,                   xmm0              ; (3* (q0 - p0) + hvm(p1 - q1) + 3) >> 3;
+        punpckhbw   xmm5,                   xmm2              ; axbxcxdx
+        punpcklbw   xmm2,                   xmm2              ; exfxgxhx
 
-        pxor        xmm0,                   xmm0              ; 0
-        movdqa      xmm5,                   xmm1              ; abcdefgh
-        punpcklbw   xmm0,                   xmm1              ; e0f0g0h0
+        psraw       xmm5,                   11                ; sign extended shift right by 3
+        psraw       xmm2,                   11                ; sign extended shift right by 3
+        packsswb    xmm2,                   xmm5              ; (3* (q0 - p0) + hvm(p1 - q1) + 3) >> 3;
+
+        punpcklbw   xmm0,                   xmm1              ; exfxgxhx
+        punpckhbw   xmm1,                   xmm1              ; axbxcxdx
+
         psraw       xmm0,                   11                ; sign extended shift right by 3
-        pxor        xmm1,                   xmm1              ; 0
-        punpckhbw   xmm1,                   xmm5              ; a0b0c0d0
         psraw       xmm1,                   11                ; sign extended shift right by 3
-        movdqa      xmm5,                   xmm0              ; save results
 
+        movdqa      xmm5,                   xmm0              ; save results
         packsswb    xmm0,                   xmm1              ; (3* (q0 - p0) + hvm(p1 - q1) + 4) >>3
+
         paddsw      xmm5,                   [ones GLOBAL]
         paddsw      xmm1,                   [ones GLOBAL]
+
         psraw       xmm5,                   1                 ; partial shifted one more time for 2nd tap
         psraw       xmm1,                   1                 ; partial shifted one more time for 2nd tap
+
         packsswb    xmm5,                   xmm1              ; (3* (q0 - p0) + hvm(p1 - q1) + 4) >>4
         pandn       xmm4,                   xmm5              ; high edge variance additive
 %endmacro
@@ -433,29 +425,27 @@ sym(vp8_loop_filter_horizontal_edge_uv_sse2):
         pand        xmm2,                   xmm4;             ; Filter2 = vp8_filter & hev
 
         movdqa      xmm5,                   xmm2
-        paddsb      xmm5,                   [t3 GLOBAL]
+        paddsb      xmm5,                   [t3 GLOBAL]       ; vp8_signed_char_clamp(Filter2 + 3)
 
-        pxor        xmm0,                   xmm0              ; 0
-        pxor        xmm7,                   xmm7              ; 0
-        punpcklbw   xmm0,                   xmm5              ; e0f0g0h0
-        psraw       xmm0,                   11                ; sign extended shift right by 3
-        punpckhbw   xmm7,                   xmm5              ; a0b0c0d0
+        punpckhbw   xmm7,                   xmm5              ; axbxcxdx
+        punpcklbw   xmm5,                   xmm5              ; exfxgxhx
+
         psraw       xmm7,                   11                ; sign extended shift right by 3
-        packsswb    xmm0,                   xmm7              ; Filter2 >>=3;
-        movdqa      xmm5,                   xmm0              ; Filter2
-        paddsb      xmm2,                   [t4 GLOBAL]      ; vp8_signed_char_clamp(Filter2 + 4)
+        psraw       xmm5,                   11                ; sign extended shift right by 3
 
-        pxor        xmm0,                   xmm0              ; 0
-        pxor        xmm7,                   xmm7              ; 0
-        punpcklbw   xmm0,                   xmm2              ; e0f0g0h0
-        psraw       xmm0,                   11                ; sign extended shift right by 3
-        punpckhbw   xmm7,                   xmm2              ; a0b0c0d0
+        packsswb    xmm5,                   xmm7              ; Filter2 >>=3;
+        paddsb      xmm2,                   [t4 GLOBAL]       ; vp8_signed_char_clamp(Filter2 + 4)
+
+        punpckhbw   xmm7,                   xmm2              ; axbxcxdx
+        punpcklbw   xmm0,                   xmm2              ; exfxgxhx
+
         psraw       xmm7,                   11                ; sign extended shift right by 3
-        packsswb    xmm0,                   xmm7              ; Filter2 >>=3;
+        psraw       xmm0,                   11                ; sign extended shift right by 3
 
-        psubsb      xmm3,                   xmm0              ; qs0 =qs0 - filter1
+        packsswb    xmm0,                   xmm7              ; Filter2 >>=3;
         paddsb      xmm6,                   xmm5              ; ps0 =ps0 + Fitler2
 
+        psubsb      xmm3,                   xmm0              ; qs0 =qs0 - filter1
         pandn       xmm4,                   xmm1              ; vp8_filter&=~hev
 %endmacro
 
@@ -465,7 +455,6 @@ sym(vp8_loop_filter_horizontal_edge_uv_sse2):
         ; *oq0 = s^0x80;
         ; s = vp8_signed_char_clamp(ps0 + u);
         ; *op0 = s^0x80;
-        pxor        xmm0,                   xmm0
         pxor        xmm1,                   xmm1
 
         pxor        xmm2,                   xmm2
@@ -737,29 +726,30 @@ sym(vp8_mbloop_filter_horizontal_edge_uv_sse2):
 
 
 %macro TRANSPOSE_16X8_1 0
-        movq        xmm0,               QWORD PTR [rdi+rcx*2]   ; xx xx xx xx xx xx xx xx 77 76 75 74 73 72 71 70
-        movq        xmm7,               QWORD PTR [rsi+rcx*2]   ; xx xx xx xx xx xx xx xx 67 66 65 64 63 62 61 60
+        movq        xmm4,               QWORD PTR [rsi] ; xx xx xx xx xx xx xx xx 07 06 05 04 03 02 01 00
+        movq        xmm7,               QWORD PTR [rdi] ; xx xx xx xx xx xx xx xx 17 16 15 14 13 12 11 10
 
-        punpcklbw   xmm7,               xmm0            ; 77 67 76 66 75 65 74 64 73 63 72 62 71 61 70 60
-        movq        xmm0,               QWORD PTR [rsi+rcx]
+        punpcklbw   xmm4,               xmm7            ; 17 07 16 06 15 05 14 04 13 03 12 02 11 01 10 00
+        movq        xmm0,               QWORD PTR [rsi+2*rax]  ; xx xx xx xx xx xx xx xx 27 26 25 24 23 22 21 20
 
-        movq        xmm5,               QWORD PTR [rsi] ;
-        punpcklbw   xmm5,               xmm0            ; 57 47 56 46 55 45 54 44 53 43 52 42 51 41 50 40
+        movdqa      xmm3,               xmm4            ; 17 07 16 06 15 05 14 04 13 03 12 02 11 01 10 00
 
+        movq        xmm7,               QWORD PTR [rdi+2*rax]  ; xx xx xx xx xx xx xx xx 37 36 35 34 33 32 31 30
+        punpcklbw   xmm0,               xmm7            ; 37 27 36 36 35 25 34 24 33 23 32 22 31 21 30 20
+
+        movq        xmm5,               QWORD PTR [rsi+4*rax]  ; xx xx xx xx xx xx xx xx 47 46 45 44 43 42 41 40
+        movq        xmm2,               QWORD PTR [rdi+4*rax]  ; xx xx xx xx xx xx xx xx 57 56 55 54 53 52 51 50
+
+        punpcklbw   xmm5,               xmm2            ; 57 47 56 46 55 45 54 44 53 43 52 42 51 41 50 40
+        movq        xmm7,               QWORD PTR [rsi+2*rcx]  ; xx xx xx xx xx xx xx xx 67 66 65 64 63 62 61 60
+
+        movq        xmm1,               QWORD PTR [rdi+2*rcx]  ; xx xx xx xx xx xx xx xx 77 76 75 74 73 72 71 70
         movdqa      xmm6,               xmm5            ; 57 47 56 46 55 45 54 44 53 43 52 42 51 41 50 40
+
+        punpcklbw   xmm7,               xmm1            ; 77 67 76 66 75 65 74 64 73 63 72 62 71 61 70 60
         punpcklwd   xmm5,               xmm7            ; 73 63 53 43 72 62 52 42 71 61 51 41 70 60 50 40
 
         punpckhwd   xmm6,               xmm7            ; 77 67 57 47 76 66 56 46 75 65 55 45 74 64 54 44
-        movq        xmm7,               QWORD PTR [rsi + rax]   ; xx xx xx xx xx xx xx xx 37 36 35 34 33 32 31 30
-
-        movq        xmm0,               QWORD PTR [rsi + rax*2] ; xx xx xx xx xx xx xx xx 27 26 25 24 23 22 21 20
-        punpcklbw   xmm0,               xmm7            ; 37 27 36 36 35 25 34 24 33 23 32 22 31 21 30 20
-
-        movq        xmm4,               QWORD PTR [rsi + rax*4] ; xx xx xx xx xx xx xx xx 07 06 05 04 03 02 01 00
-        movq        xmm7,               QWORD PTR [rdi + rax*4] ; xx xx xx xx xx xx xx xx 17 16 15 14 13 12 11 10
-
-        punpcklbw   xmm4,               xmm7            ; 17 07 16 06 15 05 14 04 13 03 12 02 11 01 10 00
-        movdqa      xmm3,               xmm4            ; 17 07 16 06 15 05 14 04 13 03 12 02 11 01 10 00
 
         punpcklwd   xmm3,               xmm0            ; 33 23 13 03 32 22 12 02 31 21 11 01 30 20 10 00
         punpckhwd   xmm4,               xmm0            ; 37 27 17 07 36 26 16 06 35 25 15 05 34 24 14 04
@@ -777,28 +767,28 @@ sym(vp8_mbloop_filter_horizontal_edge_uv_sse2):
 %endmacro
 
 %macro TRANSPOSE_16X8_2 1
-        movq        xmm6,               QWORD PTR [rdi+rcx*2] ; xx xx xx xx xx xx xx xx f7 f6 f5 f4 f3 f2 f1 f0
-        movq        xmm5,               QWORD PTR [rsi+rcx*2] ; xx xx xx xx xx xx xx xx e7 e6 e5 e4 e3 e2 e1 e0
+        movq        xmm2,               QWORD PTR [rsi] ; xx xx xx xx xx xx xx xx 87 86 85 84 83 82 81 80
+        movq        xmm5,               QWORD PTR [rdi] ; xx xx xx xx xx xx xx xx 97 96 95 94 93 92 91 90
 
-        punpcklbw   xmm5,               xmm6            ; f7 e7 f6 e6 f5 e5 f4 e4 f3 e3 f2 e2 f1 e1 f0 e0
-        movq        xmm6,               QWORD PTR [rsi+rcx]   ; xx xx xx xx xx xx xx xx d7 d6 d5 d4 d3 d2 d1 d0
+        punpcklbw   xmm2,               xmm5            ; 97 87 96 86 95 85 94 84 93 83 92 82 91 81 90 80
+        movq        xmm0,               QWORD PTR [rsi+2*rax] ; xx xx xx xx xx xx xx xx a7 a6 a5 a4 a3 a2 a1 a0
 
-        movq        xmm1,               QWORD PTR [rsi] ; xx xx xx xx xx xx xx xx c7 c6 c5 c4 c3 c2 c1 c0
+        movq        xmm5,               QWORD PTR [rdi+2*rax] ; xx xx xx xx xx xx xx xx b7 b6 b5 b4 b3 b2 b1 b0
+        punpcklbw   xmm0,               xmm5                  ; b7 a7 b6 a6 b5 a5 b4 a4 b3 a3 b2 a2 b1 a1 b0 a0
+
+        movq        xmm1,               QWORD PTR [rsi+4*rax] ; xx xx xx xx xx xx xx xx c7 c6 c5 c4 c3 c2 c1 c0
+        movq        xmm6,               QWORD PTR [rdi+4*rax] ; xx xx xx xx xx xx xx xx d7 d6 d5 d4 d3 d2 d1 d0
+
         punpcklbw   xmm1,               xmm6            ; d7 c7 d6 c6 d5 c5 d4 c4 d3 c3 d2 c2 d1 e1 d0 c0
+        movq        xmm5,               QWORD PTR [rsi+2*rcx] ; xx xx xx xx xx xx xx xx e7 e6 e5 e4 e3 e2 e1 e0
+
+        movq        xmm6,               QWORD PTR [rdi+2*rcx] ; xx xx xx xx xx xx xx xx f7 f6 f5 f4 f3 f2 f1 f0
+        punpcklbw   xmm5,               xmm6            ; f7 e7 f6 e6 f5 e5 f4 e4 f3 e3 f2 e2 f1 e1 f0 e0
 
         movdqa      xmm6,               xmm1            ;
         punpckhwd   xmm6,               xmm5            ; f7 e7 d7 c7 f6 e6 d6 c6 f5 e5 d5 c5 f4 e4 d4 c4
 
         punpcklwd   xmm1,               xmm5            ; f3 e3 d3 c3 f2 e2 d2 c2 f1 e1 d1 c1 f0 e0 d0 c0
-        movq        xmm5,               QWORD PTR [rsi+rax]   ; xx xx xx xx xx xx xx xx b7 b6 b5 b4 b3 b2 b1 b0
-
-        movq        xmm0,               QWORD PTR [rsi+rax*2] ; xx xx xx xx xx xx xx xx a7 a6 a5 a4 a3 a2 a1 a0
-        punpcklbw   xmm0,               xmm5                  ; b7 a7 b6 a6 b5 a5 b4 a4 b3 a3 b2 a2 b1 a1 b0 a0
-
-        movq        xmm2,               QWORD PTR [rsi+rax*4] ; xx xx xx xx xx xx xx xx 87 86 85 84 83 82 81 80
-        movq        xmm5,               QWORD PTR [rdi+rax*4] ; xx xx xx xx xx xx xx xx 97 96 95 94 93 92 91 90
-
-        punpcklbw   xmm2,               xmm5            ; 97 87 96 86 95 85 94 84 93 83 92 82 91 81 90 80
         movdqa      xmm5,               xmm2            ; 97 87 96 86 95 85 94 84 93 83 92 82 91 81 90 80
 
         punpcklwd   xmm5,               xmm0            ; b3 a3 93 83 b2 a2 92 82 b1 a1 91 81 b0 a0 90 80
@@ -875,19 +865,18 @@ sym(vp8_mbloop_filter_horizontal_edge_uv_sse2):
         psubusb     xmm0,               xmm7            ; q2-q3
 
         psubusb     xmm7,               xmm6            ; q3-q2
-        por         xmm7,               xmm0            ; abs (q3-q2)
-
         movdqa      xmm4,               xmm5            ; q1
+
+        por         xmm7,               xmm0            ; abs (q3-q2)
         psubusb     xmm4,               xmm6            ; q1-q2
 
-        psubusb     xmm6,               xmm5            ; q2-q1
-        por         xmm6,               xmm4            ; abs (q2-q1)
-
         movdqa      xmm0,               xmm1
+        psubusb     xmm6,               xmm5            ; q2-q1
 
+        por         xmm6,               xmm4            ; abs (q2-q1)
         psubusb     xmm0,               xmm2            ; p2 - p3;
-        psubusb     xmm2,               xmm1            ; p3 - p2;
 
+        psubusb     xmm2,               xmm1            ; p3 - p2;
         por         xmm0,               xmm2            ; abs(p2-p3)
 %if %1
         movdqa      xmm2,               [rdx]           ; p1
@@ -895,30 +884,19 @@ sym(vp8_mbloop_filter_horizontal_edge_uv_sse2):
         movdqa      xmm2,               [rdx+32]        ; p1
 %endif
         movdqa      xmm5,               xmm2            ; p1
+        pmaxub      xmm0,               xmm7
 
         psubusb     xmm5,               xmm1            ; p1-p2
         psubusb     xmm1,               xmm2            ; p2-p1
 
-        por         xmm1,               xmm5            ; abs(p2-p1)
-
-        mov         rdx,                arg(3)          ; limit
-        movdqa      xmm4,               [rdx]           ; limit
-
-        psubusb     xmm7,               xmm4
-
-        psubusb     xmm0,               xmm4            ; abs(p3-p2) > limit
-        psubusb     xmm1,               xmm4            ; abs(p2-p1) > limit
-
-        psubusb     xmm6,               xmm4            ; abs(q2-q1) > limit
-        por         xmm7,               xmm6            ; or
-
-        por         xmm0,               xmm1
-        por         xmm0,               xmm7            ; abs(q3-q2) > limit || abs(p3-p2) > limit ||abs(p2-p1) > limit || abs(q2-q1) > limit
-
-        movdqa      xmm1,               xmm2            ; p1
-
         movdqa      xmm7,               xmm3            ; p0
         psubusb     xmm7,               xmm2            ; p0-p1
+
+        por         xmm1,               xmm5            ; abs(p2-p1)
+        pmaxub      xmm0,               xmm6
+
+        pmaxub      xmm0,               xmm1
+        movdqa      xmm1,               xmm2            ; p1
 
         psubusb     xmm2,               xmm3            ; p1-p0
         por         xmm2,               xmm7            ; abs(p1-p0)
@@ -926,8 +904,8 @@ sym(vp8_mbloop_filter_horizontal_edge_uv_sse2):
         movdqa      t0,                 xmm2            ; save abs(p1-p0)
         lea         rdx,                srct
 
-        psubusb     xmm2,               xmm4            ; abs(p1-p0)>limit
-        por         xmm0,               xmm2            ; mask
+        pmaxub      xmm0,               xmm2
+
 %if %1
         movdqa      xmm5,               [rdx+32]        ; q0
         movdqa      xmm7,               [rdx+48]        ; q1
@@ -943,9 +921,12 @@ sym(vp8_mbloop_filter_horizontal_edge_uv_sse2):
         por         xmm7,               xmm5            ; abs(q1-q0)
 
         movdqa      t1,                 xmm7            ; save abs(q1-q0)
-        psubusb     xmm7,               xmm4            ; abs(q1-q0)> limit
 
-        por         xmm0,               xmm7            ; mask
+        mov         rdx,                arg(3)          ; limit
+        movdqa      xmm4,               [rdx]           ; limit
+
+        pmaxub      xmm0,               xmm7
+        psubusb     xmm0,               xmm4
 
         movdqa      xmm5,               xmm2            ; q1
         psubusb     xmm5,               xmm1            ; q1-=p1
@@ -995,7 +976,6 @@ sym(vp8_mbloop_filter_horizontal_edge_uv_sse2):
         lea         rdx,                srct
 
         movdqa      xmm2,               [rdx]           ; p1        lea         rsi,       [rsi+rcx*8]
-        lea         rdi,                [rsi+rcx]
         movdqa      xmm7,               [rdx+48]        ; q1
         movdqa      xmm6,               [rdx+16]        ; p0
         movdqa      xmm0,               [rdx+32]        ; q0
@@ -1022,27 +1002,18 @@ sym(vp8_mbloop_filter_horizontal_edge_uv_sse2):
         paddsb      xmm1,               [t4 GLOBAL]     ; 3* (q0 - p0) + hvm(p1 - q1) + 4
 
         paddsb      xmm2,               [t3 GLOBAL]     ; 3* (q0 - p0) + hvm(p1 - q1) + 3
-        pxor        xmm0,               xmm0
-
-        pxor        xmm5,               xmm5
-        punpcklbw   xmm0,               xmm2
 
         punpckhbw   xmm5,               xmm2
-        psraw       xmm0,               11
+        punpcklbw   xmm2,               xmm2
 
         psraw       xmm5,               11
-        packsswb    xmm0,               xmm5
+        psraw       xmm2,               11
 
-        movdqa      xmm2,               xmm0            ; (3* (q0 - p0) + hvm(p1 - q1) + 3) >> 3;
+        packsswb    xmm2,               xmm5            ; (3* (q0 - p0) + hvm(p1 - q1) + 3) >> 3;
+        punpcklbw   xmm0,               xmm1            ; exfxgxhx
 
-        pxor        xmm0,               xmm0            ; 0
-        movdqa      xmm5,               xmm1            ; abcdefgh
-
-        punpcklbw   xmm0,               xmm1            ; e0f0g0h0
+        punpckhbw   xmm1,               xmm1            ; axbxcxdx
         psraw       xmm0,               11              ; sign extended shift right by 3
-
-        pxor        xmm1,               xmm1            ; 0
-        punpckhbw   xmm1,               xmm5            ; a0b0c0d0
 
         psraw       xmm1,               11              ; sign extended shift right by 3
         movdqa      xmm5,               xmm0            ; save results
@@ -1103,27 +1074,27 @@ sym(vp8_mbloop_filter_horizontal_edge_uv_sse2):
 %endmacro
 
 %macro BV_WRITEBACK 2
-        movd        [rsi+rax*4+2],      %1
+        movd        [rsi+2],            %1
         psrldq      %1,                 4
 
-        movd        [rdi+rax*4+2],      %1
+        movd        [rdi+2],            %1
         psrldq      %1,                 4
 
-        movd        [rsi+rax*2+2],      %1
+        movd        [rsi+2*rax+2],      %1
         psrldq      %1,                 4
 
-        movd        [rdi+rax*2+2],      %1
+        movd        [rdi+2*rax+2],      %1
 
-        movd        [rsi+2],            %2
+        movd        [rsi+4*rax+2],      %2
         psrldq      %2,                 4
 
-        movd        [rdi+2],            %2
+        movd        [rdi+4*rax+2],      %2
         psrldq      %2,                 4
 
-        movd        [rdi+rcx+2],        %2
+        movd        [rsi+2*rcx+2],      %2
         psrldq      %2,                 4
 
-        movd        [rdi+rcx*2+2],      %2
+        movd        [rdi+2*rcx+2],      %2
 %endmacro
 
 
@@ -1156,16 +1127,15 @@ sym(vp8_loop_filter_vertical_edge_sse2):
         mov         rsi,        arg(0)                  ; src_ptr
         movsxd      rax,        dword ptr arg(1)        ; src_pixel_step
 
-        lea         rsi,        [rsi + rax*4 - 4]
+        lea         rsi,        [rsi - 4]
         lea         rdi,        [rsi + rax]             ; rdi points to row +1 for indirect addressing
-        mov         rcx,        rax
-        neg         rax
+        lea         rcx,        [rax*2+rax]
 
         ;transpose 16x8 to 8x16, and store the 8-line result on stack.
         TRANSPOSE_16X8_1
 
-        lea         rsi,        [rsi+rcx*8]
-        lea         rdi,        [rdi+rcx*8]
+        lea         rsi,        [rsi+rax*8]
+        lea         rdi,        [rdi+rax*8]
         lea         rdx,        srct
         TRANSPOSE_16X8_2 1
 
@@ -1180,10 +1150,14 @@ sym(vp8_loop_filter_vertical_edge_sse2):
         ; tranpose and write back - only work on q1, q0, p0, p1
         BV_TRANSPOSE
         ; store 16-line result
+
+        lea         rdx,        [rax]
+        neg         rdx
+
         BV_WRITEBACK xmm1, xmm5
 
-        lea         rsi,        [rsi+rax*8]
-        lea         rdi,        [rsi+rcx]
+        lea         rsi,        [rsi+rdx*8]
+        lea         rdi,        [rdi+rdx*8]
         BV_WRITEBACK xmm2, xmm6
 
     add rsp, 96
@@ -1227,17 +1201,16 @@ sym(vp8_loop_filter_vertical_edge_uv_sse2):
         mov         rsi,        arg(0)                  ; u_ptr
         movsxd      rax,        dword ptr arg(1)        ; src_pixel_step
 
-        lea         rsi,        [rsi + rax*4 - 4]
+        lea         rsi,        [rsi - 4]
         lea         rdi,        [rsi + rax]             ; rdi points to row +1 for indirect addressing
-        mov         rcx,        rax
-        neg         rax
+        lea         rcx,        [rax+2*rax]
 
         ;transpose 16x8 to 8x16, and store the 8-line result on stack.
         TRANSPOSE_16X8_1
 
-        mov         rsi,        arg(5)                   ; v_ptr
-        lea         rsi,        [rsi + rcx*4 - 4]
-        lea         rdi,        [rsi + rcx]              ; rdi points to row +1 for indirect addressing
+        mov         rsi,        arg(5)                  ; v_ptr
+        lea         rsi,        [rsi - 4]
+        lea         rdi,        [rsi + rax]             ; rdi points to row +1 for indirect addressing
 
         lea         rdx,        srct
         TRANSPOSE_16X8_2 1
@@ -1252,12 +1225,15 @@ sym(vp8_loop_filter_vertical_edge_uv_sse2):
 
         ; tranpose and write back - only work on q1, q0, p0, p1
         BV_TRANSPOSE
+
+        lea         rdi,        [rsi + rax]             ; rdi points to row +1 for indirect addressing
+
         ; store 16-line result
         BV_WRITEBACK xmm1, xmm5
 
-        mov         rsi,        arg(0)                   ;u_ptr
-        lea         rsi,        [rsi + rcx*4 - 4]
-        lea         rdi,        [rsi + rcx]
+        mov         rsi,        arg(0)                  ; u_ptr
+        lea         rsi,        [rsi - 4]
+        lea         rdi,        [rsi + rax]             ; rdi points to row +1 for indirect addressing
         BV_WRITEBACK xmm2, xmm6
 
     add rsp, 96
@@ -1303,28 +1279,22 @@ sym(vp8_loop_filter_vertical_edge_uv_sse2):
         movdqa      xmm5,               xmm2
         paddsb      xmm5,               [t3 GLOBAL]
 
-        pxor        xmm0,               xmm0            ; 0
-        pxor        xmm7,               xmm7            ; 0
+        punpckhbw   xmm7,               xmm5            ; axbxcxdx
+        punpcklbw   xmm5,               xmm5            ; exfxgxhx
 
-        punpcklbw   xmm0,               xmm5            ; e0f0g0h0
-        psraw       xmm0,               11              ; sign extended shift right by 3
-
-        punpckhbw   xmm7,               xmm5            ; a0b0c0d0
         psraw       xmm7,               11              ; sign extended shift right by 3
+        psraw       xmm5,               11              ; sign extended shift right by 3
 
-        packsswb    xmm0,               xmm7            ; Filter2 >>=3;
-        movdqa      xmm5,               xmm0            ; Filter2
+        packsswb    xmm5,               xmm7            ; Filter2 >>=3;
 
         paddsb      xmm2,               [t4 GLOBAL]     ; vp8_signed_char_clamp(Filter2 + 4)
-        pxor        xmm0,               xmm0            ; 0
 
-        pxor        xmm7,               xmm7            ; 0
-        punpcklbw   xmm0,               xmm2            ; e0f0g0h0
+        punpcklbw   xmm0,               xmm2            ; exfxgxhx
+        punpckhbw   xmm7,               xmm2            ; axbxcxdx
 
         psraw       xmm0,               11              ; sign extended shift right by 3
-        punpckhbw   xmm7,               xmm2            ; a0b0c0d0
-
         psraw       xmm7,               11              ; sign extended shift right by 3
+
         packsswb    xmm0,               xmm7            ; Filter2 >>=3;
 
         psubsb      xmm3,               xmm0            ; qs0 =qs0 - filter1
@@ -1339,7 +1309,6 @@ sym(vp8_loop_filter_vertical_edge_uv_sse2):
         ; *oq0 = s^0x80;
         ; s = vp8_signed_char_clamp(ps0 + u);
         ; *op0 = s^0x80;
-        pxor        xmm0,               xmm0
         pxor        xmm1,               xmm1
 
         pxor        xmm2,               xmm2
@@ -1479,28 +1448,30 @@ sym(vp8_loop_filter_vertical_edge_uv_sse2):
 %endmacro
 
 %macro MBV_WRITEBACK_1 0
-        movq        QWORD PTR [rsi+rax*4], xmm0
+        movq        QWORD PTR [rsi],    xmm0
         psrldq      xmm0,               8
 
-        movq        QWORD PTR [rsi+rax*2], xmm6
+        movq        QWORD PTR [rdi],    xmm0
+
+        movq        QWORD PTR [rsi+2*rax], xmm6
         psrldq      xmm6,               8
 
-        movq        QWORD PTR [rdi+rax*4], xmm0
-        movq        QWORD PTR [rsi+rax],   xmm6
+        movq        QWORD PTR [rdi+2*rax], xmm6
 
         movdqa      xmm0,               xmm5                ; 73 72 71 70 63 62 61 60 53 52 51 50 43 42 41 40
         punpckldq   xmm0,               xmm7                ; 57 56 55 54 53 52 51 50 47 46 45 44 43 42 41 40
 
         punpckhdq   xmm5,               xmm7                ; 77 76 75 74 73 72 71 70 67 66 65 64 63 62 61 60
 
-        movq        QWORD PTR [rsi],    xmm0
+        movq        QWORD PTR [rsi+4*rax], xmm0
         psrldq      xmm0,               8
 
-        movq        QWORD PTR [rsi+rcx*2], xmm5
+        movq        QWORD PTR [rdi+4*rax], xmm0
+
+        movq        QWORD PTR [rsi+2*rcx], xmm5
         psrldq      xmm5,               8
 
-        movq        QWORD PTR [rsi+rcx],   xmm0
-        movq        QWORD PTR [rdi+rcx*2], xmm5
+        movq        QWORD PTR [rdi+2*rcx], xmm5
 
         movdqa      xmm2,               [rdx+64]            ; f4 e4 d4 c4 b4 a4 94 84 74 64 54 44 34 24 14 04
         punpckhbw   xmm2,               [rdx+80]            ; f5 f4 e5 e4 d5 d4 c5 c4 b5 b4 a5 a4 95 94 85 84
@@ -1518,28 +1489,30 @@ sym(vp8_loop_filter_vertical_edge_uv_sse2):
 %endmacro
 
 %macro MBV_WRITEBACK_2 0
-        movq        QWORD PTR [rsi+rax*4], xmm1
+        movq        QWORD PTR [rsi], xmm1
         psrldq      xmm1,               8
 
-        movq        QWORD PTR [rsi+rax*2], xmm3
+        movq        QWORD PTR [rdi], xmm1
+
+        movq        QWORD PTR [rsi+2*rax], xmm3
         psrldq      xmm3,               8
 
-        movq        QWORD PTR [rdi+rax*4], xmm1
-        movq        QWORD PTR [rsi+rax],   xmm3
+        movq        QWORD PTR [rdi+2*rax], xmm3
 
         movdqa      xmm1,               xmm4                ; f3 f2 f1 f0 e3 e2 e1 e0 d3 d2 d1 d0 c3 c2 c1 c0
         punpckldq   xmm1,               xmm2                ; d7 d6 d5 d4 d3 d2 d1 d0 c7 c6 c5 c4 c3 c2 c1 c0
 
         punpckhdq   xmm4,               xmm2                ; f7 f6 f4 f4 f3 f2 f1 f0 e7 e6 e5 e4 e3 e2 e1 e0
-        movq        QWORD PTR [rsi],    xmm1
+        movq        QWORD PTR [rsi+4*rax], xmm1
 
         psrldq      xmm1,               8
 
-        movq        QWORD PTR [rsi+rcx*2], xmm4
+        movq        QWORD PTR [rdi+4*rax], xmm1
+
+        movq        QWORD PTR [rsi+2*rcx], xmm4
         psrldq      xmm4,               8
 
-        movq        QWORD PTR [rsi+rcx], xmm1
-        movq        QWORD PTR [rdi+rcx*2], xmm4
+        movq        QWORD PTR [rdi+2*rcx], xmm4
 %endmacro
 
 
@@ -1569,20 +1542,19 @@ sym(vp8_mbloop_filter_vertical_edge_sse2):
     %define t1   [rsp + 16]   ;__declspec(align(16)) char t1[16];
     %define srct [rsp + 32]   ;__declspec(align(16)) char srct[128];
 
-        mov         rsi,                arg(0) ;src_ptr
-        movsxd      rax,                dword ptr arg(1)   ;src_pixel_step
+        mov         rsi,                arg(0)              ; src_ptr
+        movsxd      rax,                dword ptr arg(1)    ; src_pixel_step
 
-        lea         rsi,                [rsi + rax*4 - 4]
-        lea         rdi,                [rsi + rax]        ; rdi points to row +1 for indirect addressing
-        mov         rcx,                rax
-        neg         rax
+        lea         rsi,                [rsi - 4]
+        lea         rdi,                [rsi + rax]         ; rdi points to row +1 for indirect addressing
+        lea         rcx,                [rax*2+rax]
 
         ; Transpose
         TRANSPOSE_16X8_1
 
-        lea         rsi,                [rsi+rcx*8]
-        lea         rdi,                [rdi+rcx*8]
-        lea         rdx,                srct
+        lea         rsi,        [rsi+rax*8]
+        lea         rdi,        [rdi+rax*8]
+        lea         rdx,        srct
         TRANSPOSE_16X8_2 0
 
         ; calculate filter mask
@@ -1590,18 +1562,22 @@ sym(vp8_mbloop_filter_vertical_edge_sse2):
         ; calculate high edge variance
         LFV_HEV_MASK
 
+        neg         rax
         ; start work on filters
         MBV_FILTER
+
+        lea         rsi,                [rsi+rax*8]
+        lea         rdi,                [rdi+rax*8]
 
         ; transpose and write back
         MBV_TRANSPOSE
 
-        lea         rsi,                [rsi+rax*8]
-        lea         rdi,                [rdi+rax*8]
+        neg         rax
+
         MBV_WRITEBACK_1
 
-        lea         rsi,                [rsi+rcx*8]
-        lea         rdi,                [rdi+rcx*8]
+        lea         rsi,                [rsi+rax*8]
+        lea         rdi,                [rdi+rax*8]
         MBV_WRITEBACK_2
 
     add rsp, 160
@@ -1642,21 +1618,20 @@ sym(vp8_mbloop_filter_vertical_edge_uv_sse2):
     %define t1   [rsp + 16]   ;__declspec(align(16)) char t1[16];
     %define srct [rsp + 32]   ;__declspec(align(16)) char srct[128];
 
-        mov         rsi,                arg(0) ;u_ptr
-        movsxd      rax,                dword ptr arg(1)   ; src_pixel_step
+        mov         rsi,                arg(0)              ; u_ptr
+        movsxd      rax,                dword ptr arg(1)    ; src_pixel_step
 
-        lea         rsi,                [rsi + rax*4 - 4]
-        lea         rdi,                [rsi + rax]        ; rdi points to row +1 for indirect addressing
-        mov         rcx,                rax
-        neg         rax
+        lea         rsi,                [rsi - 4]
+        lea         rdi,                [rsi + rax]         ; rdi points to row +1 for indirect addressing
+        lea         rcx,                [rax+2*rax]
 
         ; Transpose
         TRANSPOSE_16X8_1
 
         ; XMM3 XMM4 XMM7 in use
-        mov         rsi,                arg(5)             ;v_ptr
-        lea         rsi,                [rsi + rcx*4 - 4]
-        lea         rdi,                [rsi + rcx]
+        mov         rsi,                arg(5)              ; v_ptr
+        lea         rsi,                [rsi - 4]
+        lea         rdi,                [rsi + rax]
         lea         rdx,                srct
         TRANSPOSE_16X8_2 0
 
@@ -1672,12 +1647,12 @@ sym(vp8_mbloop_filter_vertical_edge_uv_sse2):
         MBV_TRANSPOSE
 
         mov         rsi,                arg(0)             ;u_ptr
-        lea         rsi,                [rsi + rcx*4 - 4]
-        lea         rdi,                [rsi + rcx]
+        lea         rsi,                [rsi - 4]
+        lea         rdi,                [rsi + rax]
         MBV_WRITEBACK_1
         mov         rsi,                arg(5)             ;v_ptr
-        lea         rsi,                [rsi + rcx*4 - 4]
-        lea         rdi,                [rsi + rcx]
+        lea         rsi,                [rsi - 4]
+        lea         rdi,                [rsi + rax]
         MBV_WRITEBACK_2
 
     add rsp, 160
