@@ -12,6 +12,17 @@ Date: Thursday September 23 2010
 Commit: a8a38bcf10f2beba39a41ce3c469ff02caebd2ca
 Version: v0.9.2-35-ga8a38bc
 
+Patches
+
+One patch is included in the patches directory.  It is needed for onyx_if.c
+on the mac to avoid a link error, and was applied before building the mac/ia32
+libvpx binary with icc.
+
+The patch can be applied by runnning the following command from the directory in
+which this README file resides.
+
+patch -p0 < patches/0_ugly_disable_fopens_onyx_if.diff
+
 Notes
 
 The mac and linux libvpx builds were built with built with icc v11.1.  In 
@@ -19,7 +30,9 @@ addition to the configuration args listed in vpx_config.c for each target, the
 following additions were made to CFLAGS:
 
 - linux/x64 CFLAGS: -fPIC -ffreestanding
-- mac and linux ia32 CFLAGS: -ffreestanding
+- linux ia32 CFLAGS: -ffreestanding
+- mac ia32 CFLAGS: -ffreestanding
+-isysroot /Developer/SDKs/MacOSX10.5.sdk -mmacosx-version-min=10.5
 
 The -ffreestanding argument removes dependencies on Intel memcpy and memset 
 functions.
