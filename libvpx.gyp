@@ -15,7 +15,7 @@
             'conditions': [
               [ 'target_arch=="ia32"', {
                 'yasm_flags': [
-                  '-felf',
+                  '-felf32',
                   '-m', 'x86',
                   '-I', 'source/config/linux/ia32',
                   '-I', 'source/libvpx',
