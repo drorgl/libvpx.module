@@ -11,12 +11,16 @@
 
 #if defined(USE_SYSTEM_VPX)
 #include "vpx/vpx_codec.h"
+#include "vpx/vpx_decoder.h"
 #include "vpx/vpx_encoder.h"
 #include "vpx/vp8cx.h"
+#include "vpx/vp8dx.h"
 #else
 #include "third_party/libvpx/source/libvpx/vpx/vpx_codec.h"
+#include "third_party/libvpx/source/libvpx/vpx/vpx_decoder.h"
 #include "third_party/libvpx/source/libvpx/vpx/vpx_encoder.h"
 #include "third_party/libvpx/source/libvpx/vpx/vp8cx.h"
+#include "third_party/libvpx/source/libvpx/vpx/vp8dx.h"
 #endif
 
 #endif  // THIRD_PARTY_LIBVPX_LIBVPX_H_
