@@ -1,7 +1,10 @@
 Name: libvpx
 URL: http://www.webmproject.org
-Version: 0.9.5-28-g4d1b0d2
+Version: v0.9.6-92-gba11e24
 License File: source/libvpx/LICENSE
+
+Date: Monday April 4 2011
+Commit: ba11e24d47009ac787fdb95ccbd846052e18f26a
 
 Description:
 Contains the sources used to compile libvpx binaries used by Google Chrome and
@@ -10,20 +13,16 @@ Chromium.
 The libvpx source is from webmproject.org:
   git://review.webmproject.org/libvpx
 
-Date: Friday November 5 2010
-Commit: 4d1b0d2a2dff335baedd52bd7de09d55ec10b253
-Version: v0.9.5-28-g4d1b0d2
-
 Patches
 
-One patch is included in the patches directory.  It is needed for onyx_if.c
-on the mac to avoid a link error, and was applied before building the mac/ia32
-libvpx binary with icc.
+One patch is included in the patches directory.  It is needed for 
+obj_int_extract.c on x64 linux when using icc, and must be applied
+before running make to avoid link errors.
 
-The patch can be applied by runnning the following command from the directory in
-which this README file resides.
+The patch can be applied by runnning the following command from within 
+source/libvpx:
 
-patch -p0 < patches/0_ugly_disable_fopens_onyx_if.diff
+patch -p0 < ../../patches/01_obj_int_extract.patch
 
 Notes
 
