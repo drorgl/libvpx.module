@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010 The VP8 project authors. All Rights Reserved.
+ *  Copyright (c) 2010 The WebM project authors. All Rights Reserved.
  *
  *  Use of this source code is governed by a BSD-style license
  *  that can be found in the LICENSE file in the root of the source
@@ -17,7 +17,7 @@
  * @{
  */
 
-/*!\file vpx_encoder.h
+/*!\file
  * \brief Describes the encoder algorithm interface to applications.
  *
  * This file describes the interface between an application and a
@@ -51,7 +51,7 @@ extern "C" {
      *  interfaces or functionality, and are not required to be supported
      *  by an encoder.
      *
-     *  The available flags are specifiedby VPX_CODEC_CAP_* defines.
+     *  The available flags are specified by VPX_CODEC_CAP_* defines.
      */
 #define VPX_CODEC_CAP_PSNR  0x10000 /**< Can issue PSNR packets */
 
@@ -147,7 +147,7 @@ extern "C" {
 
             /* This packet size is fixed to allow codecs to extend this
              * interface without having to manage storage for raw packets,
-             * ie if it's smaller than 128 bytes, you can store in the
+             * i.e., if it's smaller than 128 bytes, you can store in the
              * packet list directly.
              */
             char pad[128 - sizeof(enum vpx_codec_cx_pkt_kind)]; /**< fixed sz */
@@ -171,7 +171,7 @@ extern "C" {
     {
         VPX_RC_ONE_PASS,   /**< Single pass mode */
         VPX_RC_FIRST_PASS, /**< First pass of multi-pass mode */
-        VPX_RC_LAST_PASS,  /**< Final pass of multi-pass mode */
+        VPX_RC_LAST_PASS   /**< Final pass of multi-pass mode */
     };
 
 
@@ -179,7 +179,8 @@ extern "C" {
     enum vpx_rc_mode
     {
         VPX_VBR, /**< Variable Bit Rate (VBR) mode */
-        VPX_CBR  /**< Constant Bit Rate (CBR) mode */
+        VPX_CBR,  /**< Constant Bit Rate (CBR) mode */
+        VPX_CQ   /**< Constant Quality  (CQ)  mode */
     };
 
 
