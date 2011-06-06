@@ -1,9 +1,19 @@
-# Copyright (c) 2010 The Chromium Authors. All rights reserved.
+# Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 {
+  'variables': {
+    'conditions': [
+      ['OS=="mac" or OS=="linux"', {
+        'asm_obj_extension': 'o',
+      }],
+      ['OS=="win"', {
+        'asm_obj_extension': 'obj',
+      }],
+    ],
+  },
   'conditions': [
-    [ 'OS=="linux" and target_arch!="arm" and target_arch!="arm-neon"', {
+    [ '(OS=="linux" or OS=="mac" or OS=="win") and target_arch!="arm" and target_arch!="arm-neon"', {
       'targets': [
         {
           'target_name': 'libvpx',
@@ -13,21 +23,38 @@
               '<(SHARED_INTERMEDIATE_DIR)/third_party/libvpx',
             'yasm_path': '<(PRODUCT_DIR)/yasm',
             'conditions': [
-              [ 'target_arch=="ia32"', {
+              [ 'OS=="linux" and target_arch=="ia32"', {
                 'yasm_flags': [
                   '-felf32',
                   '-m', 'x86',
                   '-I', 'source/config/linux/ia32',
                   '-I', 'source/libvpx',
                 ],
-                }, {
-                  'yasm_flags': [
-                    '-felf64',
-                    '-m', 'amd64',
-                    '-I', 'source/config/linux/x64',
-                    '-I', 'source/libvpx',
-                  ],
-                }],
+              }],
+              [ 'OS=="linux" and target_arch=="x64"', {
+                'yasm_flags': [
+                  '-felf64',
+                  '-m', 'amd64',
+                  '-I', 'source/config/linux/x64',
+                  '-I', 'source/libvpx',
+                ],
+              }],
+              [ 'OS=="mac" and target_arch=="ia32"', {
+                'yasm_flags': [
+                  '-fmacho32',
+                  '-m', 'x86',
+                  '-I', 'source/config/mac/ia32',
+                  '-I', 'source/libvpx',
+                ],
+              }],
+              [ 'OS=="win" and target_arch=="ia32"', {
+                'yasm_flags': [
+                  '-fwin32',
+                  '-m', 'x86',
+                  '-I', 'source/config/win/ia32',
+                  '-I', 'source/libvpx',
+                ],
+              }],
             ],
           },
           'dependencies': [
@@ -52,12 +79,12 @@
               'extension': 'asm',
               'inputs': [ '<(yasm_path)', ],
               'outputs': [
-                '<(shared_generated_dir)/<(RULE_INPUT_ROOT).o',
+                '<(shared_generated_dir)/<(RULE_INPUT_ROOT).<(asm_obj_extension)',
               ],
               'action': [
                 '<(yasm_path)',
                 '<@(yasm_flags)',
-                '-o', '<(shared_generated_dir)/<(RULE_INPUT_ROOT).o',
+                '-o', '<(shared_generated_dir)/<(RULE_INPUT_ROOT).<(asm_obj_extension)',
                 '<(RULE_INPUT_PATH)',
               ],
               'process_outputs_as_sources': 1,
