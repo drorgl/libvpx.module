@@ -32,7 +32,7 @@ following additions were made to CFLAGS:
 
 - linux/x64 CFLAGS: -fPIC -ffreestanding
 - linux ia32 CFLAGS: -ffreestanding
-- mac ia32 CFLAGS: -ffreestanding
+- mac ia32 CFLAGS: -fPIC -ffreestanding
 -isysroot /Developer/SDKs/MacOSX10.5.sdk -mmacosx-version-min=10.5
 
 The -ffreestanding argument removes dependencies on Intel memcpy and memset 
