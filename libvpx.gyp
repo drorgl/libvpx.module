@@ -73,6 +73,13 @@
             # this can go away.
             '-fvisibility=hidden',
           ],
+          'conditions': [
+            [ 'OS=="mac"', {
+              'xcode_settings': {
+                'GCC_SYMBOLS_PRIVATE_EXTERN': 'NO',  # No -fvisibility=hidden
+              },
+            }],
+          ],
           'rules': [
             {
               'rule_name': 'assemble',
