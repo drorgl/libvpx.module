@@ -16,6 +16,8 @@
     [ '(OS=="linux" or OS=="mac" or OS=="win") and target_arch!="arm" and target_arch!="arm-neon"', {
       'targets': [
         {
+          # This libvpx target contains both encoder and decoder.
+          # Encoder is configured to be realtime only.
           'target_name': 'libvpx',
           'type': 'static_library',
           'variables': {
