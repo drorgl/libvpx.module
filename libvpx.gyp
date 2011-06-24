@@ -51,6 +51,7 @@
               }],
               [ 'OS=="win" and target_arch=="ia32"', {
                 'yasm_flags': [
+                  '-DPREFIX',
                   '-fwin32',
                   '-m', 'x86',
                   '-I', 'source/config/win/ia32',
