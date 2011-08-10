@@ -86,7 +86,7 @@
     ],
   },
   'conditions': [
-    [ '(OS=="linux" or OS=="mac" or OS=="win") and target_arch!="arm" and target_arch!="arm-neon"', {
+    [ '(OS=="linux" or OS=="mac" or OS=="win") and target_arch!="arm"', {
       'targets': [
         {
           # This libvpx target contains both encoder and decoder.
@@ -234,103 +234,147 @@
     },
     ],
     # 'libvpx' target for Chrome OS ARM builds.
-    [ 'chromeos==1 and (target_arch=="arm" or target_arch=="arm-neon")', {
+    [ 'chromeos==1 and target_arch=="arm"', {
       'targets': [
         {
           # This libvpx target contains both encoder and decoder.
           # Encoder is configured to be realtime only.
           'target_name': 'libvpx',
           'type': 'static_library',
+
+          # Copy the script to the output folder so that we can use it with
+          # absolute path.
+          'copies': [{
+            'destination': '<(shared_generated_dir)',
+            'files': [
+              '<(ads2gas_script_path)',
+            ],
+          }],
+
+          # Rule to convert .asm files to .S files.
+          'rules': [
+            {
+              'rule_name': 'convert_asm',
+              'extension': 'asm',
+              'inputs': [ '<(shared_generated_dir)/<(ads2gas_script)', ],
+              'outputs': [
+                '<(shared_generated_dir)/<(RULE_INPUT_ROOT).S',
+              ],
+              'action': [
+                'bash',
+                '-c',
+                'cat <(RULE_INPUT_PATH) | perl <(shared_generated_dir)/<(ads2gas_script) > <(shared_generated_dir)/<(RULE_INPUT_ROOT).S',
+              ],
+              'process_outputs_as_sources': 1,
+              'message': 'Convert libvpx asm file for ARM <(RULE_INPUT_PATH).',
+            },
+          ],
+
           'variables': {
-            # Points to the root directory of the GNU assembler compatible
-            # assembler files that have been converted from upstream.
-            'arm_asm_path': 'source/config/linux/arm',
-            'neon_asm_path': 'source/config/linux/arm-neon',
+            # Location of the assembly conversion script.
+            'ads2gas_script': 'ads2gas.pl',
+            'ads2gas_script_path': 'source/libvpx/build/make/<(ads2gas_script)',
+
+            # Location of the intermediate output.
+            'shared_generated_dir': '<(SHARED_INTERMEDIATE_DIR)/third_party/libvpx',
+
+            # Conditions to generate arm-neon as an target.
+            'conditions': [
+              ['target_arch=="arm" and arm_neon==1', {
+                'target_arch_full': 'arm-neon',
+              }, {
+                'target_arch_full': '<(target_arch)',
+              }],
+            ],
+
+            # List of assembly files.
             'armv5te_sources': [
-              '<(arm_asm_path)/encoder/armv5te/boolhuff_armv5te.asm.s',
-              '<(arm_asm_path)/encoder/armv5te/vp8_packtokens_armv5.asm.s',
-              '<(arm_asm_path)/encoder/armv5te/vp8_packtokens_mbrow_armv5.asm.s',
-              '<(arm_asm_path)/encoder/armv5te/vp8_packtokens_partitions_armv5.asm.s',
+              'source/libvpx/vp8/encoder/arm/armv5te/boolhuff_armv5te.asm',
+              'source/libvpx/vp8/encoder/arm/armv5te/vp8_packtokens_armv5.asm',
+              'source/libvpx/vp8/encoder/arm/armv5te/vp8_packtokens_mbrow_armv5.asm',
+              'source/libvpx/vp8/encoder/arm/armv5te/vp8_packtokens_partitions_armv5.asm',
             ],
             'armv6_sources': [
-              '<(arm_asm_path)/common/armv6/bilinearfilter_v6.asm.s',
-              '<(arm_asm_path)/common/armv6/copymem16x16_v6.asm.s',
-              '<(arm_asm_path)/common/armv6/copymem8x4_v6.asm.s',
-              '<(arm_asm_path)/common/armv6/copymem8x8_v6.asm.s',
-              '<(arm_asm_path)/common/armv6/dc_only_idct_add_v6.asm.s',
-              '<(arm_asm_path)/common/armv6/filter_v6.asm.s',
-              '<(arm_asm_path)/common/armv6/idct_v6.asm.s',
-              '<(arm_asm_path)/common/armv6/iwalsh_v6.asm.s',
-              '<(arm_asm_path)/common/armv6/loopfilter_v6.asm.s',
-              '<(arm_asm_path)/common/armv6/recon_v6.asm.s',
-              '<(arm_asm_path)/common/armv6/simpleloopfilter_v6.asm.s',
-              '<(arm_asm_path)/common/armv6/sixtappredict8x4_v6.asm.s',
-              '<(arm_asm_path)/decoder/armv6/dequant_dc_idct_v6.asm.s',
-              '<(arm_asm_path)/decoder/armv6/dequant_idct_v6.asm.s',
-              '<(arm_asm_path)/decoder/armv6/dequantize_v6.asm.s',
-              '<(arm_asm_path)/encoder/armv6/vp8_fast_fdct4x4_armv6.asm.s',
-              '<(arm_asm_path)/encoder/armv6/vp8_fast_quantize_b_armv6.asm.s',
-              '<(arm_asm_path)/encoder/armv6/vp8_mse16x16_armv6.asm.s',
-              '<(arm_asm_path)/encoder/armv6/vp8_sad16x16_armv6.asm.s',
-              '<(arm_asm_path)/encoder/armv6/vp8_subtract_armv6.asm.s',
-              '<(arm_asm_path)/encoder/armv6/vp8_variance16x16_armv6.asm.s',
-              '<(arm_asm_path)/encoder/armv6/vp8_variance8x8_armv6.asm.s',
-              '<(arm_asm_path)/encoder/armv6/vp8_variance_halfpixvar16x16_h_armv6.asm.s',
-              '<(arm_asm_path)/encoder/armv6/vp8_variance_halfpixvar16x16_hv_armv6.asm.s',
-              '<(arm_asm_path)/encoder/armv6/vp8_variance_halfpixvar16x16_v_armv6.asm.s',
-              '<(arm_asm_path)/encoder/armv6/walsh_v6.asm.s',
+              'source/libvpx/vp8/common/arm/armv6/bilinearfilter_v6.asm',
+              'source/libvpx/vp8/common/arm/armv6/copymem16x16_v6.asm',
+              'source/libvpx/vp8/common/arm/armv6/copymem8x4_v6.asm',
+              'source/libvpx/vp8/common/arm/armv6/copymem8x8_v6.asm',
+              'source/libvpx/vp8/common/arm/armv6/dc_only_idct_add_v6.asm',
+              'source/libvpx/vp8/common/arm/armv6/filter_v6.asm',
+              'source/libvpx/vp8/common/arm/armv6/idct_v6.asm',
+              'source/libvpx/vp8/common/arm/armv6/iwalsh_v6.asm',
+              'source/libvpx/vp8/common/arm/armv6/loopfilter_v6.asm',
+              'source/libvpx/vp8/common/arm/armv6/recon_v6.asm',
+              'source/libvpx/vp8/common/arm/armv6/simpleloopfilter_v6.asm',
+              'source/libvpx/vp8/common/arm/armv6/sixtappredict8x4_v6.asm',
+              'source/libvpx/vp8/decoder/arm/armv6/dequant_dc_idct_v6.asm',
+              'source/libvpx/vp8/decoder/arm/armv6/dequant_idct_v6.asm',
+              'source/libvpx/vp8/decoder/arm/armv6/dequantize_v6.asm',
+              'source/libvpx/vp8/encoder/arm/armv6/vp8_fast_fdct4x4_armv6.asm',
+              'source/libvpx/vp8/encoder/arm/armv6/vp8_fast_quantize_b_armv6.asm',
+              'source/libvpx/vp8/encoder/arm/armv6/vp8_mse16x16_armv6.asm',
+              'source/libvpx/vp8/encoder/arm/armv6/vp8_sad16x16_armv6.asm',
+              'source/libvpx/vp8/encoder/arm/armv6/vp8_subtract_armv6.asm',
+              'source/libvpx/vp8/encoder/arm/armv6/vp8_variance16x16_armv6.asm',
+              'source/libvpx/vp8/encoder/arm/armv6/vp8_variance8x8_armv6.asm',
+              'source/libvpx/vp8/encoder/arm/armv6/vp8_variance_halfpixvar16x16_h_armv6.asm',
+              'source/libvpx/vp8/encoder/arm/armv6/vp8_variance_halfpixvar16x16_hv_armv6.asm',
+              'source/libvpx/vp8/encoder/arm/armv6/vp8_variance_halfpixvar16x16_v_armv6.asm',
+              'source/libvpx/vp8/encoder/arm/armv6/walsh_v6.asm',
               'source/libvpx/vp8/decoder/arm/armv6/idct_blk_v6.c',
             ],
             'arm_neon_sources': [
-              '<(neon_asm_path)/common/neon/bilinearpredict16x16_neon.asm.s',
-              '<(neon_asm_path)/common/neon/bilinearpredict4x4_neon.asm.s',
-              '<(neon_asm_path)/common/neon/bilinearpredict8x4_neon.asm.s',
-              '<(neon_asm_path)/common/neon/bilinearpredict8x8_neon.asm.s',
-              '<(neon_asm_path)/common/neon/buildintrapredictorsmby_neon.asm.s',
-              '<(neon_asm_path)/common/neon/copymem16x16_neon.asm.s',
-              '<(neon_asm_path)/common/neon/copymem8x4_neon.asm.s',
-              '<(neon_asm_path)/common/neon/copymem8x8_neon.asm.s',
-              '<(neon_asm_path)/common/neon/dc_only_idct_add_neon.asm.s',
-              '<(neon_asm_path)/common/neon/iwalsh_neon.asm.s',
-              '<(neon_asm_path)/common/neon/loopfilter_neon.asm.s',
-              '<(neon_asm_path)/common/neon/loopfiltersimplehorizontaledge_neon.asm.s',
-              '<(neon_asm_path)/common/neon/loopfiltersimpleverticaledge_neon.asm.s',
-              '<(neon_asm_path)/common/neon/mbloopfilter_neon.asm.s',
-              '<(neon_asm_path)/common/neon/recon16x16mb_neon.asm.s',
-              '<(neon_asm_path)/common/neon/recon2b_neon.asm.s',
-              '<(neon_asm_path)/common/neon/recon4b_neon.asm.s',
-              '<(neon_asm_path)/common/neon/reconb_neon.asm.s',
-              '<(neon_asm_path)/common/neon/save_neon_reg.asm.s',
-              '<(neon_asm_path)/common/neon/shortidct4x4llm_1_neon.asm.s',
-              '<(neon_asm_path)/common/neon/shortidct4x4llm_neon.asm.s',
-              '<(neon_asm_path)/common/neon/sixtappredict16x16_neon.asm.s',
-              '<(neon_asm_path)/common/neon/sixtappredict4x4_neon.asm.s',
-              '<(neon_asm_path)/common/neon/sixtappredict8x4_neon.asm.s',
-              '<(neon_asm_path)/common/neon/sixtappredict8x8_neon.asm.s',
-              '<(neon_asm_path)/decoder/neon/dequant_idct_neon.asm.s',
-              '<(neon_asm_path)/decoder/neon/dequantizeb_neon.asm.s',
-              '<(neon_asm_path)/decoder/neon/idct_dequant_0_2x_neon.asm.s',
-              '<(neon_asm_path)/decoder/neon/idct_dequant_dc_0_2x_neon.asm.s',
-              '<(neon_asm_path)/decoder/neon/idct_dequant_dc_full_2x_neon.asm.s',
-              '<(neon_asm_path)/decoder/neon/idct_dequant_full_2x_neon.asm.s',
-              '<(neon_asm_path)/encoder/neon/fastfdct4x4_neon.asm.s',
-              '<(neon_asm_path)/encoder/neon/fastfdct8x4_neon.asm.s',
-              '<(neon_asm_path)/encoder/neon/fastquantizeb_neon.asm.s',
-              '<(neon_asm_path)/encoder/neon/sad16_neon.asm.s',
-              '<(neon_asm_path)/encoder/neon/sad8_neon.asm.s',
-              '<(neon_asm_path)/encoder/neon/shortfdct_neon.asm.s',
-              '<(neon_asm_path)/encoder/neon/subtract_neon.asm.s',
-              '<(neon_asm_path)/encoder/neon/variance_neon.asm.s',
-              '<(neon_asm_path)/encoder/neon/vp8_memcpy_neon.asm.s',
-              '<(neon_asm_path)/encoder/neon/vp8_mse16x16_neon.asm.s',
-              '<(neon_asm_path)/encoder/neon/vp8_shortwalsh4x4_neon.asm.s',
-              '<(neon_asm_path)/encoder/neon/vp8_subpixelvariance16x16_neon.asm.s',
-              '<(neon_asm_path)/encoder/neon/vp8_subpixelvariance16x16s_neon.asm.s',
-              '<(neon_asm_path)/encoder/neon/vp8_subpixelvariance8x8_neon.asm.s',
-              '<(neon_asm_path)/vpx_scale/neon/vp8_vpxyv12_copyframe_func_neon.asm.s',
-              '<(neon_asm_path)/vpx_scale/neon/vp8_vpxyv12_copyframeyonly_neon.asm.s',
-              '<(neon_asm_path)/vpx_scale/neon/vp8_vpxyv12_copysrcframe_func_neon.asm.s',
-              '<(neon_asm_path)/vpx_scale/neon/vp8_vpxyv12_extendframeborders_neon.asm.s',
+              'source/libvpx/vp8/common/arm/neon/bilinearpredict16x16_neon.asm',
+              'source/libvpx/vp8/common/arm/neon/bilinearpredict4x4_neon.asm',
+              'source/libvpx/vp8/common/arm/neon/bilinearpredict8x4_neon.asm',
+              'source/libvpx/vp8/common/arm/neon/bilinearpredict8x8_neon.asm',
+              'source/libvpx/vp8/common/arm/neon/buildintrapredictorsmby_neon.asm',
+              'source/libvpx/vp8/common/arm/neon/copymem16x16_neon.asm',
+              'source/libvpx/vp8/common/arm/neon/copymem8x4_neon.asm',
+              'source/libvpx/vp8/common/arm/neon/copymem8x8_neon.asm',
+              'source/libvpx/vp8/common/arm/neon/dc_only_idct_add_neon.asm',
+              'source/libvpx/vp8/common/arm/neon/iwalsh_neon.asm',
+              'source/libvpx/vp8/common/arm/neon/loopfilter_neon.asm',
+              'source/libvpx/vp8/common/arm/neon/loopfiltersimplehorizontaledge_neon.asm',
+              'source/libvpx/vp8/common/arm/neon/loopfiltersimpleverticaledge_neon.asm',
+              'source/libvpx/vp8/common/arm/neon/mbloopfilter_neon.asm',
+              'source/libvpx/vp8/common/arm/neon/recon16x16mb_neon.asm',
+              'source/libvpx/vp8/common/arm/neon/recon2b_neon.asm',
+              'source/libvpx/vp8/common/arm/neon/recon4b_neon.asm',
+              'source/libvpx/vp8/common/arm/neon/reconb_neon.asm',
+              'source/libvpx/vp8/common/arm/neon/save_neon_reg.asm',
+              'source/libvpx/vp8/common/arm/neon/shortidct4x4llm_1_neon.asm',
+              'source/libvpx/vp8/common/arm/neon/shortidct4x4llm_neon.asm',
+              'source/libvpx/vp8/common/arm/neon/sixtappredict16x16_neon.asm',
+              'source/libvpx/vp8/common/arm/neon/sixtappredict4x4_neon.asm',
+              'source/libvpx/vp8/common/arm/neon/sixtappredict8x4_neon.asm',
+              'source/libvpx/vp8/common/arm/neon/sixtappredict8x8_neon.asm',
+              'source/libvpx/vp8/decoder/arm/neon/dequant_idct_neon.asm',
+              'source/libvpx/vp8/decoder/arm/neon/dequantizeb_neon.asm',
+              'source/libvpx/vp8/decoder/arm/neon/idct_dequant_0_2x_neon.asm',
+              'source/libvpx/vp8/decoder/arm/neon/idct_dequant_dc_0_2x_neon.asm',
+              'source/libvpx/vp8/decoder/arm/neon/idct_dequant_dc_full_2x_neon.asm',
+              'source/libvpx/vp8/decoder/arm/neon/idct_dequant_full_2x_neon.asm',
+              'source/libvpx/vp8/encoder/arm/neon/fastfdct4x4_neon.asm',
+              'source/libvpx/vp8/encoder/arm/neon/fastfdct8x4_neon.asm',
+              'source/libvpx/vp8/encoder/arm/neon/fastquantizeb_neon.asm',
+              'source/libvpx/vp8/encoder/arm/neon/sad16_neon.asm',
+              'source/libvpx/vp8/encoder/arm/neon/sad8_neon.asm',
+              'source/libvpx/vp8/encoder/arm/neon/shortfdct_neon.asm',
+              'source/libvpx/vp8/encoder/arm/neon/subtract_neon.asm',
+              'source/libvpx/vp8/encoder/arm/neon/variance_neon.asm',
+              'source/libvpx/vp8/encoder/arm/neon/vp8_memcpy_neon.asm',
+              'source/libvpx/vp8/encoder/arm/neon/vp8_mse16x16_neon.asm',
+              'source/libvpx/vp8/encoder/arm/neon/vp8_shortwalsh4x4_neon.asm',
+              'source/libvpx/vp8/encoder/arm/neon/vp8_subpixelvariance16x16_neon.asm',
+              'source/libvpx/vp8/encoder/arm/neon/vp8_subpixelvariance16x16s_neon.asm',
+              'source/libvpx/vp8/encoder/arm/neon/vp8_subpixelvariance8x8_neon.asm',
+              'source/libvpx/vpx_scale/arm/neon/vp8_vpxyv12_copyframe_func_neon.asm',
+              'source/libvpx/vpx_scale/arm/neon/vp8_vpxyv12_copyframeyonly_neon.asm',
+              'source/libvpx/vpx_scale/arm/neon/vp8_vpxyv12_copysrcframe_func_neon.asm',
+              'source/libvpx/vpx_scale/arm/neon/vp8_vpxyv12_extendframeborders_neon.asm',
+
+              # C files.
               'source/libvpx/vp8/common/arm/neon/recon_neon.c',
               'source/libvpx/vp8/decoder/arm/neon/idct_blk_neon.c',
               'source/libvpx/vpx_scale/arm/scalesystemdependent.c',
@@ -341,7 +385,7 @@
             # We need to explicitly tell the GCC assembler to look for
             # .include directive files from the place where they're
             # generated to.
-            '-Wa,-I,third_party/libvpx/source/config/<(OS)/<(target_arch)',
+            '-Wa,-I,third_party/libvpx/source/config/<(OS)/<(target_arch_full)',
           ],
           'cflags!': [
             # Ensure the symbols are exported since this library gets wrapped by
@@ -350,14 +394,14 @@
             '-fvisibility=hidden',
           ],
           'include_dirs': [
-            'source/config/<(OS)/<(target_arch)',
+            'source/config/<(OS)/<(target_arch_full)',
             'source/libvpx',
           ],
           'sources': [
             '<@(libvpx_generic_sources)',
             # Generated by ./source/configure and checked in.
-            'source/config/<(OS)/<(target_arch)/vpx_config.c',
-            'source/config/<(OS)/<(target_arch)/vpx_config.h',
+            'source/config/<(OS)/<(target_arch_full)/vpx_config.c',
+            'source/config/<(OS)/<(target_arch_full)/vpx_config.h',
             # ARM specific C sources.
             'source/libvpx/vp8/common/arm/arm_systemdependent.c',
             'source/libvpx/vp8/common/arm/bilinearfilter_arm.c',
@@ -406,84 +450,6 @@
         },
       ],
     }],
-  ],
-  'targets': [
-    # libvpx_lib is currently not being used since we use libvpx inside
-    # libavcodec. Keeping this just in case we need this later.
-    {
-      'target_name': 'libvpx_lib',
-      'type': 'none',
-      'variables': {
-        'libvpx_lib': 'libvpx.a',
-      },
-      'conditions': [
-        # This section specifies the folder for looking for libvpx.a.
-        #
-        ['OS=="linux" and target_arch=="ia32"', {
-          'variables': {
-            'libvpx_path': 'lib/linux/ia32',
-          },
-        }],
-        ['OS=="linux" and target_arch=="x64"', {
-          'variables': {
-            'libvpx_path': 'lib/linux/x64',
-          },
-        }],
-        ['OS=="linux" and target_arch=="arm" and arm_neon==1', {
-          'variables': {
-            'libvpx_path': 'lib/linux/arm-neon',
-          },
-        }],
-        ['OS=="linux" and target_arch=="arm" and arm_neon==0', {
-          'variables': {
-            'libvpx_path': 'lib/linux/arm',
-          },
-        }],
-        ['OS=="win"', {
-          'variables': {
-            'libvpx_path': 'lib/win/ia32',
-          },
-        }],
-        ['OS=="mac"', {
-          'variables': {
-            'libvpx_path': 'lib/mac/ia32',
-          },
-        }],
-      ],
-      'actions': [
-        {
-          'action_name': 'copy_lib',
-          'inputs': [
-            '<(libvpx_path)/<(libvpx_lib)',
-          ],
-          'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/<(libvpx_lib)',
-          ],
-          'action': [
-            'cp',
-            '<(libvpx_path)/<(libvpx_lib)',
-            '<(SHARED_INTERMEDIATE_DIR)/<(libvpx_lib)',
-          ],
-          'message': 'Copying libvpx.a into <(SHARED_INTERMEDIATE_DIR)',
-        },
-      ],
-      'all_dependent_settings': {
-        'link_settings': {
-          'libraries': [
-            '<(SHARED_INTERMEDIATE_DIR)/<(libvpx_lib)',
-          ],
-        },
-      },
-    },
-    {
-      'target_name': 'libvpx_include',
-      'type': 'none',
-      'direct_dependent_settings': {
-        'include_dirs': [
-          'include',
-        ],
-      },
-    }
   ],
 }
 
