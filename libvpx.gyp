@@ -456,6 +456,11 @@
     {
       'target_name': 'libvpx_include',
       'type': 'none',
+      'direct_dependent_settings': {
+        'include_dirs': [
+          'include',
+        ],
+      },
     },
     {
       'target_name': 'libvpx_lib',
