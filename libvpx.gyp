@@ -451,6 +451,17 @@
       ],
     }],
   ],
+  # TODO(hclam): Remove these targets once webrtc doesn't depend on them.
+  'targets': [
+    {
+      'target_name': 'libvpx_include',
+      'type': 'none',
+    },
+    {
+      'target_name': 'libvpx_lib',
+      'type': 'none',
+    },
+  ],
 }
 
 # Local Variables:
