@@ -19,6 +19,8 @@
 #include "decoder/onyxd_int.h"
 
 #define VP8_CAP_POSTPROC (CONFIG_POSTPROC ? VPX_CODEC_CAP_POSTPROC : 0)
+#define VP8_CAP_ERROR_CONCEALMENT (CONFIG_ERROR_CONCEALMENT ? \
+                                    VPX_CODEC_CAP_ERROR_CONCEALMENT : 0)
 
 typedef vpx_codec_stream_info_t  vp8_stream_info_t;
 
@@ -299,6 +301,36 @@ update_error_state(vpx_codec_alg_priv_t                 *ctx,
     return res;
 }
 
+static void yuvconfig2image(vpx_image_t               *img,
+                            const YV12_BUFFER_CONFIG  *yv12,
+                            void                      *user_priv)
+{
+    /** vpx_img_wrap() doesn't allow specifying independent strides for
+      * the Y, U, and V planes, nor other alignment adjustments that
+      * might be representable by a YV12_BUFFER_CONFIG, so we just
+      * initialize all the fields.*/
+    img->fmt = yv12->clrtype == REG_YUV ?
+        VPX_IMG_FMT_I420 : VPX_IMG_FMT_VPXI420;
+    img->w = yv12->y_stride;
+    img->h = (yv12->y_height + 2 * VP8BORDERINPIXELS + 15) & ~15;
+    img->d_w = yv12->y_width;
+    img->d_h = yv12->y_height;
+    img->x_chroma_shift = 1;
+    img->y_chroma_shift = 1;
+    img->planes[VPX_PLANE_Y] = yv12->y_buffer;
+    img->planes[VPX_PLANE_U] = yv12->u_buffer;
+    img->planes[VPX_PLANE_V] = yv12->v_buffer;
+    img->planes[VPX_PLANE_ALPHA] = NULL;
+    img->stride[VPX_PLANE_Y] = yv12->y_stride;
+    img->stride[VPX_PLANE_U] = yv12->uv_stride;
+    img->stride[VPX_PLANE_V] = yv12->uv_stride;
+    img->stride[VPX_PLANE_ALPHA] = yv12->y_stride;
+    img->bps = 12;
+    img->user_priv = user_priv;
+    img->img_data = yv12->buffer_alloc;
+    img->img_data_owner = 0;
+    img->self_allocd = 0;
+}
 
 static vpx_codec_err_t vp8_decode(vpx_codec_alg_priv_t  *ctx,
                                   const uint8_t         *data,
@@ -364,6 +396,10 @@ static vpx_codec_err_t vp8_decode(vpx_codec_alg_priv_t  *ctx,
             oxcf.Version = 9;
             oxcf.postprocess = 0;
             oxcf.max_threads = ctx->cfg.threads;
+            oxcf.error_concealment =
+                    (ctx->base.init_flags & VPX_CODEC_USE_ERROR_CONCEALMENT);
+            oxcf.input_partition =
+                    (ctx->base.init_flags & VPX_CODEC_USE_INPUT_PARTITION);
 
             optr = vp8dx_create_decompressor(&oxcf);
 
@@ -391,7 +427,7 @@ static vpx_codec_err_t vp8_decode(vpx_codec_alg_priv_t  *ctx,
     if (!res && ctx->pbi)
     {
         YV12_BUFFER_CONFIG sd;
-        INT64 time_stamp = 0, time_end_stamp = 0;
+        int64_t time_stamp = 0, time_end_stamp = 0;
         vp8_ppflags_t flags = {0};
 
         if (ctx->base.init_flags & VPX_CODEC_USE_POSTPROC)
@@ -423,21 +459,8 @@ static vpx_codec_err_t vp8_decode(vpx_codec_alg_priv_t  *ctx,
 
         if (!res && 0 == vp8dx_get_raw_frame(ctx->pbi, &sd, &time_stamp, &time_end_stamp, &flags))
         {
-            /* Align width/height */
-            unsigned int a_w = (sd.y_width + 15) & ~15;
-            unsigned int a_h = (sd.y_height + 15) & ~15;
-
-            vpx_img_wrap(&ctx->img, VPX_IMG_FMT_I420,
-                         a_w + 2 * VP8BORDERINPIXELS,
-                         a_h + 2 * VP8BORDERINPIXELS,
-                         1,
-                         sd.buffer_alloc);
-            vpx_img_set_rect(&ctx->img,
-                             VP8BORDERINPIXELS, VP8BORDERINPIXELS,
-                             sd.y_width, sd.y_height);
-            ctx->img.user_priv = user_priv;
+            yuvconfig2image(&ctx->img, &sd, user_priv);
             ctx->img_avail = 1;
-
         }
     }
 
@@ -584,8 +607,7 @@ static vpx_codec_err_t vp8_set_reference(vpx_codec_alg_priv_t *ctx,
 
         image2yuvconfig(&frame->img, &sd);
 
-        vp8dx_set_reference(ctx->pbi, frame->frame_type, &sd);
-        return VPX_CODEC_OK;
+        return vp8dx_set_reference(ctx->pbi, frame->frame_type, &sd);
     }
     else
         return VPX_CODEC_INVALID_PARAM;
@@ -606,8 +628,7 @@ static vpx_codec_err_t vp8_get_reference(vpx_codec_alg_priv_t *ctx,
 
         image2yuvconfig(&frame->img, &sd);
 
-        vp8dx_get_reference(ctx->pbi, frame->frame_type, &sd);
-        return VPX_CODEC_OK;
+        return vp8dx_get_reference(ctx->pbi, frame->frame_type, &sd);
     }
     else
         return VPX_CODEC_INVALID_PARAM;
@@ -618,8 +639,8 @@ static vpx_codec_err_t vp8_set_postproc(vpx_codec_alg_priv_t *ctx,
                                         int ctr_id,
                                         va_list args)
 {
-    vp8_postproc_cfg_t *data = va_arg(args, vp8_postproc_cfg_t *);
 #if CONFIG_POSTPROC
+    vp8_postproc_cfg_t *data = va_arg(args, vp8_postproc_cfg_t *);
 
     if (data)
     {
@@ -719,7 +740,8 @@ CODEC_INTERFACE(vpx_codec_vp8_dx) =
 {
     "WebM Project VP8 Decoder" VERSION_STRING,
     VPX_CODEC_INTERNAL_ABI_VERSION,
-    VPX_CODEC_CAP_DECODER | VP8_CAP_POSTPROC,
+    VPX_CODEC_CAP_DECODER | VP8_CAP_POSTPROC | VP8_CAP_ERROR_CONCEALMENT |
+    VPX_CODEC_CAP_INPUT_PARTITION,
     /* vpx_codec_caps_t          caps; */
     vp8_init,         /* vpx_codec_init_fn_t       init; */
     vp8_destroy,      /* vpx_codec_destroy_fn_t    destroy; */
@@ -749,7 +771,7 @@ vpx_codec_iface_t vpx_codec_vp8_algo =
 {
     "WebM Project VP8 Decoder (Deprecated API)" VERSION_STRING,
     VPX_CODEC_INTERNAL_ABI_VERSION,
-    VPX_CODEC_CAP_DECODER | VP8_CAP_POSTPROC,
+    VPX_CODEC_CAP_DECODER | VP8_CAP_POSTPROC | VP8_CAP_ERROR_CONCEALMENT,
     /* vpx_codec_caps_t          caps; */
     vp8_init,         /* vpx_codec_init_fn_t       init; */
     vp8_destroy,      /* vpx_codec_destroy_fn_t    destroy; */

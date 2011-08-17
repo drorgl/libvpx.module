@@ -21,11 +21,12 @@
     .include  "asm_com_offsets.asm"
 
 .text
+.p2align 2
 
 @void vp8_yv12_copy_frame_func_neon(YV12_BUFFER_CONFIG *src_ybc, YV12_BUFFER_CONFIG *dst_ybc)@
 
 _vp8_yv12_copy_frame_func_neon:
-	vp8_yv12_copy_frame_func_neon:@
+	vp8_yv12_copy_frame_func_neon: @ PROC
     push            {r4 - r11, lr}
     vpush           {d8 - d15}
 
@@ -229,4 +230,5 @@ extra_cp_src_to_dst_width_uv_loop:
 
     b               end_of_cp_src_to_dst_uv
 
-   @
+	.size vp8_yv12_copy_frame_func_neon, .-vp8_yv12_copy_frame_func_neon    @ ENDP
+	.section	.note.GNU-stack,"",%progbits

@@ -25,6 +25,7 @@
 .equ HAVE_ALT_TREE_LAYOUT ,  0
 .equ HAVE_PTHREAD_H ,  1
 .equ HAVE_SYS_MMAN_H ,  1
+.equ HAVE_UNISTD_H ,  1
 .equ CONFIG_EXTERNAL_BUILD ,  0
 .equ CONFIG_INSTALL_DOCS ,  0
 .equ CONFIG_INSTALL_BINS ,  1
@@ -40,7 +41,7 @@
 .equ CONFIG_BIG_ENDIAN ,  0
 .equ CONFIG_CODEC_SRCS ,  0
 .equ CONFIG_DEBUG_LIBS ,  0
-.equ CONFIG_FAST_UNALIGNED ,  1
+.equ CONFIG_FAST_UN.balignED ,  1
 .equ CONFIG_MEM_MANAGER ,  0
 .equ CONFIG_MEM_TRACKER ,  0
 .equ CONFIG_MEM_CHECKS ,  0
@@ -50,7 +51,7 @@
 .equ CONFIG_RUNTIME_CPU_DETECT ,  0
 .equ CONFIG_POSTPROC ,  0
 .equ CONFIG_MULTITHREAD ,  1
-.equ CONFIG_PSNR ,  0
+.equ CONFIG_INTERNAL_STATS ,  0
 .equ CONFIG_VP8_ENCODER ,  1
 .equ CONFIG_VP8_DECODER ,  1
 .equ CONFIG_VP8 ,  1
@@ -59,10 +60,14 @@
 .equ CONFIG_STATIC_MSVCRT ,  0
 .equ CONFIG_SPATIAL_RESAMPLING ,  1
 .equ CONFIG_REALTIME_ONLY ,  0
+.equ CONFIG_ERROR_CONCEALMENT ,  0
 .equ CONFIG_SHARED ,  0
+.equ CONFIG_STATIC ,  1
 .equ CONFIG_SMALL ,  0
 .equ CONFIG_POSTPROC_VISUALIZER ,  0
 .equ CONFIG_OS_SUPPORT ,  1
+	.section	.note.GNU-stack,"",%progbits
 @ This file was created from a .asm file
 @  using the ads2gas.pl script.
 	.equ DO1STROUNDING, 0
+	.section	.note.GNU-stack,"",%progbits

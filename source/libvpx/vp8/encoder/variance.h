@@ -101,6 +101,15 @@
 
 #define prototype_getmbss(sym) unsigned int (sym)(const short *)
 
+#define prototype_get16x16prederror(sym)\
+    unsigned int (sym)\
+    (\
+     const unsigned char *src_ptr, \
+     int source_stride, \
+     const unsigned char *ref_ptr, \
+     int  ref_stride \
+    )
+
 #if ARCH_X86 || ARCH_X86_64
 #include "x86/variance_x86.h"
 #endif
@@ -213,6 +222,13 @@ extern prototype_sad_multi_dif_address(vp8_variance_sad8x16x4d);
 #endif
 extern prototype_sad_multi_dif_address(vp8_variance_sad4x4x4d);
 
+#if ARCH_X86 || ARCH_X86_64
+#ifndef vp8_variance_copy32xn
+#define vp8_variance_copy32xn vp8_copy32xn_c
+#endif
+extern prototype_sad(vp8_variance_copy32xn);
+#endif
+
 //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 #ifndef vp8_variance_var4x4
@@ -299,25 +315,10 @@ extern prototype_getmbss(vp8_variance_getmbss);
 #endif
 extern prototype_variance(vp8_variance_mse16x16);
 
-#ifndef vp8_variance_get16x16prederror
-#define vp8_variance_get16x16prederror vp8_get16x16pred_error_c
-#endif
-extern prototype_sad(vp8_variance_get16x16prederror);
-
-#ifndef vp8_variance_get8x8var
-#define vp8_variance_get8x8var vp8_get8x8var_c
-#endif
-extern prototype_variance2(vp8_variance_get8x8var);
-
-#ifndef vp8_variance_get16x16var
-#define vp8_variance_get16x16var vp8_get16x16var_c
-#endif
-extern prototype_variance2(vp8_variance_get16x16var);
-
 #ifndef vp8_variance_get4x4sse_cs
 #define vp8_variance_get4x4sse_cs vp8_get4x4sse_cs_c
 #endif
-extern prototype_sad(vp8_variance_get4x4sse_cs);
+extern prototype_get16x16prederror(vp8_variance_get4x4sse_cs);
 
 #ifndef vp8_ssimpf
 #define vp8_ssimpf ssim_parms_c
@@ -337,9 +338,8 @@ typedef prototype_variance(*vp8_variance_fn_t);
 typedef prototype_variance2(*vp8_variance2_fn_t);
 typedef prototype_subpixvariance(*vp8_subpixvariance_fn_t);
 typedef prototype_getmbss(*vp8_getmbss_fn_t);
-
-typedef prototype_ssimpf(*vp8_ssimpf_fn_t)
-
+typedef prototype_ssimpf(*vp8_ssimpf_fn_t);
+typedef prototype_get16x16prederror(*vp8_get16x16prederror_fn_t);
 
 typedef struct
 {
@@ -368,10 +368,7 @@ typedef struct
     vp8_getmbss_fn_t         getmbss;
     vp8_variance_fn_t        mse16x16;
 
-    vp8_sad_fn_t             get16x16prederror;
-    vp8_variance2_fn_t       get8x8var;
-    vp8_variance2_fn_t       get16x16var;
-    vp8_sad_fn_t             get4x4sse_cs;
+    vp8_get16x16prederror_fn_t get4x4sse_cs;
 
     vp8_sad_multi_fn_t       sad16x16x3;
     vp8_sad_multi_fn_t       sad16x8x3;
@@ -391,7 +388,11 @@ typedef struct
     vp8_sad_multi_d_fn_t     sad8x8x4d;
     vp8_sad_multi_d_fn_t     sad4x4x4d;
 
-#if CONFIG_PSNR
+#if ARCH_X86 || ARCH_X86_64
+    vp8_sad_fn_t             copy32xn;
+#endif
+
+#if CONFIG_INTERNAL_STATS
     vp8_ssimpf_fn_t          ssimpf_8x8;
     vp8_ssimpf_fn_t          ssimpf;
 #endif
@@ -409,7 +410,9 @@ typedef struct
     vp8_sad_multi_fn_t      sdx3f;
     vp8_sad_multi1_fn_t     sdx8f;
     vp8_sad_multi_d_fn_t    sdx4df;
-
+#if ARCH_X86 || ARCH_X86_64
+    vp8_sad_fn_t            copymem;
+#endif
 } vp8_variance_fn_ptr_t;
 
 #if CONFIG_RUNTIME_CPU_DETECT

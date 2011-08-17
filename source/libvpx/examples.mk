@@ -77,6 +77,11 @@ GEN_EXAMPLES-$(CONFIG_ENCODERS) += decode_with_drops.c
 endif
 decode_with_drops.GUID           = CE5C53C4-8DDA-438A-86ED-0DDD3CDB8D26
 decode_with_drops.DESCRIPTION    = Drops frames while decoding
+ifeq ($(CONFIG_DECODERS),yes)
+GEN_EXAMPLES-$(CONFIG_ERROR_CONCEALMENT) += decode_with_partial_drops.c
+endif
+decode_with_partial_drops.GUID           = 61C2D026-5754-46AC-916F-1343ECC5537E
+decode_with_partial_drops.DESCRIPTION    = Drops parts of frames while decoding
 GEN_EXAMPLES-$(CONFIG_ENCODERS) += error_resilient.c
 error_resilient.GUID             = DF5837B9-4145-4F92-A031-44E4F832E00C
 error_resilient.DESCRIPTION      = Error Resiliency Feature
@@ -122,8 +127,8 @@ else
     LIB_PATH := $(call enabled,LIB_PATH)
     INC_PATH := $(call enabled,INC_PATH)
 endif
-CFLAGS += $(addprefix -I,$(INC_PATH))
-LDFLAGS += $(addprefix -L,$(LIB_PATH))
+INTERNAL_CFLAGS = $(addprefix -I,$(INC_PATH))
+INTERNAL_LDFLAGS += $(addprefix -L,$(LIB_PATH))
 
 
 # Expand list of selected examples to build (as specified above)
@@ -162,8 +167,10 @@ BINS-$(NOT_MSVS)           += $(addprefix $(BUILD_PFX),$(ALL_EXAMPLES:.c=))
 
 # Instantiate linker template for all examples.
 CODEC_LIB=$(if $(CONFIG_DEBUG_LIBS),vpx_g,vpx)
+CODEC_LIB_SUF=$(if $(CONFIG_SHARED),.so,.a)
 $(foreach bin,$(BINS-yes),\
-    $(if $(BUILD_OBJS),$(eval $(bin): $(LIB_PATH)/lib$(CODEC_LIB).a))\
+    $(if $(BUILD_OBJS),$(eval $(bin):\
+        $(LIB_PATH)/lib$(CODEC_LIB)$(CODEC_LIB_SUF)))\
     $(if $(BUILD_OBJS),$(eval $(call linker_template,$(bin),\
         $(call objs,$($(notdir $(bin)).SRCS)) \
         -l$(CODEC_LIB) $(addprefix -l,$(CODEC_EXTRA_LIBS))\
@@ -214,7 +221,8 @@ $(1): $($(1:.vcproj=).SRCS)
             --ver=$$(CONFIG_VS_VERSION)\
             --proj-guid=$$($$(@:.vcproj=).GUID)\
             $$(if $$(CONFIG_STATIC_MSVCRT),--static-crt) \
-            --out=$$@ $$(CFLAGS) $$(LDFLAGS) -l$$(CODEC_LIB) -lwinmm $$^
+            --out=$$@ $$(INTERNAL_CFLAGS) $$(CFLAGS) \
+            $$(INTERNAL_LDFLAGS) $$(LDFLAGS) -l$$(CODEC_LIB) -lwinmm $$^
 endef
 PROJECTS-$(CONFIG_MSVS) += $(ALL_EXAMPLES:.c=.vcproj)
 INSTALL-BINS-$(CONFIG_MSVS) += $(foreach p,$(VS_PLATFORMS),\

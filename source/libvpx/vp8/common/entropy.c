@@ -26,8 +26,32 @@ typedef vp8_prob Prob;
 
 #include "coefupdateprobs.h"
 
-DECLARE_ALIGNED(16, cuchar, vp8_coef_bands[16]) = { 0, 1, 2, 3, 6, 4, 5, 6, 6, 6, 6, 6, 6, 6, 6, 7};
-DECLARE_ALIGNED(16, cuchar, vp8_prev_token_class[MAX_ENTROPY_TOKENS]) = { 0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0};
+DECLARE_ALIGNED(16, const unsigned char, vp8_norm[256]) =
+{
+    0, 7, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4, 4,
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
+
+DECLARE_ALIGNED(16, cuchar, vp8_coef_bands[16]) =
+{ 0, 1, 2, 3, 6, 4, 5, 6, 6, 6, 6, 6, 6, 6, 6, 7};
+
+DECLARE_ALIGNED(16, cuchar, vp8_prev_token_class[MAX_ENTROPY_TOKENS]) =
+{ 0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0};
+
 DECLARE_ALIGNED(16, const int, vp8_default_zig_zag1d[16]) =
 {
     0,  1,  4,  8,
@@ -65,7 +89,7 @@ const vp8_tree_index vp8_coef_tree[ 22] =     /* corresponding _CONTEXT_NODEs */
     -DCT_VAL_CATEGORY5, -DCT_VAL_CATEGORY6   /* 10 = CAT_FIVE */
 };
 
-struct vp8_token_struct vp8_coef_encodings[vp8_coef_tokens];
+struct vp8_token_struct vp8_coef_encodings[MAX_ENTROPY_TOKENS];
 
 /* Trees for extra bits.  Probabilities are constant and
    do not depend on previously encoded bits */
@@ -145,10 +169,12 @@ void vp8_default_coef_probs(VP8_COMMON *pc)
 
             do
             {
-                unsigned int branch_ct [vp8_coef_tokens-1] [2];
+                unsigned int branch_ct [ENTROPY_NODES] [2];
                 vp8_tree_probs_from_distribution(
-                    vp8_coef_tokens, vp8_coef_encodings, vp8_coef_tree,
-                    pc->fc.coef_probs [h][i][k], branch_ct, default_coef_counts [h][i][k],
+                    MAX_ENTROPY_TOKENS, vp8_coef_encodings, vp8_coef_tree,
+                    pc->fc.coef_probs[h][i][k],
+                    branch_ct,
+                    vp8_default_coef_counts[h][i][k],
                     256, 1);
 
             }

@@ -9,27 +9,14 @@
  */
 
 
-#include "vpx_ports/config.h"
-#include <stddef.h>
-
+#include "vpx_config.h"
+#include "vpx/vpx_codec.h"
+#include "vpx_ports/asm_offsets.h"
 #include "vpx_scale/yv12config.h"
 
-#define ct_assert(name,cond) \
-    static void assert_##name(void) UNUSED;\
-    static void assert_##name(void) {switch(0){case 0:case !!(cond):;}}
+BEGIN
 
-#define DEFINE(sym, val) int sym = val;
-
-/*
-#define BLANK() asm volatile("\n->" : : )
-*/
-
-/*
- * int main(void)
- * {
- */
-
-//vpx_scale
+/* vpx_scale */
 DEFINE(yv12_buffer_config_y_width,              offsetof(YV12_BUFFER_CONFIG, y_width));
 DEFINE(yv12_buffer_config_y_height,             offsetof(YV12_BUFFER_CONFIG, y_height));
 DEFINE(yv12_buffer_config_y_stride,             offsetof(YV12_BUFFER_CONFIG, y_stride));
@@ -40,10 +27,14 @@ DEFINE(yv12_buffer_config_y_buffer,             offsetof(YV12_BUFFER_CONFIG, y_b
 DEFINE(yv12_buffer_config_u_buffer,             offsetof(YV12_BUFFER_CONFIG, u_buffer));
 DEFINE(yv12_buffer_config_v_buffer,             offsetof(YV12_BUFFER_CONFIG, v_buffer));
 DEFINE(yv12_buffer_config_border,               offsetof(YV12_BUFFER_CONFIG, border));
+DEFINE(VP8BORDERINPIXELS_VAL,                   VP8BORDERINPIXELS);
 
-//add asserts for any offset that is not supported by assembly code
-//add asserts for any size that is not supported by assembly code
-/*
- * return 0;
- * }
- */
+END
+
+/* add asserts for any offset that is not supported by assembly code */
+/* add asserts for any size that is not supported by assembly code */
+
+#if HAVE_ARMV7
+/* vp8_yv12_extend_frame_borders_neon makes several assumptions based on this */
+ct_assert(VP8BORDERINPIXELS_VAL, VP8BORDERINPIXELS == 32)
+#endif
