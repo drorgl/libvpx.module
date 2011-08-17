@@ -143,6 +143,11 @@
             'source/libvpx/vp8/decoder',
             'source/libvpx/vp8/encoder',
           ],
+          'direct_dependent_settings': {
+            'include_dirs': [
+              'source/libvpx',
+            ],
+          },
           'cflags!': [
             # Ensure the symbols are exported since this library gets wrapped by
             # ffmpeg's shared lib.  When we stop doing that (crbug.com/70687)
