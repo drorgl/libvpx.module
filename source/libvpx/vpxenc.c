@@ -23,7 +23,6 @@
 #include <stdarg.h>
 #include <string.h>
 #include <limits.h>
-#include <assert.h>
 #include "vpx/vpx_encoder.h"
 #if USE_POSIX_MMAP
 #include <sys/types.h>
@@ -256,16 +255,6 @@ vpx_fixed_buf_t stats_get(stats_io_t *stats)
 {
     return stats->buf;
 }
-
-/* Stereo 3D packed frame format */
-typedef enum stereo_format
-{
-    STEREO_FORMAT_MONO       = 0,
-    STEREO_FORMAT_LEFT_RIGHT = 1,
-    STEREO_FORMAT_BOTTOM_TOP = 2,
-    STEREO_FORMAT_TOP_BOTTOM = 3,
-    STEREO_FORMAT_RIGHT_LEFT = 11
-} stereo_format_t;
 
 enum video_file_type
 {
@@ -501,52 +490,25 @@ void Ebml_Write(EbmlGlobal *glob, const void *buffer_in, unsigned long len)
     if(fwrite(buffer_in, 1, len, glob->stream));
 }
 
-#define WRITE_BUFFER(s) \
-for(i = len-1; i>=0; i--)\
-{ \
-    x = *(const s *)buffer_in >> (i * CHAR_BIT); \
-    Ebml_Write(glob, &x, 1); \
-}
-void Ebml_Serialize(EbmlGlobal *glob, const void *buffer_in, int buffer_size, unsigned long len)
+
+void Ebml_Serialize(EbmlGlobal *glob, const void *buffer_in, unsigned long len)
 {
-    char x;
-    int i;
+    const unsigned char *q = (const unsigned char *)buffer_in + len - 1;
 
-    /* buffer_size:
-     * 1 - int8_t;
-     * 2 - int16_t;
-     * 3 - int32_t;
-     * 4 - int64_t;
-     */
-    switch (buffer_size)
-    {
-        case 1:
-            WRITE_BUFFER(int8_t)
-            break;
-        case 2:
-            WRITE_BUFFER(int16_t)
-            break;
-        case 4:
-            WRITE_BUFFER(int32_t)
-            break;
-        case 8:
-            WRITE_BUFFER(int64_t)
-            break;
-        default:
-            break;
-    }
+    for(; len; len--)
+        Ebml_Write(glob, q--, 1);
 }
-#undef WRITE_BUFFER
 
-/* Need a fixed size serializer for the track ID. libmkv provides a 64 bit
+
+/* Need a fixed size serializer for the track ID. libmkv provdes a 64 bit
  * one, but not a 32 bit one.
  */
 static void Ebml_SerializeUnsigned32(EbmlGlobal *glob, unsigned long class_id, uint64_t ui)
 {
     unsigned char sizeSerialized = 4 | 0x80;
     Ebml_WriteID(glob, class_id);
-    Ebml_Serialize(glob, &sizeSerialized, sizeof(sizeSerialized), 1);
-    Ebml_Serialize(glob, &ui, sizeof(ui), 4);
+    Ebml_Serialize(glob, &sizeSerialized, 1);
+    Ebml_Serialize(glob, &ui, 4);
 }
 
 
@@ -555,12 +517,12 @@ Ebml_StartSubElement(EbmlGlobal *glob, EbmlLoc *ebmlLoc,
                           unsigned long class_id)
 {
     //todo this is always taking 8 bytes, this may need later optimization
-    //this is a key that says length unknown
-    uint64_t unknownLen =  LITERALU64(0x01FFFFFFFFFFFFFF);
+    //this is a key that says lenght unknown
+    unsigned long long unknownLen =  LITERALU64(0x01FFFFFFFFFFFFFF);
 
     Ebml_WriteID(glob, class_id);
     *ebmlLoc = ftello(glob->stream);
-    Ebml_Serialize(glob, &unknownLen, sizeof(unknownLen), 8);
+    Ebml_Serialize(glob, &unknownLen, 8);
 }
 
 static void
@@ -578,7 +540,7 @@ Ebml_EndSubElement(EbmlGlobal *glob, EbmlLoc *ebmlLoc)
 
     /* Seek back to the beginning of the element and write the new size */
     fseeko(glob->stream, *ebmlLoc, SEEK_SET);
-    Ebml_Serialize(glob, &size, sizeof(size), 8);
+    Ebml_Serialize(glob, &size, 8);
 
     /* Reset the stream pointer */
     fseeko(glob->stream, pos, SEEK_SET);
@@ -644,8 +606,7 @@ write_webm_seek_info(EbmlGlobal *ebml)
 static void
 write_webm_file_header(EbmlGlobal                *glob,
                        const vpx_codec_enc_cfg_t *cfg,
-                       const struct vpx_rational *fps,
-                       stereo_format_t            stereo_fmt)
+                       const struct vpx_rational *fps)
 {
     {
         EbmlLoc start;
@@ -689,7 +650,6 @@ write_webm_file_header(EbmlGlobal                *glob,
                     Ebml_StartSubElement(glob, &videoStart, Video);
                     Ebml_SerializeUnsigned(glob, PixelWidth, pixelWidth);
                     Ebml_SerializeUnsigned(glob, PixelHeight, pixelHeight);
-                    Ebml_SerializeUnsigned(glob, StereoMode, stereo_fmt);
                     Ebml_SerializeFloat(glob, FrameRate, frameRate);
                     Ebml_EndSubElement(glob, &videoStart); //Video
                 }
@@ -768,13 +728,13 @@ write_webm_block(EbmlGlobal                *glob,
 
     block_length = pkt->data.frame.sz + 4;
     block_length |= 0x10000000;
-    Ebml_Serialize(glob, &block_length, sizeof(block_length), 4);
+    Ebml_Serialize(glob, &block_length, 4);
 
     track_number = 1;
     track_number |= 0x80;
     Ebml_Write(glob, &track_number, 1);
 
-    Ebml_Serialize(glob, &block_timecode, sizeof(block_timecode), 2);
+    Ebml_Serialize(glob, &block_timecode, 2);
 
     flags = 0;
     if(is_keyframe)
@@ -937,16 +897,12 @@ static const arg_def_t framerate        = ARG_DEF(NULL, "fps", 1,
         "Stream frame rate (rate/scale)");
 static const arg_def_t use_ivf          = ARG_DEF(NULL, "ivf", 0,
         "Output IVF (default is WebM)");
-static const arg_def_t q_hist_n         = ARG_DEF(NULL, "q-hist", 1,
-        "Show quantizer histogram (n-buckets)");
-static const arg_def_t rate_hist_n         = ARG_DEF(NULL, "rate-hist", 1,
-        "Show rate histogram (n-buckets)");
 static const arg_def_t *main_args[] =
 {
     &debugmode,
     &outputfile, &codecarg, &passes, &pass_arg, &fpf_name, &limit, &deadline,
     &best_dl, &good_dl, &rt_dl,
-    &verbosearg, &psnrarg, &use_ivf, &q_hist_n, &rate_hist_n,
+    &verbosearg, &psnrarg, &use_ivf, &framerate,
     NULL
 };
 
@@ -960,18 +916,8 @@ static const arg_def_t width            = ARG_DEF("w", "width", 1,
         "Frame width");
 static const arg_def_t height           = ARG_DEF("h", "height", 1,
         "Frame height");
-static const struct arg_enum_list stereo_mode_enum[] = {
-    {"mono"      , STEREO_FORMAT_MONO},
-    {"left-right", STEREO_FORMAT_LEFT_RIGHT},
-    {"bottom-top", STEREO_FORMAT_BOTTOM_TOP},
-    {"top-bottom", STEREO_FORMAT_TOP_BOTTOM},
-    {"right-left", STEREO_FORMAT_RIGHT_LEFT},
-    {NULL, 0}
-};
-static const arg_def_t stereo_mode      = ARG_DEF_ENUM(NULL, "stereo-mode", 1,
-        "Stereo 3D video format", stereo_mode_enum);
 static const arg_def_t timebase         = ARG_DEF(NULL, "timebase", 1,
-        "Output timestamp precision (fractional seconds)");
+        "Stream timebase (frame duration)");
 static const arg_def_t error_resilient  = ARG_DEF(NULL, "error-resilient", 1,
         "Enable error resiliency features");
 static const arg_def_t lag_in_frames    = ARG_DEF(NULL, "lag-in-frames", 1,
@@ -980,7 +926,7 @@ static const arg_def_t lag_in_frames    = ARG_DEF(NULL, "lag-in-frames", 1,
 static const arg_def_t *global_args[] =
 {
     &use_yv12, &use_i420, &usage, &threads, &profile,
-    &width, &height, &stereo_mode, &timebase, &framerate, &error_resilient,
+    &width, &height, &timebase, &framerate, &error_resilient,
     &lag_in_frames, NULL
 };
 
@@ -1084,14 +1030,12 @@ static const arg_def_t tune_ssim = ARG_DEF_ENUM(NULL, "tune", 1,
                                    "Material to favor", tuning_enum);
 static const arg_def_t cq_level = ARG_DEF(NULL, "cq-level", 1,
                                    "Constrained Quality Level");
-static const arg_def_t max_intra_rate_pct = ARG_DEF(NULL, "max-intra-rate", 1,
-        "Max I-frame bitrate (pct)");
 
 static const arg_def_t *vp8_args[] =
 {
     &cpu_used, &auto_altref, &noise_sens, &sharpness, &static_thresh,
     &token_parts, &arnr_maxframes, &arnr_strength, &arnr_type,
-    &tune_ssim, &cq_level, &max_intra_rate_pct, NULL
+    &tune_ssim, &cq_level, NULL
 };
 static const int vp8_arg_ctrl_map[] =
 {
@@ -1099,7 +1043,7 @@ static const int vp8_arg_ctrl_map[] =
     VP8E_SET_NOISE_SENSITIVITY, VP8E_SET_SHARPNESS, VP8E_SET_STATIC_THRESHOLD,
     VP8E_SET_TOKEN_PARTITIONS,
     VP8E_SET_ARNR_MAXFRAMES, VP8E_SET_ARNR_STRENGTH , VP8E_SET_ARNR_TYPE,
-    VP8E_SET_TUNING, VP8E_SET_CQ_LEVEL, VP8E_SET_MAX_INTRA_BITRATE_PCT, 0
+    VP8E_SET_TUNING, VP8E_SET_CQ_LEVEL, 0
 };
 #endif
 
@@ -1126,9 +1070,6 @@ static void usage_exit()
     fprintf(stderr, "\nVP8 Specific Options:\n");
     arg_show_usage(stdout, vp8_args);
 #endif
-    fprintf(stderr, "\nStream timebase (--timebase):\n"
-            "  The desired precision of timestamps in the output, expressed\n"
-            "  in fractional seconds. Default is 1/1000.\n");
     fprintf(stderr, "\n"
            "Included encoders:\n"
            "\n");
@@ -1141,297 +1082,8 @@ static void usage_exit()
     exit(EXIT_FAILURE);
 }
 
-
-#define HIST_BAR_MAX 40
-struct hist_bucket
-{
-    int low, high, count;
-};
-
-
-static int merge_hist_buckets(struct hist_bucket *bucket,
-                              int *buckets_,
-                              int max_buckets)
-{
-    int small_bucket = 0, merge_bucket = INT_MAX, big_bucket=0;
-    int buckets = *buckets_;
-    int i;
-
-    /* Find the extrema for this list of buckets */
-    big_bucket = small_bucket = 0;
-    for(i=0; i < buckets; i++)
-    {
-        if(bucket[i].count < bucket[small_bucket].count)
-            small_bucket = i;
-        if(bucket[i].count > bucket[big_bucket].count)
-            big_bucket = i;
-    }
-
-    /* If we have too many buckets, merge the smallest with an adjacent
-     * bucket.
-     */
-    while(buckets > max_buckets)
-    {
-        int last_bucket = buckets - 1;
-
-        // merge the small bucket with an adjacent one.
-        if(small_bucket == 0)
-            merge_bucket = 1;
-        else if(small_bucket == last_bucket)
-            merge_bucket = last_bucket - 1;
-        else if(bucket[small_bucket - 1].count < bucket[small_bucket + 1].count)
-            merge_bucket = small_bucket - 1;
-        else
-            merge_bucket = small_bucket + 1;
-
-        assert(abs(merge_bucket - small_bucket) <= 1);
-        assert(small_bucket < buckets);
-        assert(big_bucket < buckets);
-        assert(merge_bucket < buckets);
-
-        if(merge_bucket < small_bucket)
-        {
-            bucket[merge_bucket].high = bucket[small_bucket].high;
-            bucket[merge_bucket].count += bucket[small_bucket].count;
-        }
-        else
-        {
-            bucket[small_bucket].high = bucket[merge_bucket].high;
-            bucket[small_bucket].count += bucket[merge_bucket].count;
-            merge_bucket = small_bucket;
-        }
-
-        assert(bucket[merge_bucket].low != bucket[merge_bucket].high);
-
-        buckets--;
-
-        /* Remove the merge_bucket from the list, and find the new small
-         * and big buckets while we're at it
-         */
-        big_bucket = small_bucket = 0;
-        for(i=0; i < buckets; i++)
-        {
-            if(i > merge_bucket)
-                bucket[i] = bucket[i+1];
-
-            if(bucket[i].count < bucket[small_bucket].count)
-                small_bucket = i;
-            if(bucket[i].count > bucket[big_bucket].count)
-                big_bucket = i;
-        }
-
-    }
-
-    *buckets_ = buckets;
-    return bucket[big_bucket].count;
-}
-
-
-static void show_histogram(const struct hist_bucket *bucket,
-                           int                       buckets,
-                           int                       total,
-                           int                       scale)
-{
-    const char *pat1, *pat2;
-    int i;
-
-    switch((int)(log(bucket[buckets-1].high)/log(10))+1)
-    {
-        case 1:
-        case 2:
-            pat1 = "%4d %2s: ";
-            pat2 = "%4d-%2d: ";
-            break;
-        case 3:
-            pat1 = "%5d %3s: ";
-            pat2 = "%5d-%3d: ";
-            break;
-        case 4:
-            pat1 = "%6d %4s: ";
-            pat2 = "%6d-%4d: ";
-            break;
-        case 5:
-            pat1 = "%7d %5s: ";
-            pat2 = "%7d-%5d: ";
-            break;
-        case 6:
-            pat1 = "%8d %6s: ";
-            pat2 = "%8d-%6d: ";
-            break;
-        case 7:
-            pat1 = "%9d %7s: ";
-            pat2 = "%9d-%7d: ";
-            break;
-        default:
-            pat1 = "%12d %10s: ";
-            pat2 = "%12d-%10d: ";
-            break;
-    }
-
-    for(i=0; i<buckets; i++)
-    {
-        int len;
-        int j;
-        float pct;
-
-        pct = 100.0 * (float)bucket[i].count / (float)total;
-        len = HIST_BAR_MAX * bucket[i].count / scale;
-        if(len < 1)
-            len = 1;
-        assert(len <= HIST_BAR_MAX);
-
-        if(bucket[i].low == bucket[i].high)
-            fprintf(stderr, pat1, bucket[i].low, "");
-        else
-            fprintf(stderr, pat2, bucket[i].low, bucket[i].high);
-
-        for(j=0; j<HIST_BAR_MAX; j++)
-            fprintf(stderr, j<len?"=":" ");
-        fprintf(stderr, "\t%5d (%6.2f%%)\n",bucket[i].count,pct);
-    }
-}
-
-
-static void show_q_histogram(const int counts[64], int max_buckets)
-{
-    struct hist_bucket bucket[64];
-    int buckets = 0;
-    int total = 0;
-    int scale;
-    int i;
-
-
-    for(i=0; i<64; i++)
-    {
-        if(counts[i])
-        {
-            bucket[buckets].low = bucket[buckets].high = i;
-            bucket[buckets].count = counts[i];
-            buckets++;
-            total += counts[i];
-        }
-    }
-
-    fprintf(stderr, "\nQuantizer Selection:\n");
-    scale = merge_hist_buckets(bucket, &buckets, max_buckets);
-    show_histogram(bucket, buckets, total, scale);
-}
-
-
-#define RATE_BINS (100)
-struct rate_hist
-{
-    int64_t            *pts;
-    int                *sz;
-    int                 samples;
-    int                 frames;
-    struct hist_bucket  bucket[RATE_BINS];
-    int                 total;
-};
-
-
-static void init_rate_histogram(struct rate_hist          *hist,
-                                const vpx_codec_enc_cfg_t *cfg,
-                                const vpx_rational_t      *fps)
-{
-    int i;
-
-    /* Determine the number of samples in the buffer. Use the file's framerate
-     * to determine the number of frames in rc_buf_sz milliseconds, with an
-     * adjustment (5/4) to account for alt-refs
-     */
-    hist->samples = cfg->rc_buf_sz * 5 / 4 * fps->num / fps->den / 1000;
-
-    // prevent division by zero
-    if (hist->samples == 0)
-      hist->samples=1;
-
-    hist->pts = calloc(hist->samples, sizeof(*hist->pts));
-    hist->sz = calloc(hist->samples, sizeof(*hist->sz));
-    for(i=0; i<RATE_BINS; i++)
-    {
-        hist->bucket[i].low = INT_MAX;
-        hist->bucket[i].high = 0;
-        hist->bucket[i].count = 0;
-    }
-}
-
-
-static void destroy_rate_histogram(struct rate_hist *hist)
-{
-    free(hist->pts);
-    free(hist->sz);
-}
-
-
-static void update_rate_histogram(struct rate_hist          *hist,
-                                  const vpx_codec_enc_cfg_t *cfg,
-                                  const vpx_codec_cx_pkt_t  *pkt)
-{
-    int i, idx;
-    int64_t now, then, sum_sz = 0, avg_bitrate;
-
-    now = pkt->data.frame.pts * 1000
-          * (uint64_t)cfg->g_timebase.num / (uint64_t)cfg->g_timebase.den;
-
-    idx = hist->frames++ % hist->samples;
-    hist->pts[idx] = now;
-    hist->sz[idx] = pkt->data.frame.sz;
-
-    if(now < cfg->rc_buf_initial_sz)
-        return;
-
-    then = now;
-
-    /* Sum the size over the past rc_buf_sz ms */
-    for(i = hist->frames; i > 0 && hist->frames - i < hist->samples; i--)
-    {
-        int i_idx = (i-1) % hist->samples;
-
-        then = hist->pts[i_idx];
-        if(now - then > cfg->rc_buf_sz)
-            break;
-        sum_sz += hist->sz[i_idx];
-    }
-
-    if (now == then)
-        return;
-
-    avg_bitrate = sum_sz * 8 * 1000 / (now - then);
-    idx = avg_bitrate * (RATE_BINS/2) / (cfg->rc_target_bitrate * 1000);
-    if(idx < 0)
-        idx = 0;
-    if(idx > RATE_BINS-1)
-        idx = RATE_BINS-1;
-    if(hist->bucket[idx].low > avg_bitrate)
-        hist->bucket[idx].low = avg_bitrate;
-    if(hist->bucket[idx].high < avg_bitrate)
-        hist->bucket[idx].high = avg_bitrate;
-    hist->bucket[idx].count++;
-    hist->total++;
-}
-
-
-static void show_rate_histogram(struct rate_hist          *hist,
-                                const vpx_codec_enc_cfg_t *cfg,
-                                int                        max_buckets)
-{
-    int i, scale;
-    int buckets = 0;
-
-    for(i = 0; i < RATE_BINS; i++)
-    {
-        if(hist->bucket[i].low == INT_MAX)
-            continue;
-        hist->bucket[buckets++] = hist->bucket[i];
-    }
-
-    fprintf(stderr, "\nRate (over %dms window):\n", cfg->rc_buf_sz);
-    scale = merge_hist_buckets(hist->bucket, &buckets, max_buckets);
-    show_histogram(hist->bucket, buckets, hist->total, scale);
-}
-
 #define ARG_CTRL_CNT_MAX 10
+
 
 int main(int argc, const char **argv_)
 {
@@ -1468,11 +1120,6 @@ int main(int argc, const char **argv_)
     uint64_t                 psnr_samples_total = 0;
     double                   psnr_totals[4] = {0, 0, 0, 0};
     int                      psnr_count = 0;
-    stereo_format_t          stereo_fmt = STEREO_FORMAT_MONO;
-    int                      counts[64]={0};
-    int                      show_q_hist_buckets=0;
-    int                      show_rate_hist_buckets=0;
-    struct rate_hist         rate_hist={0};
 
     exec_name = argv_[0];
     ebml.last_pts_ms = -1;
@@ -1556,10 +1203,6 @@ int main(int argc, const char **argv_)
             out_fn = arg.val;
         else if (arg_match(&arg, &debugmode, argi))
             ebml.debug = 1;
-        else if (arg_match(&arg, &q_hist_n, argi))
-            show_q_hist_buckets = arg_parse_uint(&arg);
-        else if (arg_match(&arg, &rate_hist_n, argi))
-            show_rate_hist_buckets = arg_parse_uint(&arg);
         else
             argj++;
     }
@@ -1616,8 +1259,6 @@ int main(int argc, const char **argv_)
             cfg.g_w = arg_parse_uint(&arg);
         else if (arg_match(&arg, &height, argi))
             cfg.g_h = arg_parse_uint(&arg);
-        else if (arg_match(&arg, &stereo_mode, argi))
-            stereo_fmt = arg_parse_enum_or_int(&arg);
         else if (arg_match(&arg, &timebase, argi))
             cfg.g_timebase = arg_parse_rational(&arg);
         else if (arg_match(&arg, &error_resilient, argi))
@@ -1867,8 +1508,6 @@ int main(int argc, const char **argv_)
             else
                 vpx_img_alloc(&raw, arg_use_i420 ? VPX_IMG_FMT_I420 : VPX_IMG_FMT_YV12,
                               cfg.g_w, cfg.g_h, 1);
-
-            init_rate_histogram(&rate_hist, &cfg, &arg_framerate);
         }
 
         outfile = strcmp(out_fn, "-") ? fopen(out_fn, "wb")
@@ -1918,7 +1557,7 @@ int main(int argc, const char **argv_)
         if(write_webm)
         {
             ebml.stream = outfile;
-            write_webm_file_header(&ebml, &cfg, &arg_framerate, stereo_fmt);
+            write_webm_file_header(&ebml, &cfg, &arg_framerate);
         }
         else
             write_ivf_file_header(outfile, &cfg, codec->fourcc, 0);
@@ -1980,16 +1619,6 @@ int main(int argc, const char **argv_)
             vpx_usec_timer_mark(&timer);
             cx_time += vpx_usec_timer_elapsed(&timer);
             ctx_exit_on_error(&encoder, "Failed to encode frame");
-
-            if(cfg.g_pass != VPX_RC_FIRST_PASS)
-            {
-                int q;
-
-                vpx_codec_control(&encoder, VP8E_GET_LAST_QUANTIZER_64, &q);
-                ctx_exit_on_error(&encoder, "Failed to read quantizer");
-                counts[q]++;
-            }
-
             got_data = 0;
 
             while ((pkt = vpx_codec_get_cx_data(&encoder, &iter)))
@@ -2003,7 +1632,6 @@ int main(int argc, const char **argv_)
                     fprintf(stderr, " %6luF",
                             (unsigned long)pkt->data.frame.sz);
 
-                    update_rate_histogram(&rate_hist, &cfg, pkt);
                     if(write_webm)
                     {
                         /* Update the hash */
@@ -2082,14 +1710,10 @@ int main(int argc, const char **argv_)
         vpx_codec_destroy(&encoder);
 
         fclose(infile);
-        if (file_type == FILE_TYPE_Y4M)
-            y4m_input_close(&y4m);
 
         if(write_webm)
         {
             write_webm_file_footer(&ebml, hash);
-            free(ebml.cue_list);
-            ebml.cue_list = NULL;
         }
         else
         {
@@ -2104,13 +1728,6 @@ int main(int argc, const char **argv_)
         if (one_pass_only)
             break;
     }
-
-    if (show_q_hist_buckets)
-        show_q_histogram(counts, show_q_hist_buckets);
-
-    if (show_rate_hist_buckets)
-        show_rate_histogram(&rate_hist, &cfg, show_rate_hist_buckets);
-    destroy_rate_histogram(&rate_hist);
 
     vpx_img_free(&raw);
     free(argv);

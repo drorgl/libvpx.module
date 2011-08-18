@@ -20,38 +20,37 @@ global sym(vp8_regular_quantize_b_sse2)
 sym(vp8_regular_quantize_b_sse2):
     push        rbp
     mov         rbp, rsp
-    SAVE_XMM 7
+    SAVE_XMM
     GET_GOT     rbx
+    push        rsi
 
 %if ABI_IS_32BIT
     push        rdi
-    push        rsi
 %else
   %ifidn __OUTPUT_FORMAT__,x64
     push        rdi
-    push        rsi
   %endif
 %endif
 
     ALIGN_STACK 16, rax
-    %define zrun_zbin_boost   0  ;  8
-    %define abs_minus_zbin    8  ; 32
-    %define temp_qcoeff       40 ; 32
-    %define qcoeff            72 ; 32
-    %define stack_size        104
+    %define BLOCKD_d          0  ;  8
+    %define zrun_zbin_boost   8  ;  8
+    %define abs_minus_zbin    16 ; 32
+    %define temp_qcoeff       48 ; 32
+    %define qcoeff            80 ; 32
+    %define stack_size        112
     sub         rsp, stack_size
     ; end prolog
 
 %if ABI_IS_32BIT
-    mov         rdi, arg(0)                 ; BLOCK *b
-    mov         rsi, arg(1)                 ; BLOCKD *d
+    mov         rdi, arg(0)
 %else
   %ifidn __OUTPUT_FORMAT__,x64
     mov         rdi, rcx                    ; BLOCK *b
-    mov         rsi, rdx                    ; BLOCKD *d
+    mov         [rsp + BLOCKD_d], rdx
   %else
     ;mov         rdi, rdi                    ; BLOCK *b
-    ;mov         rsi, rsi                    ; BLOCKD *d
+    mov         [rsp + BLOCKD_d], rsi
   %endif
 %endif
 
@@ -126,52 +125,59 @@ sym(vp8_regular_quantize_b_sse2):
     movdqa      [rsp + qcoeff], xmm6
     movdqa      [rsp + qcoeff + 16], xmm6
 
-    mov         rdx, [rdi + vp8_block_zrun_zbin_boost] ; zbin_boost_ptr
+    mov         rsi, [rdi + vp8_block_zrun_zbin_boost] ; zbin_boost_ptr
     mov         rax, [rdi + vp8_block_quant_shift] ; quant_shift_ptr
-    mov         [rsp + zrun_zbin_boost], rdx
+    mov         [rsp + zrun_zbin_boost], rsi
 
 %macro ZIGZAG_LOOP 1
+    movsx       edx, WORD PTR[GLOBAL(zig_zag + (%1 * 2))] ; rc
+
     ; x
-    movsx       ecx, WORD PTR[rsp + abs_minus_zbin + %1 * 2]
+    movsx       ecx, WORD PTR[rsp + abs_minus_zbin + rdx *2]
 
     ; if (x >= zbin)
-    sub         cx, WORD PTR[rdx]           ; x - zbin
-    lea         rdx, [rdx + 2]              ; zbin_boost_ptr++
+    sub         cx, WORD PTR[rsi]           ; x - zbin
+    lea         rsi, [rsi + 2]              ; zbin_boost_ptr++
     jl          rq_zigzag_loop_%1           ; x < zbin
 
-    movsx       edi, WORD PTR[rsp + temp_qcoeff + %1 * 2]
+    movsx       edi, WORD PTR[rsp + temp_qcoeff + rdx *2]
 
-    ; downshift by quant_shift[rc]
-    movsx       cx, BYTE PTR[rax + %1]      ; quant_shift_ptr[rc]
+    ; downshift by quant_shift[rdx]
+    movsx       ecx, WORD PTR[rax + rdx*2]  ; quant_shift_ptr[rc]
     sar         edi, cl                     ; also sets Z bit
     je          rq_zigzag_loop_%1           ; !y
-    mov         WORD PTR[rsp + qcoeff + %1 * 2], di ;qcoeff_ptr[rc] = temp_qcoeff[rc]
-    mov         rdx, [rsp + zrun_zbin_boost] ; reset to b->zrun_zbin_boost
+    mov         WORD PTR[rsp + qcoeff + rdx*2], di ;qcoeff_ptr[rc] = temp_qcoeff[rc]
+    mov         rsi, [rsp + zrun_zbin_boost] ; reset to b->zrun_zbin_boost
 rq_zigzag_loop_%1:
 %endmacro
-; in vp8_default_zig_zag1d order: see vp8/common/entropy.c
-ZIGZAG_LOOP  0
-ZIGZAG_LOOP  1
-ZIGZAG_LOOP  4
-ZIGZAG_LOOP  8
-ZIGZAG_LOOP  5
-ZIGZAG_LOOP  2
-ZIGZAG_LOOP  3
-ZIGZAG_LOOP  6
-ZIGZAG_LOOP  9
+ZIGZAG_LOOP 0
+ZIGZAG_LOOP 1
+ZIGZAG_LOOP 2
+ZIGZAG_LOOP 3
+ZIGZAG_LOOP 4
+ZIGZAG_LOOP 5
+ZIGZAG_LOOP 6
+ZIGZAG_LOOP 7
+ZIGZAG_LOOP 8
+ZIGZAG_LOOP 9
+ZIGZAG_LOOP 10
+ZIGZAG_LOOP 11
 ZIGZAG_LOOP 12
 ZIGZAG_LOOP 13
-ZIGZAG_LOOP 10
-ZIGZAG_LOOP  7
-ZIGZAG_LOOP 11
 ZIGZAG_LOOP 14
 ZIGZAG_LOOP 15
 
     movdqa      xmm2, [rsp + qcoeff]
     movdqa      xmm3, [rsp + qcoeff + 16]
 
-    mov         rcx, [rsi + vp8_blockd_dequant] ; dequant_ptr
-    mov         rdi, [rsi + vp8_blockd_dqcoeff] ; dqcoeff_ptr
+%if ABI_IS_32BIT
+    mov         rdi, arg(1)
+%else
+    mov         rdi, [rsp + BLOCKD_d]
+%endif
+
+    mov         rcx, [rdi + vp8_blockd_dequant] ; dequant_ptr
+    mov         rsi, [rdi + vp8_blockd_dqcoeff] ; dqcoeff_ptr
 
     ; y ^ sz
     pxor        xmm2, xmm0
@@ -184,15 +190,15 @@ ZIGZAG_LOOP 15
     movdqa      xmm0, [rcx]
     movdqa      xmm1, [rcx + 16]
 
-    mov         rcx, [rsi + vp8_blockd_qcoeff] ; qcoeff_ptr
+    mov         rcx, [rdi + vp8_blockd_qcoeff] ; qcoeff_ptr
 
     pmullw      xmm0, xmm2
     pmullw      xmm1, xmm3
 
     movdqa      [rcx], xmm2        ; store qcoeff
     movdqa      [rcx + 16], xmm3
-    movdqa      [rdi], xmm0        ; store dqcoeff
-    movdqa      [rdi + 16], xmm1
+    movdqa      [rsi], xmm0        ; store dqcoeff
+    movdqa      [rsi + 16], xmm1
 
     ; select the last value (in zig_zag order) for EOB
     pcmpeqw     xmm2, xmm6
@@ -214,116 +220,90 @@ ZIGZAG_LOOP 15
     pmaxsw      xmm2, xmm3
     movd        eax, xmm2
     and         eax, 0xff
-    mov         [rsi + vp8_blockd_eob], eax
+    mov         [rdi + vp8_blockd_eob], eax
 
     ; begin epilog
     add         rsp, stack_size
     pop         rsp
 %if ABI_IS_32BIT
-    pop         rsi
     pop         rdi
 %else
   %ifidn __OUTPUT_FORMAT__,x64
-    pop         rsi
     pop         rdi
   %endif
 %endif
+    pop         rsi
     RESTORE_GOT
     RESTORE_XMM
     pop         rbp
     ret
 
-; void vp8_fast_quantize_b_sse2 | arg
-;  (BLOCK  *b,                  |  0
-;   BLOCKD *d)                  |  1
+; int vp8_fast_quantize_b_impl_sse2 | arg
+;  (short *coeff_ptr,               |  0
+;   short *qcoeff_ptr,              |  1
+;   short *dequant_ptr,             |  2
+;   short *inv_scan_order,          |  3
+;   short *round_ptr,               |  4
+;   short *quant_ptr,               |  5
+;   short *dqcoeff_ptr)             |  6
 
-global sym(vp8_fast_quantize_b_sse2)
-sym(vp8_fast_quantize_b_sse2):
+global sym(vp8_fast_quantize_b_impl_sse2)
+sym(vp8_fast_quantize_b_impl_sse2):
     push        rbp
     mov         rbp, rsp
-    GET_GOT     rbx
-
-%if ABI_IS_32BIT
-    push        rdi
+    SHADOW_ARGS_TO_STACK 7
     push        rsi
-%else
-  %ifidn __OUTPUT_FORMAT__,x64
     push        rdi
-    push        rsi
-  %else
-    ; these registers are used for passing arguments
-  %endif
-%endif
-
     ; end prolog
 
-%if ABI_IS_32BIT
-    mov         rdi, arg(0)                 ; BLOCK *b
-    mov         rsi, arg(1)                 ; BLOCKD *d
-%else
-  %ifidn __OUTPUT_FORMAT__,x64
-    mov         rdi, rcx                    ; BLOCK *b
-    mov         rsi, rdx                    ; BLOCKD *d
-  %else
-    ;mov         rdi, rdi                    ; BLOCK *b
-    ;mov         rsi, rsi                    ; BLOCKD *d
-  %endif
-%endif
+    mov         rdx, arg(0)                 ;coeff_ptr
+    mov         rcx, arg(2)                 ;dequant_ptr
+    mov         rdi, arg(4)                 ;round_ptr
+    mov         rsi, arg(5)                 ;quant_ptr
 
-    mov         rax, [rdi + vp8_block_coeff]
-    mov         rcx, [rdi + vp8_block_round]
-    mov         rdx, [rdi + vp8_block_quant_fast]
+    movdqa      xmm0, XMMWORD PTR[rdx]
+    movdqa      xmm4, XMMWORD PTR[rdx + 16]
 
-    ; z = coeff
-    movdqa      xmm0, [rax]
-    movdqa      xmm4, [rax + 16]
+    movdqa      xmm2, XMMWORD PTR[rdi]      ;round lo
+    movdqa      xmm3, XMMWORD PTR[rdi + 16] ;round hi
 
-    ; dup z so we can save sz
     movdqa      xmm1, xmm0
     movdqa      xmm5, xmm4
 
-    ; sz = z >> 15
-    psraw       xmm0, 15
-    psraw       xmm4, 15
+    psraw       xmm0, 15                    ;sign of z (aka sz)
+    psraw       xmm4, 15                    ;sign of z (aka sz)
 
-    ; x = abs(z) = (z ^ sz) - sz
+    pxor        xmm1, xmm0
+    pxor        xmm5, xmm4
+    psubw       xmm1, xmm0                  ;x = abs(z)
+    psubw       xmm5, xmm4                  ;x = abs(z)
+
+    paddw       xmm1, xmm2
+    paddw       xmm5, xmm3
+
+    pmulhw      xmm1, XMMWORD PTR[rsi]
+    pmulhw      xmm5, XMMWORD PTR[rsi + 16]
+
+    mov         rdi, arg(1)                 ;qcoeff_ptr
+    mov         rsi, arg(6)                 ;dqcoeff_ptr
+
+    movdqa      xmm2, XMMWORD PTR[rcx]
+    movdqa      xmm3, XMMWORD PTR[rcx + 16]
+
     pxor        xmm1, xmm0
     pxor        xmm5, xmm4
     psubw       xmm1, xmm0
     psubw       xmm5, xmm4
 
-    ; x += round
-    paddw       xmm1, [rcx]
-    paddw       xmm5, [rcx + 16]
+    movdqa      XMMWORD PTR[rdi], xmm1
+    movdqa      XMMWORD PTR[rdi + 16], xmm5
 
-    mov         rax, [rsi + vp8_blockd_qcoeff]
-    mov         rcx, [rsi + vp8_blockd_dequant]
-    mov         rdi, [rsi + vp8_blockd_dqcoeff]
+    pmullw      xmm2, xmm1
+    pmullw      xmm3, xmm5
 
-    ; y = x * quant >> 16
-    pmulhw      xmm1, [rdx]
-    pmulhw      xmm5, [rdx + 16]
+    mov         rdi, arg(3)                 ;inv_scan_order
 
-    ; x = (y ^ sz) - sz
-    pxor        xmm1, xmm0
-    pxor        xmm5, xmm4
-    psubw       xmm1, xmm0
-    psubw       xmm5, xmm4
-
-    ; qcoeff = x
-    movdqa      [rax], xmm1
-    movdqa      [rax + 16], xmm5
-
-    ; x * dequant
-    movdqa      xmm2, xmm1
-    movdqa      xmm3, xmm5
-    pmullw      xmm2, [rcx]
-    pmullw      xmm3, [rcx + 16]
-
-    ; dqcoeff = x * dequant
-    movdqa      [rdi], xmm2
-    movdqa      [rdi + 16], xmm3
-
+    ; Start with 16
     pxor        xmm4, xmm4                  ;clear all bits
     pcmpeqw     xmm1, xmm4
     pcmpeqw     xmm5, xmm4
@@ -332,8 +312,8 @@ sym(vp8_fast_quantize_b_sse2):
     pxor        xmm1, xmm4
     pxor        xmm5, xmm4
 
-    pand        xmm1, [GLOBAL(inv_zig_zag)]
-    pand        xmm5, [GLOBAL(inv_zig_zag + 16)]
+    pand        xmm1, XMMWORD PTR[rdi]
+    pand        xmm5, XMMWORD PTR[rdi+16]
 
     pmaxsw      xmm1, xmm5
 
@@ -352,27 +332,26 @@ sym(vp8_fast_quantize_b_sse2):
 
     pmaxsw      xmm1, xmm5
 
-    movd        eax, xmm1
-    and         eax, 0xff
-    mov         [rsi + vp8_blockd_eob], eax
+    movd        rax, xmm1
+    and         rax, 0xff
+
+    movdqa      XMMWORD PTR[rsi], xmm2        ;store dqcoeff
+    movdqa      XMMWORD PTR[rsi + 16], xmm3   ;store dqcoeff
 
     ; begin epilog
-%if ABI_IS_32BIT
-    pop         rsi
     pop         rdi
-%else
-  %ifidn __OUTPUT_FORMAT__,x64
     pop         rsi
-    pop         rdi
-  %endif
-%endif
-
-    RESTORE_GOT
+    UNSHADOW_ARGS
     pop         rbp
     ret
 
 SECTION_RODATA
 align 16
+zig_zag:
+  dw 0x0000, 0x0001, 0x0004, 0x0008
+  dw 0x0005, 0x0002, 0x0003, 0x0006
+  dw 0x0009, 0x000c, 0x000d, 0x000a
+  dw 0x0007, 0x000b, 0x000e, 0x000f
 inv_zig_zag:
   dw 0x0001, 0x0002, 0x0006, 0x0007
   dw 0x0003, 0x0005, 0x0008, 0x000d

@@ -98,11 +98,11 @@ install::
 $(BUILD_PFX)%.c.d: %.c
 	$(if $(quiet),@echo "    [DEP] $@")
 	$(qexec)mkdir -p $(dir $@)
-	$(qexec)$(CC) $(INTERNAL_CFLAGS) $(CFLAGS) -M $< | $(fmt_deps) > $@
+	$(qexec)$(CC) $(CFLAGS) -M $< | $(fmt_deps) > $@
 
 $(BUILD_PFX)%.c.o: %.c
 	$(if $(quiet),@echo "    [CC] $@")
-	$(qexec)$(CC) $(INTERNAL_CFLAGS) $(CFLAGS) -c -o $@ $<
+	$(qexec)$(CC) $(CFLAGS) -c -o $@ $<
 
 $(BUILD_PFX)%.asm.d: %.asm
 	$(if $(quiet),@echo "    [DEP] $@")
@@ -123,12 +123,6 @@ $(BUILD_PFX)%.s.d: %.s
 $(BUILD_PFX)%.s.o: %.s
 	$(if $(quiet),@echo "    [AS] $@")
 	$(qexec)$(AS) $(ASFLAGS) -o $@ $<
-
-.PRECIOUS: %.c.S
-%.c.S: CFLAGS += -DINLINE_ASM
-$(BUILD_PFX)%.c.S: %.c
-	$(if $(quiet),@echo "    [GEN] $@")
-	$(qexec)$(CC) -S $(CFLAGS) -o $@ $<
 
 .PRECIOUS: %.asm.s
 $(BUILD_PFX)%.asm.s: %.asm
@@ -194,7 +188,7 @@ define linker_template
 $(1): $(filter-out -%,$(2))
 $(1):
 	$(if $(quiet),@echo    "    [LD] $$@")
-	$(qexec)$$(LD) $$(strip $$(INTERNAL_LDFLAGS) $$(LDFLAGS) -o $$@ $(2) $(3) $$(extralibs))
+	$(qexec)$$(LD) $$(strip $$(LDFLAGS) -o $$@ $(2) $(3) $$(extralibs))
 endef
 # make-3.80 has a bug with expanding large input strings to the eval function,
 # which was triggered in some cases by the following component of
@@ -336,7 +330,6 @@ ifneq ($(call enabled,DIST-SRCS),)
     DIST-SRCS-$(CONFIG_MSVS)  += build/make/gen_msvs_proj.sh
     DIST-SRCS-$(CONFIG_MSVS)  += build/make/gen_msvs_sln.sh
     DIST-SRCS-$(CONFIG_MSVS)  += build/x86-msvs/yasm.rules
-    DIST-SRCS-$(CONFIG_MSVS)  += build/x86-msvs/obj_int_extract.bat
     DIST-SRCS-$(CONFIG_RVCT) += build/make/armlink_adapter.sh
     # Include obj_int_extract if we use offsets from asm_*_offsets
     DIST-SRCS-$(ARCH_ARM)$(ARCH_X86)$(ARCH_X86_64)    += build/make/obj_int_extract.c

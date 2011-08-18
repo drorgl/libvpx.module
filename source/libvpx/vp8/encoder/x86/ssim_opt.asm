@@ -16,12 +16,12 @@
         paddusw         xmm14, xmm4  ; sum_r
         movdqa          xmm1, xmm3
         pmaddwd         xmm1, xmm1
-        paddd           xmm13, xmm1 ; sum_sq_s
+        paddq           xmm13, xmm1 ; sum_sq_s
         movdqa          xmm2, xmm4
         pmaddwd         xmm2, xmm2
-        paddd           xmm12, xmm2 ; sum_sq_r
+        paddq           xmm12, xmm2 ; sum_sq_r
         pmaddwd         xmm3, xmm4
-        paddd           xmm11, xmm3  ; sum_sxr
+        paddq           xmm11, xmm3  ; sum_sxr
 %endmacro
 
 ; Sum across the register %1 starting with q words
@@ -66,7 +66,6 @@ sym(vp8_ssim_parms_16x16_sse3):
     push        rbp
     mov         rbp, rsp
     SHADOW_ARGS_TO_STACK 9
-    SAVE_XMM 15
     push        rsi
     push        rdi
     ; end prolog
@@ -116,20 +115,19 @@ NextRow:
     SUM_ACROSS_Q    xmm11
 
     mov             rdi,arg(4)
-    movd            [rdi], xmm15;
+    movq            [rdi], xmm15;
     mov             rdi,arg(5)
-    movd            [rdi], xmm14;
+    movq            [rdi], xmm14;
     mov             rdi,arg(6)
-    movd            [rdi], xmm13;
+    movq            [rdi], xmm13;
     mov             rdi,arg(7)
-    movd            [rdi], xmm12;
+    movq            [rdi], xmm12;
     mov             rdi,arg(8)
-    movd            [rdi], xmm11;
+    movq            [rdi], xmm11;
 
     ; begin epilog
     pop         rdi
     pop         rsi
-    RESTORE_XMM
     UNSHADOW_ARGS
     pop         rbp
     ret
@@ -156,7 +154,6 @@ sym(vp8_ssim_parms_8x8_sse3):
     push        rbp
     mov         rbp, rsp
     SHADOW_ARGS_TO_STACK 9
-    SAVE_XMM 15
     push        rsi
     push        rdi
     ; end prolog
@@ -177,8 +174,11 @@ sym(vp8_ssim_parms_8x8_sse3):
 NextRow2:
 
     ;grab source and reference pixels
-    movq            xmm3, [rsi]
-    movq            xmm4, [rdi]
+    movq            xmm5, [rsi]
+    movq            xmm6, [rdi]
+
+    movdqa          xmm3, xmm5
+    movdqa          xmm4, xmm6
     punpcklbw       xmm3, xmm0 ; low_s
     punpcklbw       xmm4, xmm0 ; low_r
 
@@ -197,20 +197,19 @@ NextRow2:
     SUM_ACROSS_Q    xmm11
 
     mov             rdi,arg(4)
-    movd            [rdi], xmm15;
+    movq            [rdi], xmm15;
     mov             rdi,arg(5)
-    movd            [rdi], xmm14;
+    movq            [rdi], xmm14;
     mov             rdi,arg(6)
-    movd            [rdi], xmm13;
+    movq            [rdi], xmm13;
     mov             rdi,arg(7)
-    movd            [rdi], xmm12;
+    movq            [rdi], xmm12;
     mov             rdi,arg(8)
-    movd            [rdi], xmm11;
+    movq            [rdi], xmm11;
 
     ; begin epilog
     pop         rdi
     pop         rsi
-    RESTORE_XMM
     UNSHADOW_ARGS
     pop         rbp
     ret

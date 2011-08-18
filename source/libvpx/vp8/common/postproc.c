@@ -804,14 +804,11 @@ int vp8_post_proc_frame(VP8_COMMON *oci, YV12_BUFFER_CONFIG *dest, vp8_ppflags_t
             for (j = 0; j < mb_cols; j++)
             {
                 char zz[4];
-                int dc_diff = !(mi[mb_index].mbmi.mode != B_PRED &&
-                              mi[mb_index].mbmi.mode != SPLITMV &&
-                              mi[mb_index].mbmi.mb_skip_coeff);
 
                 if (oci->frame_type == KEY_FRAME)
                     sprintf(zz, "a");
                 else
-                    sprintf(zz, "%c", dc_diff + '0');
+                    sprintf(zz, "%c", mi[mb_index].mbmi.dc_diff + '0');
 
                 vp8_blit_text(zz, y_ptr, post->y_stride);
                 mb_index ++;
@@ -837,6 +834,7 @@ int vp8_post_proc_frame(VP8_COMMON *oci, YV12_BUFFER_CONFIG *dest, vp8_ppflags_t
         YV12_BUFFER_CONFIG *post = &oci->post_proc_buffer;
         int width  = post->y_width;
         int height = post->y_height;
+        int mb_cols = width  >> 4;
         unsigned char *y_buffer = oci->post_proc_buffer.y_buffer;
         int y_stride = oci->post_proc_buffer.y_stride;
         MODE_INFO *mi = oci->mi;
@@ -860,7 +858,7 @@ int vp8_post_proc_frame(VP8_COMMON *oci, YV12_BUFFER_CONFIG *dest, vp8_ppflags_t
                     {
                         case 0 :    /* mv_top_bottom */
                         {
-                            union b_mode_info *bmi = &mi->bmi[0];
+                            B_MODE_INFO *bmi = &mi->bmi[0];
                             MV *mv = &bmi->mv.as_mv;
 
                             x1 = x0 + 8 + (mv->col >> 3);
@@ -881,7 +879,7 @@ int vp8_post_proc_frame(VP8_COMMON *oci, YV12_BUFFER_CONFIG *dest, vp8_ppflags_t
                         }
                         case 1 :    /* mv_left_right */
                         {
-                            union b_mode_info *bmi = &mi->bmi[0];
+                            B_MODE_INFO *bmi = &mi->bmi[0];
                             MV *mv = &bmi->mv.as_mv;
 
                             x1 = x0 + 4 + (mv->col >> 3);
@@ -902,7 +900,7 @@ int vp8_post_proc_frame(VP8_COMMON *oci, YV12_BUFFER_CONFIG *dest, vp8_ppflags_t
                         }
                         case 2 :    /* mv_quarters   */
                         {
-                            union b_mode_info *bmi = &mi->bmi[0];
+                            B_MODE_INFO *bmi = &mi->bmi[0];
                             MV *mv = &bmi->mv.as_mv;
 
                             x1 = x0 + 4 + (mv->col >> 3);
@@ -938,7 +936,7 @@ int vp8_post_proc_frame(VP8_COMMON *oci, YV12_BUFFER_CONFIG *dest, vp8_ppflags_t
                         }
                         default :
                         {
-                            union b_mode_info *bmi = mi->bmi;
+                            B_MODE_INFO *bmi = mi->bmi;
                             int bx0, by0;
 
                             for (by0 = y0; by0 < (y0+16); by0 += 4)
@@ -1011,7 +1009,7 @@ int vp8_post_proc_frame(VP8_COMMON *oci, YV12_BUFFER_CONFIG *dest, vp8_ppflags_t
                 {
                     int by, bx;
                     unsigned char *yl, *ul, *vl;
-                    union b_mode_info *bmi = mi->bmi;
+                    B_MODE_INFO *bmi = mi->bmi;
 
                     yl = y_ptr + x;
                     ul = u_ptr + (x>>1);
@@ -1024,9 +1022,9 @@ int vp8_post_proc_frame(VP8_COMMON *oci, YV12_BUFFER_CONFIG *dest, vp8_ppflags_t
                             if ((ppflags->display_b_modes_flag & (1<<mi->mbmi.mode))
                                 || (ppflags->display_mb_modes_flag & B_PRED))
                             {
-                                Y = B_PREDICTION_MODE_colors[bmi->as_mode][0];
-                                U = B_PREDICTION_MODE_colors[bmi->as_mode][1];
-                                V = B_PREDICTION_MODE_colors[bmi->as_mode][2];
+                                Y = B_PREDICTION_MODE_colors[bmi->mode][0];
+                                U = B_PREDICTION_MODE_colors[bmi->mode][1];
+                                V = B_PREDICTION_MODE_colors[bmi->mode][2];
 
                                 POSTPROC_INVOKE(RTCD_VTABLE(oci), blend_b)
                                     (yl+bx, ul+(bx>>1), vl+(bx>>1), Y, U, V, 0xc000, y_stride);

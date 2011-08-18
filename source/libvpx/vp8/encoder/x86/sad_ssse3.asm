@@ -157,7 +157,6 @@ sym(vp8_sad16x16x3_ssse3):
     push        rbp
     mov         rbp, rsp
     SHADOW_ARGS_TO_STACK 5
-    SAVE_XMM 7
     push        rsi
     push        rdi
     push        rcx
@@ -254,7 +253,6 @@ vp8_sad16x16x3_ssse3_store_off:
     pop         rcx
     pop         rdi
     pop         rsi
-    RESTORE_XMM
     UNSHADOW_ARGS
     pop         rbp
     ret
@@ -270,7 +268,6 @@ sym(vp8_sad16x8x3_ssse3):
     push        rbp
     mov         rbp, rsp
     SHADOW_ARGS_TO_STACK 5
-    SAVE_XMM 7
     push        rsi
     push        rdi
     push        rcx
@@ -364,7 +361,6 @@ vp8_sad16x8x3_ssse3_store_off:
     pop         rcx
     pop         rdi
     pop         rsi
-    RESTORE_XMM
     UNSHADOW_ARGS
     pop         rbp
     ret

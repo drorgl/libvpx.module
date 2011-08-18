@@ -53,8 +53,9 @@ loop_filter_function_s_ppc loop_filter_simple_vertical_edge_ppc;
 
 // Horizontal MB filtering
 void loop_filter_mbh_ppc(unsigned char *y_ptr, unsigned char *u_ptr, unsigned char *v_ptr,
-                         int y_stride, int uv_stride, loop_filter_info *lfi)
+                         int y_stride, int uv_stride, loop_filter_info *lfi, int simpler_lpf)
 {
+    (void)simpler_lpf;
     mbloop_filter_horizontal_edge_y_ppc(y_ptr, y_stride, lfi->mbflim, lfi->lim, lfi->thr);
 
     if (u_ptr)
@@ -62,8 +63,9 @@ void loop_filter_mbh_ppc(unsigned char *y_ptr, unsigned char *u_ptr, unsigned ch
 }
 
 void loop_filter_mbhs_ppc(unsigned char *y_ptr, unsigned char *u_ptr, unsigned char *v_ptr,
-                          int y_stride, int uv_stride, loop_filter_info *lfi)
+                          int y_stride, int uv_stride, loop_filter_info *lfi, int simpler_lpf)
 {
+    (void)simpler_lpf;
     (void)u_ptr;
     (void)v_ptr;
     (void)uv_stride;
@@ -72,8 +74,9 @@ void loop_filter_mbhs_ppc(unsigned char *y_ptr, unsigned char *u_ptr, unsigned c
 
 // Vertical MB Filtering
 void loop_filter_mbv_ppc(unsigned char *y_ptr, unsigned char *u_ptr, unsigned char *v_ptr,
-                         int y_stride, int uv_stride, loop_filter_info *lfi)
+                         int y_stride, int uv_stride, loop_filter_info *lfi, int simpler_lpf)
 {
+    (void)simpler_lpf;
     mbloop_filter_vertical_edge_y_ppc(y_ptr, y_stride, lfi->mbflim, lfi->lim, lfi->thr);
 
     if (u_ptr)
@@ -81,8 +84,9 @@ void loop_filter_mbv_ppc(unsigned char *y_ptr, unsigned char *u_ptr, unsigned ch
 }
 
 void loop_filter_mbvs_ppc(unsigned char *y_ptr, unsigned char *u_ptr, unsigned char *v_ptr,
-                          int y_stride, int uv_stride, loop_filter_info *lfi)
+                          int y_stride, int uv_stride, loop_filter_info *lfi, int simpler_lpf)
 {
+    (void)simpler_lpf;
     (void)u_ptr;
     (void)v_ptr;
     (void)uv_stride;
@@ -91,8 +95,9 @@ void loop_filter_mbvs_ppc(unsigned char *y_ptr, unsigned char *u_ptr, unsigned c
 
 // Horizontal B Filtering
 void loop_filter_bh_ppc(unsigned char *y_ptr, unsigned char *u_ptr, unsigned char *v_ptr,
-                        int y_stride, int uv_stride, loop_filter_info *lfi)
+                        int y_stride, int uv_stride, loop_filter_info *lfi, int simpler_lpf)
 {
+    (void)simpler_lpf;
     // These should all be done at once with one call, instead of 3
     loop_filter_horizontal_edge_y_ppc(y_ptr + 4 * y_stride, y_stride, lfi->flim, lfi->lim, lfi->thr);
     loop_filter_horizontal_edge_y_ppc(y_ptr + 8 * y_stride, y_stride, lfi->flim, lfi->lim, lfi->thr);
@@ -103,8 +108,9 @@ void loop_filter_bh_ppc(unsigned char *y_ptr, unsigned char *u_ptr, unsigned cha
 }
 
 void loop_filter_bhs_ppc(unsigned char *y_ptr, unsigned char *u_ptr, unsigned char *v_ptr,
-                         int y_stride, int uv_stride, loop_filter_info *lfi)
+                         int y_stride, int uv_stride, loop_filter_info *lfi, int simpler_lpf)
 {
+    (void)simpler_lpf;
     (void)u_ptr;
     (void)v_ptr;
     (void)uv_stride;
@@ -115,8 +121,9 @@ void loop_filter_bhs_ppc(unsigned char *y_ptr, unsigned char *u_ptr, unsigned ch
 
 // Vertical B Filtering
 void loop_filter_bv_ppc(unsigned char *y_ptr, unsigned char *u_ptr, unsigned char *v_ptr,
-                        int y_stride, int uv_stride, loop_filter_info *lfi)
+                        int y_stride, int uv_stride, loop_filter_info *lfi, int simpler_lpf)
 {
+    (void)simpler_lpf;
     loop_filter_vertical_edge_y_ppc(y_ptr, y_stride, lfi->flim, lfi->lim, lfi->thr);
 
     if (u_ptr)
@@ -124,8 +131,9 @@ void loop_filter_bv_ppc(unsigned char *y_ptr, unsigned char *u_ptr, unsigned cha
 }
 
 void loop_filter_bvs_ppc(unsigned char *y_ptr, unsigned char *u_ptr, unsigned char *v_ptr,
-                         int y_stride, int uv_stride, loop_filter_info *lfi)
+                         int y_stride, int uv_stride, loop_filter_info *lfi, int simpler_lpf)
 {
+    (void)simpler_lpf;
     (void)u_ptr;
     (void)v_ptr;
     (void)uv_stride;

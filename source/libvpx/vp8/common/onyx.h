@@ -109,7 +109,6 @@ extern "C"
         int noise_sensitivity;   // parameter used for applying pre processing blur: recommendation 0
         int Sharpness;          // parameter used for sharpening output: recommendation 0:
         int cpu_used;
-        unsigned int rc_max_intra_bitrate_pct;
 
         // mode ->
         //(0)=Realtime/Live Encoding. This mode is optimized for realtim encoding (for example, capturing
@@ -140,9 +139,8 @@ extern "C"
 
         int end_usage; // vbr or cbr
 
-        // buffer targeting aggressiveness
+        // shoot to keep buffer full at all times by undershooting a bit 95 recommended
         int under_shoot_pct;
-        int over_shoot_pct;
 
         // buffering parameters
         int starting_buffer_level;  // in seconds
@@ -184,11 +182,8 @@ extern "C"
         int token_partitions; // how many token partitions to create for multi core decoding
         int encode_breakout;  // early breakout encode threshold : for video conf recommend 800
 
-        unsigned int error_resilient_mode; // Bitfield defining the error
-                                   // resiliency features to enable. Can provide
-                                   // decodable frames after losses in previous
-                                   // frames and decodable partitions after
-                                   // losses in the same frame.
+        int error_resilient_mode;  // if running over udp networks provides decodable frames after a
+        // dropped packet
 
         int arnr_max_frames;
         int arnr_strength ;
@@ -211,8 +206,8 @@ extern "C"
 
 // receive a frames worth of data caller can assume that a copy of this frame is made
 // and not just a copy of the pointer..
-    int vp8_receive_raw_frame(VP8_PTR comp, unsigned int frame_flags, YV12_BUFFER_CONFIG *sd, int64_t time_stamp, int64_t end_time_stamp);
-    int vp8_get_compressed_data(VP8_PTR comp, unsigned int *frame_flags, unsigned long *size, unsigned char *dest, int64_t *time_stamp, int64_t *time_end, int flush);
+    int vp8_receive_raw_frame(VP8_PTR comp, unsigned int frame_flags, YV12_BUFFER_CONFIG *sd, INT64 time_stamp, INT64 end_time_stamp);
+    int vp8_get_compressed_data(VP8_PTR comp, unsigned int *frame_flags, unsigned long *size, unsigned char *dest, INT64 *time_stamp, INT64 *time_end, int flush);
     int vp8_get_preview_raw_frame(VP8_PTR comp, YV12_BUFFER_CONFIG *dest, vp8_ppflags_t *flags);
 
     int vp8_use_as_reference(VP8_PTR comp, int ref_frame_flags);

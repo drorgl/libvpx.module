@@ -24,6 +24,7 @@
 #include "segmentation.h"
 #include "vp8/common/g_common.h"
 #include "vpx_scale/yv12extend.h"
+#include "vp8/common/postproc.h"
 #include "vpx_mem/vpx_mem.h"
 #include "vp8/common/swapyv12buffer.h"
 #include "vp8/common/threading.h"
@@ -148,15 +149,17 @@ static int vp8_temporal_filter_find_matching_mb_c
 )
 {
     MACROBLOCK *x = &cpi->mb;
+    int thissme;
     int step_param;
     int further_steps;
+    int n = 0;
     int sadpb = x->sadperbit16;
     int bestsme = INT_MAX;
+    int num00 = 0;
 
     BLOCK *b = &x->block[0];
     BLOCKD *d = &x->e_mbd.block[0];
-    int_mv best_ref_mv1;
-    int_mv best_ref_mv1_full; /* full-pixel value of best_ref_mv1 */
+    MV best_ref_mv1 = {0,0};
 
     int *mvcost[2]    = { &dummy_cost[mv_max+1], &dummy_cost[mv_max+1] };
     int *mvsadcost[2] = { &dummy_cost[mv_max+1], &dummy_cost[mv_max+1] };
@@ -168,10 +171,6 @@ static int vp8_temporal_filter_find_matching_mb_c
     unsigned char **base_pre = d->base_pre;
     int pre = d->pre;
     int pre_stride = d->pre_stride;
-
-    best_ref_mv1.as_int = 0;
-    best_ref_mv1_full.as_mv.col = best_ref_mv1.as_mv.col >>3;
-    best_ref_mv1_full.as_mv.row = best_ref_mv1.as_mv.row >>3;
 
     // Setup frame pointers
     b->base_src = &arf_frame->y_buffer;
@@ -196,25 +195,72 @@ static int vp8_temporal_filter_find_matching_mb_c
         further_steps = 0;
     }
 
-    /*cpi->sf.search_method == HEX*/
-    // TODO Check that the 16x16 vf & sdf are selected here
-    bestsme = vp8_hex_search(x, b, d,
-        &best_ref_mv1_full, &d->bmi.mv,
-        step_param,
-        sadpb,
-        &cpi->fn_ptr[BLOCK_16X16],
-        mvsadcost, mvcost, &best_ref_mv1);
+    if (1/*cpi->sf.search_method == HEX*/)
+    {
+        // TODO Check that the 16x16 vf & sdf are selected here
+        bestsme = vp8_hex_search(x, b, d,
+            &best_ref_mv1, &d->bmi.mv.as_mv,
+            step_param,
+            sadpb/*x->errorperbit*/,
+            &num00, &cpi->fn_ptr[BLOCK_16X16],
+            mvsadcost, mvcost, &best_ref_mv1);
+    }
+    else
+    {
+        int mv_x, mv_y;
+
+        bestsme = cpi->diamond_search_sad(x, b, d,
+            &best_ref_mv1, &d->bmi.mv.as_mv,
+            step_param,
+            sadpb / 2/*x->errorperbit*/,
+            &num00, &cpi->fn_ptr[BLOCK_16X16],
+            mvsadcost, mvcost, &best_ref_mv1); //sadpb < 9
+
+        // Further step/diamond searches as necessary
+        n = 0;
+        //further_steps = (cpi->sf.max_step_search_steps - 1) - step_param;
+
+        n = num00;
+        num00 = 0;
+
+        while (n < further_steps)
+        {
+            n++;
+
+            if (num00)
+                num00--;
+            else
+            {
+                thissme = cpi->diamond_search_sad(x, b, d,
+                    &best_ref_mv1, &d->bmi.mv.as_mv,
+                    step_param + n,
+                    sadpb / 4/*x->errorperbit*/,
+                    &num00, &cpi->fn_ptr[BLOCK_16X16],
+                    mvsadcost, mvcost, &best_ref_mv1); //sadpb = 9
+
+                if (thissme < bestsme)
+                {
+                    bestsme = thissme;
+                    mv_y = d->bmi.mv.as_mv.row;
+                    mv_x = d->bmi.mv.as_mv.col;
+                }
+                else
+                {
+                    d->bmi.mv.as_mv.row = mv_y;
+                    d->bmi.mv.as_mv.col = mv_x;
+                }
+            }
+        }
+    }
 
 #if ALT_REF_SUBPEL_ENABLED
     // Try sub-pixel MC?
     //if (bestsme > error_thresh && bestsme < INT_MAX)
     {
-        int distortion;
-        unsigned int sse;
         bestsme = cpi->find_fractional_mv_step(x, b, d,
-                    &d->bmi.mv, &best_ref_mv1,
+                    &d->bmi.mv.as_mv, &best_ref_mv1,
                     x->errorperbit, &cpi->fn_ptr[BLOCK_16X16],
-                    mvcost, &distortion, &sse);
+                    mvcost);
     }
 #endif
 
@@ -244,6 +290,7 @@ static void vp8_temporal_filter_iterate_c
     unsigned int filter_weight;
     int mb_cols = cpi->common.mb_cols;
     int mb_rows = cpi->common.mb_rows;
+    int MBs  = cpi->common.MBs;
     int mb_y_offset = 0;
     int mb_uv_offset = 0;
     DECLARE_ALIGNED_ARRAY(16, unsigned int, accumulator, 16*16 + 8*8 + 8*8);
@@ -261,33 +308,26 @@ static void vp8_temporal_filter_iterate_c
     for (mb_row = 0; mb_row < mb_rows; mb_row++)
     {
 #if ALT_REF_MC_ENABLED
-        // Source frames are extended to 16 pixels.  This is different than
-        //  L/A/G reference frames that have a border of 32 (VP8BORDERINPIXELS)
-        // A 6 tap filter is used for motion search.  This requires 2 pixels
-        //  before and 3 pixels after.  So the largest Y mv on a border would
-        //  then be 16 - 3.  The UV blocks are half the size of the Y and
-        //  therefore only extended by 8.  The largest mv that a UV block
-        //  can support is 8 - 3.  A UV mv is half of a Y mv.
-        //  (16 - 3) >> 1 == 6 which is greater than 8 - 3.
-        // To keep the mv in play for both Y and UV planes the max that it
-        //  can be on a border is therefore 16 - 5.
-        cpi->mb.mv_row_min = -((mb_row * 16) + (16 - 5));
+        // Reduced search extent by 3 for 6-tap filter & smaller UMV border
+        cpi->mb.mv_row_min = -((mb_row * 16) + (VP8BORDERINPIXELS - 19));
         cpi->mb.mv_row_max = ((cpi->common.mb_rows - 1 - mb_row) * 16)
-                                + (16 - 5);
+                                + (VP8BORDERINPIXELS - 19);
 #endif
 
         for (mb_col = 0; mb_col < mb_cols; mb_col++)
         {
-            int i, j, k;
+            int i, j, k, w;
+            int weight_cap;
             int stride;
 
             vpx_memset(accumulator, 0, 384*sizeof(unsigned int));
             vpx_memset(count, 0, 384*sizeof(unsigned short));
 
 #if ALT_REF_MC_ENABLED
-            cpi->mb.mv_col_min = -((mb_col * 16) + (16 - 5));
+            // Reduced search extent by 3 for 6-tap filter & smaller UMV border
+            cpi->mb.mv_col_min = -((mb_col * 16) + (VP8BORDERINPIXELS - 19));
             cpi->mb.mv_col_max = ((cpi->common.mb_cols - 1 - mb_col) * 16)
-                                    + (16 - 5);
+                                    + (VP8BORDERINPIXELS - 19);
 #endif
 
             for (frame = 0; frame < frame_count; frame++)
@@ -366,8 +406,8 @@ static void vp8_temporal_filter_iterate_c
             }
 
             // Normalize filter output to produce AltRef frame
-            dst1 = cpi->alt_ref_buffer.y_buffer;
-            stride = cpi->alt_ref_buffer.y_stride;
+            dst1 = cpi->alt_ref_buffer.source_buffer.y_buffer;
+            stride = cpi->alt_ref_buffer.source_buffer.y_stride;
             byte = mb_y_offset;
             for (i = 0,k = 0; i < 16; i++)
             {
@@ -386,9 +426,9 @@ static void vp8_temporal_filter_iterate_c
                 byte += stride - 16;
             }
 
-            dst1 = cpi->alt_ref_buffer.u_buffer;
-            dst2 = cpi->alt_ref_buffer.v_buffer;
-            stride = cpi->alt_ref_buffer.uv_stride;
+            dst1 = cpi->alt_ref_buffer.source_buffer.u_buffer;
+            dst2 = cpi->alt_ref_buffer.source_buffer.v_buffer;
+            stride = cpi->alt_ref_buffer.source_buffer.uv_stride;
             byte = mb_uv_offset;
             for (i = 0,k = 256; i < 8; i++)
             {
@@ -431,8 +471,7 @@ static void vp8_temporal_filter_iterate_c
 
 void vp8_temporal_filter_prepare_c
 (
-    VP8_COMP *cpi,
-    int distance
+    VP8_COMP *cpi
 )
 {
     int frame = 0;
@@ -443,6 +482,7 @@ void vp8_temporal_filter_prepare_c
     int frames_to_blur_forward = 0;
     int frames_to_blur = 0;
     int start_frame = 0;
+    unsigned int filtered = 0;
 
     int strength = cpi->oxcf.arnr_strength;
 
@@ -450,9 +490,12 @@ void vp8_temporal_filter_prepare_c
 
     int max_frames = cpi->active_arnr_frames;
 
-    num_frames_backward = distance;
-    num_frames_forward = vp8_lookahead_depth(cpi->lookahead)
-                         - (num_frames_backward + 1);
+    num_frames_backward = cpi->last_alt_ref_sei - cpi->source_encode_index;
+
+    if (num_frames_backward < 0)
+        num_frames_backward += cpi->oxcf.lag_in_frames;
+
+    num_frames_forward = cpi->oxcf.lag_in_frames - (num_frames_backward + 1);
 
     switch (blur_type)
     {
@@ -504,7 +547,8 @@ void vp8_temporal_filter_prepare_c
         break;
     }
 
-    start_frame = distance + frames_to_blur_forward;
+    start_frame = (cpi->last_alt_ref_sei
+                    + frames_to_blur_forward) % cpi->oxcf.lag_in_frames;
 
 #ifdef DEBUGFWG
     // DEBUG FWG
@@ -525,9 +569,12 @@ void vp8_temporal_filter_prepare_c
     for (frame = 0; frame < frames_to_blur; frame++)
     {
         int which_buffer =  start_frame - frame;
-        struct lookahead_entry* buf = vp8_lookahead_peek(cpi->lookahead,
-                                                         which_buffer);
-        cpi->frames[frames_to_blur-1-frame] = &buf->img;
+
+        if (which_buffer < 0)
+            which_buffer += cpi->oxcf.lag_in_frames;
+
+        cpi->frames[frames_to_blur-1-frame]
+                = &cpi->src_buffer[which_buffer].source_buffer;
     }
 
     vp8_temporal_filter_iterate_c (
