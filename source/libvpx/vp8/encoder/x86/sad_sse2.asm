@@ -16,7 +16,7 @@
 ;    int  src_stride,
 ;    unsigned char *ref_ptr,
 ;    int  ref_stride)
-global sym(vp8_sad16x16_wmt)
+global sym(vp8_sad16x16_wmt) PRIVATE
 sym(vp8_sad16x16_wmt):
     push        rbp
     mov         rbp, rsp
@@ -88,7 +88,7 @@ x16x16sad_wmt_loop:
 ;    unsigned char *ref_ptr,
 ;    int  ref_stride,
 ;    int  max_err)
-global sym(vp8_sad8x16_wmt)
+global sym(vp8_sad8x16_wmt) PRIVATE
 sym(vp8_sad8x16_wmt):
     push        rbp
     mov         rbp, rsp
@@ -151,7 +151,7 @@ x8x16sad_wmt_early_exit:
 ;    int  src_stride,
 ;    unsigned char *ref_ptr,
 ;    int  ref_stride)
-global sym(vp8_sad8x8_wmt)
+global sym(vp8_sad8x8_wmt) PRIVATE
 sym(vp8_sad8x8_wmt):
     push        rbp
     mov         rbp, rsp
@@ -204,7 +204,7 @@ x8x8sad_wmt_early_exit:
 ;    int  src_stride,
 ;    unsigned char *ref_ptr,
 ;    int  ref_stride)
-global sym(vp8_sad4x4_wmt)
+global sym(vp8_sad4x4_wmt) PRIVATE
 sym(vp8_sad4x4_wmt):
     push        rbp
     mov         rbp, rsp
@@ -259,7 +259,7 @@ sym(vp8_sad4x4_wmt):
 ;    int  src_stride,
 ;    unsigned char *ref_ptr,
 ;    int  ref_stride)
-global sym(vp8_sad16x8_wmt)
+global sym(vp8_sad16x8_wmt) PRIVATE
 sym(vp8_sad16x8_wmt):
     push        rbp
     mov         rbp, rsp

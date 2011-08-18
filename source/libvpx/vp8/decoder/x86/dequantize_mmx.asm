@@ -13,7 +13,7 @@
 
 
 ;void vp8_dequantize_b_impl_mmx(short *sq, short *dq, short *q)
-global sym(vp8_dequantize_b_impl_mmx)
+global sym(vp8_dequantize_b_impl_mmx) PRIVATE
 sym(vp8_dequantize_b_impl_mmx):
     push        rbp
     mov         rbp, rsp
@@ -51,7 +51,7 @@ sym(vp8_dequantize_b_impl_mmx):
 
 
 ;void dequant_idct_add_mmx(short *input, short *dq, unsigned char *pred, unsigned char *dest, int pitch, int stride)
-global sym(vp8_dequant_idct_add_mmx)
+global sym(vp8_dequant_idct_add_mmx) PRIVATE
 sym(vp8_dequant_idct_add_mmx):
     push        rbp
     mov         rbp, rsp
@@ -248,7 +248,7 @@ sym(vp8_dequant_idct_add_mmx):
 
 
 ;void dequant_dc_idct_add_mmx(short *input, short *dq, unsigned char *pred, unsigned char *dest, int pitch, int stride, int Dc)
-global sym(vp8_dequant_dc_idct_add_mmx)
+global sym(vp8_dequant_dc_idct_add_mmx) PRIVATE
 sym(vp8_dequant_dc_idct_add_mmx):
     push        rbp
     mov         rbp, rsp

@@ -33,7 +33,7 @@
 
 
 ;void short_idct4x4llm_mmx(short *input, short *output, int pitch)
-global sym(vp8_short_idct4x4llm_mmx)
+global sym(vp8_short_idct4x4llm_mmx) PRIVATE
 sym(vp8_short_idct4x4llm_mmx):
     push        rbp
     mov         rbp, rsp
@@ -185,7 +185,7 @@ sym(vp8_short_idct4x4llm_mmx):
 
 
 ;void short_idct4x4llm_1_mmx(short *input, short *output, int pitch)
-global sym(vp8_short_idct4x4llm_1_mmx)
+global sym(vp8_short_idct4x4llm_1_mmx) PRIVATE
 sym(vp8_short_idct4x4llm_1_mmx):
     push        rbp
     mov         rbp, rsp
@@ -221,7 +221,7 @@ sym(vp8_short_idct4x4llm_1_mmx):
     ret
 
 ;void vp8_dc_only_idct_add_mmx(short input_dc, unsigned char *pred_ptr, unsigned char *dst_ptr, int pitch, int stride)
-global sym(vp8_dc_only_idct_add_mmx)
+global sym(vp8_dc_only_idct_add_mmx) PRIVATE
 sym(vp8_dc_only_idct_add_mmx):
     push        rbp
     mov         rbp, rsp

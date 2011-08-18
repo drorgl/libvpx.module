@@ -283,7 +283,7 @@
 ;    const char    *thresh,
 ;    int            count
 ;)
-global sym(vp8_loop_filter_horizontal_edge_sse2)
+global sym(vp8_loop_filter_horizontal_edge_sse2) PRIVATE
 sym(vp8_loop_filter_horizontal_edge_sse2):
     push        rbp
     mov         rbp, rsp
@@ -333,7 +333,7 @@ sym(vp8_loop_filter_horizontal_edge_sse2):
 ;    const char    *thresh,
 ;    int            count
 ;)
-global sym(vp8_loop_filter_horizontal_edge_uv_sse2)
+global sym(vp8_loop_filter_horizontal_edge_uv_sse2) PRIVATE
 sym(vp8_loop_filter_horizontal_edge_uv_sse2):
     push        rbp
     mov         rbp, rsp
@@ -579,7 +579,7 @@ sym(vp8_loop_filter_horizontal_edge_uv_sse2):
 ;    const char    *thresh,
 ;    int            count
 ;)
-global sym(vp8_mbloop_filter_horizontal_edge_sse2)
+global sym(vp8_mbloop_filter_horizontal_edge_sse2) PRIVATE
 sym(vp8_mbloop_filter_horizontal_edge_sse2):
     push        rbp
     mov         rbp, rsp
@@ -629,7 +629,7 @@ sym(vp8_mbloop_filter_horizontal_edge_sse2):
 ;    const char    *thresh,
 ;    unsigned char *v
 ;)
-global sym(vp8_mbloop_filter_horizontal_edge_uv_sse2)
+global sym(vp8_mbloop_filter_horizontal_edge_uv_sse2) PRIVATE
 sym(vp8_mbloop_filter_horizontal_edge_uv_sse2):
     push        rbp
     mov         rbp, rsp
@@ -1019,7 +1019,7 @@ sym(vp8_mbloop_filter_horizontal_edge_uv_sse2):
 ;    const char    *thresh,
 ;    int            count
 ;)
-global sym(vp8_loop_filter_vertical_edge_sse2)
+global sym(vp8_loop_filter_vertical_edge_sse2) PRIVATE
 sym(vp8_loop_filter_vertical_edge_sse2):
     push        rbp
     mov         rbp, rsp
@@ -1086,7 +1086,7 @@ sym(vp8_loop_filter_vertical_edge_sse2):
 ;    const char    *thresh,
 ;    unsigned char *v
 ;)
-global sym(vp8_loop_filter_vertical_edge_uv_sse2)
+global sym(vp8_loop_filter_vertical_edge_uv_sse2) PRIVATE
 sym(vp8_loop_filter_vertical_edge_uv_sse2):
     push        rbp
     mov         rbp, rsp
@@ -1244,7 +1244,7 @@ sym(vp8_loop_filter_vertical_edge_uv_sse2):
 ;    const char    *thresh,
 ;    int            count
 ;)
-global sym(vp8_mbloop_filter_vertical_edge_sse2)
+global sym(vp8_mbloop_filter_vertical_edge_sse2) PRIVATE
 sym(vp8_mbloop_filter_vertical_edge_sse2):
     push        rbp
     mov         rbp, rsp
@@ -1313,7 +1313,7 @@ sym(vp8_mbloop_filter_vertical_edge_sse2):
 ;    const char    *thresh,
 ;    unsigned char *v
 ;)
-global sym(vp8_mbloop_filter_vertical_edge_uv_sse2)
+global sym(vp8_mbloop_filter_vertical_edge_uv_sse2) PRIVATE
 sym(vp8_mbloop_filter_vertical_edge_uv_sse2):
     push        rbp
     mov         rbp, rsp
@@ -1381,7 +1381,7 @@ sym(vp8_mbloop_filter_vertical_edge_uv_sse2):
 ;    const char *thresh,
 ;    int count
 ;)
-global sym(vp8_loop_filter_simple_horizontal_edge_sse2)
+global sym(vp8_loop_filter_simple_horizontal_edge_sse2) PRIVATE
 sym(vp8_loop_filter_simple_horizontal_edge_sse2):
     push        rbp
     mov         rbp, rsp
@@ -1498,7 +1498,7 @@ sym(vp8_loop_filter_simple_horizontal_edge_sse2):
 ;    const char *thresh,
 ;    int count
 ;)
-global sym(vp8_loop_filter_simple_vertical_edge_sse2)
+global sym(vp8_loop_filter_simple_vertical_edge_sse2) PRIVATE
 sym(vp8_loop_filter_simple_vertical_edge_sse2):
     push        rbp         ; save old base pointer value.
     mov         rbp, rsp    ; set new base pointer value.

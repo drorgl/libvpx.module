@@ -12,7 +12,7 @@
 %include "vpx_ports/x86_abi_support.asm"
 
 ;int vp8_block_error_xmm(short *coeff_ptr,  short *dcoef_ptr)
-global sym(vp8_block_error_xmm)
+global sym(vp8_block_error_xmm) PRIVATE
 sym(vp8_block_error_xmm):
     push        rbp
     mov         rbp, rsp
@@ -60,7 +60,7 @@ sym(vp8_block_error_xmm):
     ret
 
 ;int vp8_block_error_mmx(short *coeff_ptr,  short *dcoef_ptr)
-global sym(vp8_block_error_mmx)
+global sym(vp8_block_error_mmx) PRIVATE
 sym(vp8_block_error_mmx):
     push        rbp
     mov         rbp, rsp
@@ -126,7 +126,7 @@ sym(vp8_block_error_mmx):
 
 
 ;int vp8_mbblock_error_mmx_impl(short *coeff_ptr, short *dcoef_ptr, int dc);
-global sym(vp8_mbblock_error_mmx_impl)
+global sym(vp8_mbblock_error_mmx_impl) PRIVATE
 sym(vp8_mbblock_error_mmx_impl):
     push        rbp
     mov         rbp, rsp
@@ -203,7 +203,7 @@ mberror_loop_mmx:
 
 
 ;int vp8_mbblock_error_xmm_impl(short *coeff_ptr, short *dcoef_ptr, int dc);
-global sym(vp8_mbblock_error_xmm_impl)
+global sym(vp8_mbblock_error_xmm_impl) PRIVATE
 sym(vp8_mbblock_error_xmm_impl):
     push        rbp
     mov         rbp, rsp
@@ -271,7 +271,7 @@ mberror_loop:
 
 
 ;int vp8_mbuverror_mmx_impl(short *s_ptr, short *d_ptr);
-global sym(vp8_mbuverror_mmx_impl)
+global sym(vp8_mbuverror_mmx_impl) PRIVATE
 sym(vp8_mbuverror_mmx_impl):
     push        rbp
     mov         rbp, rsp
@@ -328,7 +328,7 @@ mbuverror_loop_mmx:
 
 
 ;int vp8_mbuverror_xmm_impl(short *s_ptr, short *d_ptr);
-global sym(vp8_mbuverror_xmm_impl)
+global sym(vp8_mbuverror_xmm_impl) PRIVATE
 sym(vp8_mbuverror_xmm_impl):
     push        rbp
     mov         rbp, rsp
