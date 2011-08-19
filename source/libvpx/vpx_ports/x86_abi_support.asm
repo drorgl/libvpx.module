@@ -199,7 +199,15 @@
     %endmacro
   %endif
   %endif
-  %define HIDDEN_DATA(x) x
+
+  ; Chromium-specific symbol hiding (see PRIVATE macro).
+  %ifidn __OUTPUT_FORMAT__,elf32
+    %define HIDDEN_DATA(x) x:data hidden
+  %elifidn __OUTPUT_FORMAT__,macho32
+    %define HIDDEN_DATA(x) x:private_extern
+  %else
+    %define HIDDEN_DATA(x) x
+  %endif
 %else
   %macro GET_GOT 1
   %endmacro
@@ -207,6 +215,10 @@
   %ifidn __OUTPUT_FORMAT__,elf64
     %define WRT_PLT wrt ..plt
     %define HIDDEN_DATA(x) x:data hidden
+
+  ; Chromium-specific symbol hiding (see PRIVATE macro).
+  %elifidn __OUTPUT_FORMAT__,macho64
+    %define HIDDEN_DATA(x) x:private_extern
   %else
     %define HIDDEN_DATA(x) x
   %endif
