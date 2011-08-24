@@ -1,5 +1,5 @@
-diff --git a/vp8/common/x86/idctllm_mmx.asm b/libvpx/source/libvpx/vp8/common/x86/idctllm_mmx.asm
-index 43735bc..b3b8a35 100644
+diff --git a/vp8/common/x86/idctllm_mmx.asm b/vp8/common/x86/idctllm_mmx.asm
+index 465626b..9568ecf 100644
 --- a/vp8/common/x86/idctllm_mmx.asm
 +++ b/vp8/common/x86/idctllm_mmx.asm
 @@ -33,7 +33,7 @@
@@ -29,8 +29,8 @@ index 43735bc..b3b8a35 100644
  sym(vp8_dc_only_idct_add_mmx):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/common/x86/idctllm_sse2.asm b/libvpx/source/libvpx/vp8/common/x86/idctllm_sse2.asm
-index edee157..0da7229 100644
+diff --git a/vp8/common/x86/idctllm_sse2.asm b/vp8/common/x86/idctllm_sse2.asm
+index 34a7e18..2eebd66 100644
 --- a/vp8/common/x86/idctllm_sse2.asm
 +++ b/vp8/common/x86/idctllm_sse2.asm
 @@ -21,7 +21,7 @@
@@ -51,7 +51,7 @@ index edee157..0da7229 100644
  sym(idct_dequant_full_2x_sse2):
      push        rbp
      mov         rbp, rsp
-@@ -360,7 +360,7 @@ sym(idct_dequant_full_2x_sse2):
+@@ -362,7 +362,7 @@ sym(idct_dequant_full_2x_sse2):
  ;   int dst_stride      - 4
  ;   short *dc           - 5
  ; )
@@ -60,7 +60,7 @@ index edee157..0da7229 100644
  sym(idct_dequant_dc_0_2x_sse2):
      push        rbp
      mov         rbp, rsp
-@@ -436,7 +436,7 @@ sym(idct_dequant_dc_0_2x_sse2):
+@@ -438,7 +438,7 @@ sym(idct_dequant_dc_0_2x_sse2):
      pop         rbp
      ret
  
@@ -69,7 +69,7 @@ index edee157..0da7229 100644
  sym(idct_dequant_dc_full_2x_sse2):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/common/x86/iwalsh_mmx.asm b/libvpx/source/libvpx/vp8/common/x86/iwalsh_mmx.asm
+diff --git a/vp8/common/x86/iwalsh_mmx.asm b/vp8/common/x86/iwalsh_mmx.asm
 index 10b5274..09a9813 100644
 --- a/vp8/common/x86/iwalsh_mmx.asm
 +++ b/vp8/common/x86/iwalsh_mmx.asm
@@ -91,8 +91,8 @@ index 10b5274..09a9813 100644
  sym(vp8_short_inv_walsh4x4_mmx):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/common/x86/iwalsh_sse2.asm b/libvpx/source/libvpx/vp8/common/x86/iwalsh_sse2.asm
-index 83c97df..fde3e65 100644
+diff --git a/vp8/common/x86/iwalsh_sse2.asm b/vp8/common/x86/iwalsh_sse2.asm
+index 1da4fd8..5a1d8cb 100644
 --- a/vp8/common/x86/iwalsh_sse2.asm
 +++ b/vp8/common/x86/iwalsh_sse2.asm
 @@ -12,7 +12,7 @@
@@ -104,8 +104,8 @@ index 83c97df..fde3e65 100644
  sym(vp8_short_inv_walsh4x4_sse2):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/common/x86/loopfilter_mmx.asm b/libvpx/source/libvpx/vp8/common/x86/loopfilter_mmx.asm
-index c6c215c..feccbe2 100644
+diff --git a/vp8/common/x86/loopfilter_mmx.asm b/vp8/common/x86/loopfilter_mmx.asm
+index ad47284..fb57560 100644
 --- a/vp8/common/x86/loopfilter_mmx.asm
 +++ b/vp8/common/x86/loopfilter_mmx.asm
 @@ -21,7 +21,7 @@
@@ -117,7 +117,7 @@ index c6c215c..feccbe2 100644
  sym(vp8_loop_filter_horizontal_edge_mmx):
      push        rbp
      mov         rbp, rsp
-@@ -235,7 +235,7 @@ next8_h:
+@@ -233,7 +233,7 @@ next8_h:
  ;    const char *thresh,
  ;    int count
  ;)
@@ -126,7 +126,7 @@ index c6c215c..feccbe2 100644
  sym(vp8_loop_filter_vertical_edge_mmx):
      push        rbp
      mov         rbp, rsp
-@@ -608,7 +608,7 @@ next8_v:
+@@ -603,7 +603,7 @@ next8_v:
  ;    const char *thresh,
  ;    int count
  ;)
@@ -135,7 +135,7 @@ index c6c215c..feccbe2 100644
  sym(vp8_mbloop_filter_horizontal_edge_mmx):
      push        rbp
      mov         rbp, rsp
-@@ -927,7 +927,7 @@ next8_mbh:
+@@ -920,7 +920,7 @@ next8_mbh:
  ;    const char *thresh,
  ;    int count
  ;)
@@ -144,29 +144,29 @@ index c6c215c..feccbe2 100644
  sym(vp8_mbloop_filter_vertical_edge_mmx):
      push        rbp
      mov         rbp, rsp
-@@ -1397,7 +1397,7 @@ next8_mbv:
- ;    const char *thresh,
- ;    int count
+@@ -1384,7 +1384,7 @@ next8_mbv:
+ ;    int  src_pixel_step,
+ ;    const char *blimit
  ;)
 -global sym(vp8_loop_filter_simple_horizontal_edge_mmx)
 +global sym(vp8_loop_filter_simple_horizontal_edge_mmx) PRIVATE
  sym(vp8_loop_filter_simple_horizontal_edge_mmx):
      push        rbp
      mov         rbp, rsp
-@@ -1520,7 +1520,7 @@ nexts8_h:
- ;    const char *thresh,
- ;    int count
+@@ -1500,7 +1500,7 @@ nexts8_h:
+ ;    int  src_pixel_step,
+ ;    const char *blimit
  ;)
 -global sym(vp8_loop_filter_simple_vertical_edge_mmx)
 +global sym(vp8_loop_filter_simple_vertical_edge_mmx) PRIVATE
  sym(vp8_loop_filter_simple_vertical_edge_mmx):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/common/x86/loopfilter_sse2.asm b/libvpx/source/libvpx/vp8/common/x86/loopfilter_sse2.asm
-index 849133d..ca4b77a 100644
+diff --git a/vp8/common/x86/loopfilter_sse2.asm b/vp8/common/x86/loopfilter_sse2.asm
+index 4efff7e..2f9f01c 100644
 --- a/vp8/common/x86/loopfilter_sse2.asm
 +++ b/vp8/common/x86/loopfilter_sse2.asm
-@@ -283,7 +283,7 @@
+@@ -281,7 +281,7 @@
  ;    const char    *thresh,
  ;    int            count
  ;)
@@ -175,7 +175,7 @@ index 849133d..ca4b77a 100644
  sym(vp8_loop_filter_horizontal_edge_sse2):
      push        rbp
      mov         rbp, rsp
-@@ -333,7 +333,7 @@ sym(vp8_loop_filter_horizontal_edge_sse2):
+@@ -331,7 +331,7 @@ sym(vp8_loop_filter_horizontal_edge_sse2):
  ;    const char    *thresh,
  ;    int            count
  ;)
@@ -184,7 +184,7 @@ index 849133d..ca4b77a 100644
  sym(vp8_loop_filter_horizontal_edge_uv_sse2):
      push        rbp
      mov         rbp, rsp
-@@ -579,7 +579,7 @@ sym(vp8_loop_filter_horizontal_edge_uv_sse2):
+@@ -577,7 +577,7 @@ sym(vp8_loop_filter_horizontal_edge_uv_sse2):
  ;    const char    *thresh,
  ;    int            count
  ;)
@@ -193,7 +193,7 @@ index 849133d..ca4b77a 100644
  sym(vp8_mbloop_filter_horizontal_edge_sse2):
      push        rbp
      mov         rbp, rsp
-@@ -629,7 +629,7 @@ sym(vp8_mbloop_filter_horizontal_edge_sse2):
+@@ -627,7 +627,7 @@ sym(vp8_mbloop_filter_horizontal_edge_sse2):
  ;    const char    *thresh,
  ;    unsigned char *v
  ;)
@@ -202,7 +202,7 @@ index 849133d..ca4b77a 100644
  sym(vp8_mbloop_filter_horizontal_edge_uv_sse2):
      push        rbp
      mov         rbp, rsp
-@@ -1019,7 +1019,7 @@ sym(vp8_mbloop_filter_horizontal_edge_uv_sse2):
+@@ -1015,7 +1015,7 @@ sym(vp8_mbloop_filter_horizontal_edge_uv_sse2):
  ;    const char    *thresh,
  ;    int            count
  ;)
@@ -211,7 +211,7 @@ index 849133d..ca4b77a 100644
  sym(vp8_loop_filter_vertical_edge_sse2):
      push        rbp
      mov         rbp, rsp
-@@ -1086,7 +1086,7 @@ sym(vp8_loop_filter_vertical_edge_sse2):
+@@ -1082,7 +1082,7 @@ sym(vp8_loop_filter_vertical_edge_sse2):
  ;    const char    *thresh,
  ;    unsigned char *v
  ;)
@@ -220,7 +220,7 @@ index 849133d..ca4b77a 100644
  sym(vp8_loop_filter_vertical_edge_uv_sse2):
      push        rbp
      mov         rbp, rsp
-@@ -1244,7 +1244,7 @@ sym(vp8_loop_filter_vertical_edge_uv_sse2):
+@@ -1240,7 +1240,7 @@ sym(vp8_loop_filter_vertical_edge_uv_sse2):
  ;    const char    *thresh,
  ;    int            count
  ;)
@@ -229,7 +229,7 @@ index 849133d..ca4b77a 100644
  sym(vp8_mbloop_filter_vertical_edge_sse2):
      push        rbp
      mov         rbp, rsp
-@@ -1313,7 +1313,7 @@ sym(vp8_mbloop_filter_vertical_edge_sse2):
+@@ -1309,7 +1309,7 @@ sym(vp8_mbloop_filter_vertical_edge_sse2):
  ;    const char    *thresh,
  ;    unsigned char *v
  ;)
@@ -238,25 +238,25 @@ index 849133d..ca4b77a 100644
  sym(vp8_mbloop_filter_vertical_edge_uv_sse2):
      push        rbp
      mov         rbp, rsp
-@@ -1381,7 +1381,7 @@ sym(vp8_mbloop_filter_vertical_edge_uv_sse2):
- ;    const char *thresh,
- ;    int count
+@@ -1374,7 +1374,7 @@ sym(vp8_mbloop_filter_vertical_edge_uv_sse2):
+ ;    int  src_pixel_step,
+ ;    const char *blimit,
  ;)
 -global sym(vp8_loop_filter_simple_horizontal_edge_sse2)
 +global sym(vp8_loop_filter_simple_horizontal_edge_sse2) PRIVATE
  sym(vp8_loop_filter_simple_horizontal_edge_sse2):
      push        rbp
      mov         rbp, rsp
-@@ -1498,7 +1498,7 @@ sym(vp8_loop_filter_simple_horizontal_edge_sse2):
- ;    const char *thresh,
- ;    int count
+@@ -1483,7 +1483,7 @@ sym(vp8_loop_filter_simple_horizontal_edge_sse2):
+ ;    int  src_pixel_step,
+ ;    const char *blimit,
  ;)
 -global sym(vp8_loop_filter_simple_vertical_edge_sse2)
 +global sym(vp8_loop_filter_simple_vertical_edge_sse2) PRIVATE
  sym(vp8_loop_filter_simple_vertical_edge_sse2):
      push        rbp         ; save old base pointer value.
      mov         rbp, rsp    ; set new base pointer value.
-diff --git a/vp8/common/x86/postproc_mmx.asm b/libvpx/source/libvpx/vp8/common/x86/postproc_mmx.asm
+diff --git a/vp8/common/x86/postproc_mmx.asm b/vp8/common/x86/postproc_mmx.asm
 index 787e832..a6102a6 100644
 --- a/vp8/common/x86/postproc_mmx.asm
 +++ b/vp8/common/x86/postproc_mmx.asm
@@ -287,8 +287,8 @@ index 787e832..a6102a6 100644
  sym(vp8_plane_add_noise_mmx):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/common/x86/postproc_sse2.asm b/libvpx/source/libvpx/vp8/common/x86/postproc_sse2.asm
-index 30b4bf5..40aab84 100644
+diff --git a/vp8/common/x86/postproc_sse2.asm b/vp8/common/x86/postproc_sse2.asm
+index 06d51ec..ae25223 100644
 --- a/vp8/common/x86/postproc_sse2.asm
 +++ b/vp8/common/x86/postproc_sse2.asm
 @@ -21,7 +21,7 @@
@@ -327,7 +327,7 @@ index 30b4bf5..40aab84 100644
  sym(vp8_plane_add_noise_wmt):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/common/x86/recon_mmx.asm b/libvpx/source/libvpx/vp8/common/x86/recon_mmx.asm
+diff --git a/vp8/common/x86/recon_mmx.asm b/vp8/common/x86/recon_mmx.asm
 index e7211fc..4256f56 100644
 --- a/vp8/common/x86/recon_mmx.asm
 +++ b/vp8/common/x86/recon_mmx.asm
@@ -367,8 +367,8 @@ index e7211fc..4256f56 100644
  sym(vp8_copy_mem16x16_mmx):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/common/x86/recon_sse2.asm b/libvpx/source/libvpx/vp8/common/x86/recon_sse2.asm
-index 4ad3973..05b5480 100644
+diff --git a/vp8/common/x86/recon_sse2.asm b/vp8/common/x86/recon_sse2.asm
+index 0e23116..4162493 100644
 --- a/vp8/common/x86/recon_sse2.asm
 +++ b/vp8/common/x86/recon_sse2.asm
 @@ -11,7 +11,7 @@
@@ -398,7 +398,70 @@ index 4ad3973..05b5480 100644
  sym(vp8_copy_mem16x16_sse2):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/common/x86/subpixel_mmx.asm b/libvpx/source/libvpx/vp8/common/x86/subpixel_mmx.asm
+@@ -237,7 +237,7 @@ sym(vp8_copy_mem16x16_sse2):
+ ;    unsigned char *src,
+ ;    int src_stride,
+ ;    )
+-global sym(vp8_intra_pred_uv_dc_mmx2)
++global sym(vp8_intra_pred_uv_dc_mmx2) PRIVATE
+ sym(vp8_intra_pred_uv_dc_mmx2):
+     push        rbp
+     mov         rbp, rsp
+@@ -310,7 +310,7 @@ sym(vp8_intra_pred_uv_dc_mmx2):
+ ;    unsigned char *src,
+ ;    int src_stride,
+ ;    )
+-global sym(vp8_intra_pred_uv_dctop_mmx2)
++global sym(vp8_intra_pred_uv_dctop_mmx2) PRIVATE
+ sym(vp8_intra_pred_uv_dctop_mmx2):
+     push        rbp
+     mov         rbp, rsp
+@@ -363,7 +363,7 @@ sym(vp8_intra_pred_uv_dctop_mmx2):
+ ;    unsigned char *src,
+ ;    int src_stride,
+ ;    )
+-global sym(vp8_intra_pred_uv_dcleft_mmx2)
++global sym(vp8_intra_pred_uv_dcleft_mmx2) PRIVATE
+ sym(vp8_intra_pred_uv_dcleft_mmx2):
+     push        rbp
+     mov         rbp, rsp
+@@ -428,7 +428,7 @@ sym(vp8_intra_pred_uv_dcleft_mmx2):
+ ;    unsigned char *src,
+ ;    int src_stride,
+ ;    )
+-global sym(vp8_intra_pred_uv_dc128_mmx)
++global sym(vp8_intra_pred_uv_dc128_mmx) PRIVATE
+ sym(vp8_intra_pred_uv_dc128_mmx):
+     push        rbp
+     mov         rbp, rsp
+@@ -465,7 +465,7 @@ sym(vp8_intra_pred_uv_dc128_mmx):
+ ;    int src_stride,
+ ;    )
+ %macro vp8_intra_pred_uv_tm 1
+-global sym(vp8_intra_pred_uv_tm_%1)
++global sym(vp8_intra_pred_uv_tm_%1) PRIVATE
+ sym(vp8_intra_pred_uv_tm_%1):
+     push        rbp
+     mov         rbp, rsp
+@@ -545,7 +545,7 @@ vp8_intra_pred_uv_tm ssse3
+ ;    unsigned char *src,
+ ;    int src_stride,
+ ;    )
+-global sym(vp8_intra_pred_uv_ve_mmx)
++global sym(vp8_intra_pred_uv_ve_mmx) PRIVATE
+ sym(vp8_intra_pred_uv_ve_mmx):
+     push        rbp
+     mov         rbp, rsp
+@@ -585,7 +585,7 @@ sym(vp8_intra_pred_uv_ve_mmx):
+ ;    int src_stride,
+ ;    )
+ %macro vp8_intra_pred_uv_ho 1
+-global sym(vp8_intra_pred_uv_ho_%1)
++global sym(vp8_intra_pred_uv_ho_%1) PRIVATE
+ sym(vp8_intra_pred_uv_ho_%1):
+     push        rbp
+     mov         rbp, rsp
+diff --git a/vp8/common/x86/subpixel_mmx.asm b/vp8/common/x86/subpixel_mmx.asm
 index 9004b52..8c71050 100644
 --- a/vp8/common/x86/subpixel_mmx.asm
 +++ b/vp8/common/x86/subpixel_mmx.asm
@@ -447,8 +510,8 @@ index 9004b52..8c71050 100644
  sym(vp8_bilinear_predict4x4_mmx):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/common/x86/subpixel_sse2.asm b/libvpx/source/libvpx/vp8/common/x86/subpixel_sse2.asm
-index b87cad2..5691961 100644
+diff --git a/vp8/common/x86/subpixel_sse2.asm b/vp8/common/x86/subpixel_sse2.asm
+index 83e3b14..87bd021 100644
 --- a/vp8/common/x86/subpixel_sse2.asm
 +++ b/vp8/common/x86/subpixel_sse2.asm
 @@ -32,7 +32,7 @@
@@ -523,7 +586,7 @@ index b87cad2..5691961 100644
  sym(vp8_unpack_block1d16_h6_sse2):
      push        rbp
      mov         rbp, rsp
-@@ -964,7 +964,7 @@ unpack_block1d16_h6_sse2_rowloop:
+@@ -962,7 +962,7 @@ unpack_block1d16_h6_sse2_rowloop:
  ;    int dst_pitch
  ;)
  extern sym(vp8_bilinear_filters_mmx)
@@ -532,7 +595,7 @@ index b87cad2..5691961 100644
  sym(vp8_bilinear_predict16x16_sse2):
      push        rbp
      mov         rbp, rsp
-@@ -1233,7 +1233,7 @@ done:
+@@ -1231,7 +1231,7 @@ done:
  ;    int dst_pitch
  ;)
  extern sym(vp8_bilinear_filters_mmx)
@@ -541,8 +604,8 @@ index b87cad2..5691961 100644
  sym(vp8_bilinear_predict8x8_sse2):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/common/x86/subpixel_ssse3.asm b/libvpx/source/libvpx/vp8/common/x86/subpixel_ssse3.asm
-index 7f6fd93..3679b0f 100644
+diff --git a/vp8/common/x86/subpixel_ssse3.asm b/vp8/common/x86/subpixel_ssse3.asm
+index 1ddbc54..bcf233b 100644
 --- a/vp8/common/x86/subpixel_ssse3.asm
 +++ b/vp8/common/x86/subpixel_ssse3.asm
 @@ -34,7 +34,7 @@
@@ -554,7 +617,7 @@ index 7f6fd93..3679b0f 100644
  sym(vp8_filter_block1d8_h6_ssse3):
      push        rbp
      mov         rbp, rsp
-@@ -174,7 +174,7 @@ filter_block1d8_h4_rowloop_ssse3:
+@@ -177,7 +177,7 @@ filter_block1d8_h4_rowloop_ssse3:
  ;    unsigned int    output_height,
  ;    unsigned int    vp8_filter_index
  ;)
@@ -563,7 +626,7 @@ index 7f6fd93..3679b0f 100644
  sym(vp8_filter_block1d16_h6_ssse3):
      push        rbp
      mov         rbp, rsp
-@@ -339,7 +339,7 @@ filter_block1d16_h4_rowloop_ssse3:
+@@ -284,7 +284,7 @@ filter_block1d16_h6_rowloop_ssse3:
  ;    unsigned int    output_height,
  ;    unsigned int    vp8_filter_index
  ;)
@@ -572,7 +635,7 @@ index 7f6fd93..3679b0f 100644
  sym(vp8_filter_block1d4_h6_ssse3):
      push        rbp
      mov         rbp, rsp
-@@ -466,7 +466,7 @@ filter_block1d4_h4_rowloop_ssse3:
+@@ -413,7 +413,7 @@ filter_block1d4_h4_rowloop_ssse3:
  ;    unsigned int   output_height,
  ;    unsigned int   vp8_filter_index
  ;)
@@ -581,7 +644,7 @@ index 7f6fd93..3679b0f 100644
  sym(vp8_filter_block1d16_v6_ssse3):
      push        rbp
      mov         rbp, rsp
-@@ -651,7 +651,7 @@ vp8_filter_block1d16_v4_ssse3_loop:
+@@ -601,7 +601,7 @@ vp8_filter_block1d16_v4_ssse3_loop:
  ;    unsigned int   output_height,
  ;    unsigned int   vp8_filter_index
  ;)
@@ -590,7 +653,7 @@ index 7f6fd93..3679b0f 100644
  sym(vp8_filter_block1d8_v6_ssse3):
      push        rbp
      mov         rbp, rsp
-@@ -788,7 +788,7 @@ vp8_filter_block1d8_v4_ssse3_loop:
+@@ -741,7 +741,7 @@ vp8_filter_block1d8_v4_ssse3_loop:
  ;    unsigned int   output_height,
  ;    unsigned int   vp8_filter_index
  ;)
@@ -599,7 +662,7 @@ index 7f6fd93..3679b0f 100644
  sym(vp8_filter_block1d4_v6_ssse3):
      push        rbp
      mov         rbp, rsp
-@@ -927,7 +927,7 @@ vp8_filter_block1d4_v4_ssse3_loop:
+@@ -880,7 +880,7 @@ vp8_filter_block1d4_v4_ssse3_loop:
  ;    unsigned char *dst_ptr,
  ;    int dst_pitch
  ;)
@@ -608,7 +671,7 @@ index 7f6fd93..3679b0f 100644
  sym(vp8_bilinear_predict16x16_ssse3):
      push        rbp
      mov         rbp, rsp
-@@ -1190,7 +1190,7 @@ done:
+@@ -1143,7 +1143,7 @@ done:
  ;    unsigned char *dst_ptr,
  ;    int dst_pitch
  ;)
@@ -617,7 +680,7 @@ index 7f6fd93..3679b0f 100644
  sym(vp8_bilinear_predict8x8_ssse3):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/decoder/x86/dequantize_mmx.asm b/libvpx/source/libvpx/vp8/decoder/x86/dequantize_mmx.asm
+diff --git a/vp8/decoder/x86/dequantize_mmx.asm b/vp8/decoder/x86/dequantize_mmx.asm
 index 0d6133a..208fa17 100644
 --- a/vp8/decoder/x86/dequantize_mmx.asm
 +++ b/vp8/decoder/x86/dequantize_mmx.asm
@@ -648,7 +711,7 @@ index 0d6133a..208fa17 100644
  sym(vp8_dequant_dc_idct_add_mmx):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/encoder/x86/dct_mmx.asm b/libvpx/source/libvpx/vp8/encoder/x86/dct_mmx.asm
+diff --git a/vp8/encoder/x86/dct_mmx.asm b/vp8/encoder/x86/dct_mmx.asm
 index f07b030..6f188cb 100644
 --- a/vp8/encoder/x86/dct_mmx.asm
 +++ b/vp8/encoder/x86/dct_mmx.asm
@@ -661,11 +724,11 @@ index f07b030..6f188cb 100644
  sym(vp8_short_fdct4x4_mmx):
      push        rbp
      mov         rbp,        rsp
-diff --git a/vp8/encoder/x86/dct_sse2.asm b/libvpx/source/libvpx/vp8/encoder/x86/dct_sse2.asm
-index 652dd98..e92b9b0 100644
+diff --git a/vp8/encoder/x86/dct_sse2.asm b/vp8/encoder/x86/dct_sse2.asm
+index 3d52a5d..d880ce0 100644
 --- a/vp8/encoder/x86/dct_sse2.asm
 +++ b/vp8/encoder/x86/dct_sse2.asm
-@@ -59,7 +59,7 @@
+@@ -61,7 +61,7 @@
  %endmacro
  
  ;void vp8_short_fdct4x4_sse2(short *input, short *output, int pitch)
@@ -674,7 +737,7 @@ index 652dd98..e92b9b0 100644
  sym(vp8_short_fdct4x4_sse2):
  
      STACK_FRAME_CREATE
-@@ -164,7 +164,7 @@ sym(vp8_short_fdct4x4_sse2):
+@@ -166,7 +166,7 @@ sym(vp8_short_fdct4x4_sse2):
      STACK_FRAME_DESTROY
  
  ;void vp8_short_fdct8x4_sse2(short *input, short *output, int pitch)
@@ -683,8 +746,8 @@ index 652dd98..e92b9b0 100644
  sym(vp8_short_fdct8x4_sse2):
  
      STACK_FRAME_CREATE
-diff --git a/vp8/encoder/x86/encodeopt.asm b/libvpx/source/libvpx/vp8/encoder/x86/encodeopt.asm
-index c0f06bb..e3802ef 100644
+diff --git a/vp8/encoder/x86/encodeopt.asm b/vp8/encoder/x86/encodeopt.asm
+index 9946294..9cd51b2 100644
 --- a/vp8/encoder/x86/encodeopt.asm
 +++ b/vp8/encoder/x86/encodeopt.asm
 @@ -12,7 +12,7 @@
@@ -723,7 +786,7 @@ index c0f06bb..e3802ef 100644
  sym(vp8_mbblock_error_xmm_impl):
      push        rbp
      mov         rbp, rsp
-@@ -271,7 +271,7 @@ mberror_loop:
+@@ -273,7 +273,7 @@ mberror_loop:
  
  
  ;int vp8_mbuverror_mmx_impl(short *s_ptr, short *d_ptr);
@@ -732,7 +795,7 @@ index c0f06bb..e3802ef 100644
  sym(vp8_mbuverror_mmx_impl):
      push        rbp
      mov         rbp, rsp
-@@ -328,7 +328,7 @@ mbuverror_loop_mmx:
+@@ -330,7 +330,7 @@ mbuverror_loop_mmx:
  
  
  ;int vp8_mbuverror_xmm_impl(short *s_ptr, short *d_ptr);
@@ -741,8 +804,8 @@ index c0f06bb..e3802ef 100644
  sym(vp8_mbuverror_xmm_impl):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/encoder/x86/fwalsh_sse2.asm b/libvpx/source/libvpx/vp8/encoder/x86/fwalsh_sse2.asm
-index 39439f0..8a6915f 100644
+diff --git a/vp8/encoder/x86/fwalsh_sse2.asm b/vp8/encoder/x86/fwalsh_sse2.asm
+index 71efd56..f498927 100644
 --- a/vp8/encoder/x86/fwalsh_sse2.asm
 +++ b/vp8/encoder/x86/fwalsh_sse2.asm
 @@ -12,7 +12,7 @@
@@ -754,7 +817,7 @@ index 39439f0..8a6915f 100644
  sym(vp8_short_walsh4x4_sse2):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/encoder/x86/quantize_mmx.asm b/libvpx/source/libvpx/vp8/encoder/x86/quantize_mmx.asm
+diff --git a/vp8/encoder/x86/quantize_mmx.asm b/vp8/encoder/x86/quantize_mmx.asm
 index f29a54e..2864ce1 100644
 --- a/vp8/encoder/x86/quantize_mmx.asm
 +++ b/vp8/encoder/x86/quantize_mmx.asm
@@ -767,8 +830,8 @@ index f29a54e..2864ce1 100644
  sym(vp8_fast_quantize_b_impl_mmx):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/encoder/x86/quantize_sse2.asm b/libvpx/source/libvpx/vp8/encoder/x86/quantize_sse2.asm
-index 9a15840..2e655a4 100644
+diff --git a/vp8/encoder/x86/quantize_sse2.asm b/vp8/encoder/x86/quantize_sse2.asm
+index 056b64c..a3dd77a 100644
 --- a/vp8/encoder/x86/quantize_sse2.asm
 +++ b/vp8/encoder/x86/quantize_sse2.asm
 @@ -16,7 +16,7 @@
@@ -780,29 +843,42 @@ index 9a15840..2e655a4 100644
  sym(vp8_regular_quantize_b_sse2):
      push        rbp
      mov         rbp, rsp
-@@ -247,7 +247,7 @@ ZIGZAG_LOOP 15
- ;   short *quant_ptr,               |  5
- ;   short *dqcoeff_ptr)             |  6
+@@ -237,7 +237,7 @@ ZIGZAG_LOOP 15
+ ;  (BLOCK  *b,                  |  0
+ ;   BLOCKD *d)                  |  1
  
--global sym(vp8_fast_quantize_b_impl_sse2)
-+global sym(vp8_fast_quantize_b_impl_sse2) PRIVATE
- sym(vp8_fast_quantize_b_impl_sse2):
+-global sym(vp8_fast_quantize_b_sse2)
++global sym(vp8_fast_quantize_b_sse2) PRIVATE
+ sym(vp8_fast_quantize_b_sse2):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/encoder/x86/quantize_ssse3.asm b/libvpx/source/libvpx/vp8/encoder/x86/quantize_ssse3.asm
-index 2f33199..6cfdd8f 100644
+diff --git a/vp8/encoder/x86/quantize_sse4.asm b/vp8/encoder/x86/quantize_sse4.asm
+index 258899e..aa1893d 100644
+--- a/vp8/encoder/x86/quantize_sse4.asm
++++ b/vp8/encoder/x86/quantize_sse4.asm
+@@ -16,7 +16,7 @@
+ ;  (BLOCK  *b,                     |  0
+ ;   BLOCKD *d)                     |  1
+ 
+-global sym(vp8_regular_quantize_b_sse4)
++global sym(vp8_regular_quantize_b_sse4) PRIVATE
+ sym(vp8_regular_quantize_b_sse4):
+ 
+ %if ABI_IS_32BIT
+diff --git a/vp8/encoder/x86/quantize_ssse3.asm b/vp8/encoder/x86/quantize_ssse3.asm
+index 912007e..4ca9313 100644
 --- a/vp8/encoder/x86/quantize_ssse3.asm
 +++ b/vp8/encoder/x86/quantize_ssse3.asm
-@@ -16,7 +16,7 @@
- ;               short *round_ptr,
- ;               short *quant_ptr, short *dqcoeff_ptr);
+@@ -17,7 +17,7 @@
+ ;   BLOCKD *d)                   |  1
  ;
--global sym(vp8_fast_quantize_b_impl_ssse3)
-+global sym(vp8_fast_quantize_b_impl_ssse3) PRIVATE
- sym(vp8_fast_quantize_b_impl_ssse3):
+ 
+-global sym(vp8_fast_quantize_b_ssse3)
++global sym(vp8_fast_quantize_b_ssse3) PRIVATE
+ sym(vp8_fast_quantize_b_ssse3):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/encoder/x86/sad_mmx.asm b/libvpx/source/libvpx/vp8/encoder/x86/sad_mmx.asm
+diff --git a/vp8/encoder/x86/sad_mmx.asm b/vp8/encoder/x86/sad_mmx.asm
 index 85cb023..6c4c3c3 100644
 --- a/vp8/encoder/x86/sad_mmx.asm
 +++ b/vp8/encoder/x86/sad_mmx.asm
@@ -823,8 +899,8 @@ index 85cb023..6c4c3c3 100644
  
  ;unsigned int vp8_sad16x16_mmx(
  ;    unsigned char *src_ptr,
-diff --git a/vp8/encoder/x86/sad_sse2.asm b/libvpx/source/libvpx/vp8/encoder/x86/sad_sse2.asm
-index 39ed796..92df957 100644
+diff --git a/vp8/encoder/x86/sad_sse2.asm b/vp8/encoder/x86/sad_sse2.asm
+index 1011c95..3b7019c 100644
 --- a/vp8/encoder/x86/sad_sse2.asm
 +++ b/vp8/encoder/x86/sad_sse2.asm
 @@ -16,7 +16,7 @@
@@ -836,7 +912,7 @@ index 39ed796..92df957 100644
  sym(vp8_sad16x16_wmt):
      push        rbp
      mov         rbp, rsp
-@@ -88,7 +88,7 @@ x16x16sad_wmt_loop:
+@@ -90,7 +90,7 @@ x16x16sad_wmt_loop:
  ;    unsigned char *ref_ptr,
  ;    int  ref_stride,
  ;    int  max_err)
@@ -845,7 +921,7 @@ index 39ed796..92df957 100644
  sym(vp8_sad8x16_wmt):
      push        rbp
      mov         rbp, rsp
-@@ -151,7 +151,7 @@ x8x16sad_wmt_early_exit:
+@@ -153,7 +153,7 @@ x8x16sad_wmt_early_exit:
  ;    int  src_stride,
  ;    unsigned char *ref_ptr,
  ;    int  ref_stride)
@@ -854,7 +930,7 @@ index 39ed796..92df957 100644
  sym(vp8_sad8x8_wmt):
      push        rbp
      mov         rbp, rsp
-@@ -204,7 +204,7 @@ x8x8sad_wmt_early_exit:
+@@ -206,7 +206,7 @@ x8x8sad_wmt_early_exit:
  ;    int  src_stride,
  ;    unsigned char *ref_ptr,
  ;    int  ref_stride)
@@ -863,7 +939,7 @@ index 39ed796..92df957 100644
  sym(vp8_sad4x4_wmt):
      push        rbp
      mov         rbp, rsp
-@@ -259,7 +259,7 @@ sym(vp8_sad4x4_wmt):
+@@ -261,7 +261,7 @@ sym(vp8_sad4x4_wmt):
  ;    int  src_stride,
  ;    unsigned char *ref_ptr,
  ;    int  ref_stride)
@@ -872,11 +948,20 @@ index 39ed796..92df957 100644
  sym(vp8_sad16x8_wmt):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/encoder/x86/sad_sse3.asm b/libvpx/source/libvpx/vp8/encoder/x86/sad_sse3.asm
-index f0336ab..84c3240 100644
+@@ -335,7 +335,7 @@ x16x8sad_wmt_early_exit:
+ ;    unsigned char *dst_ptr,
+ ;    int  dst_stride,
+ ;    int height);
+-global sym(vp8_copy32xn_sse2)
++global sym(vp8_copy32xn_sse2) PRIVATE
+ sym(vp8_copy32xn_sse2):
+     push        rbp
+     mov         rbp, rsp
+diff --git a/vp8/encoder/x86/sad_sse3.asm b/vp8/encoder/x86/sad_sse3.asm
+index 9e05521..4b7a029 100644
 --- a/vp8/encoder/x86/sad_sse3.asm
 +++ b/vp8/encoder/x86/sad_sse3.asm
-@@ -372,7 +372,7 @@
+@@ -380,7 +380,7 @@
  ;    unsigned char *ref_ptr,
  ;    int  ref_stride,
  ;    int  *results)
@@ -885,7 +970,7 @@ index f0336ab..84c3240 100644
  sym(vp8_sad16x16x3_sse3):
  
      STACK_FRAME_CREATE_X3
-@@ -414,7 +414,7 @@ sym(vp8_sad16x16x3_sse3):
+@@ -422,7 +422,7 @@ sym(vp8_sad16x16x3_sse3):
  ;    unsigned char *ref_ptr,
  ;    int  ref_stride,
  ;    int  *results)
@@ -894,7 +979,7 @@ index f0336ab..84c3240 100644
  sym(vp8_sad16x8x3_sse3):
  
      STACK_FRAME_CREATE_X3
-@@ -452,7 +452,7 @@ sym(vp8_sad16x8x3_sse3):
+@@ -460,7 +460,7 @@ sym(vp8_sad16x8x3_sse3):
  ;    unsigned char *ref_ptr,
  ;    int  ref_stride,
  ;    int  *results)
@@ -903,7 +988,7 @@ index f0336ab..84c3240 100644
  sym(vp8_sad8x16x3_sse3):
  
      STACK_FRAME_CREATE_X3
-@@ -481,7 +481,7 @@ sym(vp8_sad8x16x3_sse3):
+@@ -489,7 +489,7 @@ sym(vp8_sad8x16x3_sse3):
  ;    unsigned char *ref_ptr,
  ;    int  ref_stride,
  ;    int  *results)
@@ -912,7 +997,7 @@ index f0336ab..84c3240 100644
  sym(vp8_sad8x8x3_sse3):
  
      STACK_FRAME_CREATE_X3
-@@ -506,7 +506,7 @@ sym(vp8_sad8x8x3_sse3):
+@@ -514,7 +514,7 @@ sym(vp8_sad8x8x3_sse3):
  ;    unsigned char *ref_ptr,
  ;    int  ref_stride,
  ;    int  *results)
@@ -921,7 +1006,7 @@ index f0336ab..84c3240 100644
  sym(vp8_sad4x4x3_sse3):
  
      STACK_FRAME_CREATE_X3
-@@ -581,7 +581,7 @@ sym(vp8_sad4x4x3_sse3):
+@@ -589,7 +589,7 @@ sym(vp8_sad4x4x3_sse3):
  ;    int  ref_stride,
  ;    int  max_err)
  ;%define lddqu movdqu
@@ -930,7 +1015,16 @@ index f0336ab..84c3240 100644
  sym(vp8_sad16x16_sse3):
  
      STACK_FRAME_CREATE_X3
-@@ -634,7 +634,7 @@ sym(vp8_sad16x16_sse3):
+@@ -642,7 +642,7 @@ sym(vp8_sad16x16_sse3):
+ ;    unsigned char *dst_ptr,
+ ;    int  dst_stride,
+ ;    int height);
+-global sym(vp8_copy32xn_sse3)
++global sym(vp8_copy32xn_sse3) PRIVATE
+ sym(vp8_copy32xn_sse3):
+ 
+     STACK_FRAME_CREATE_X3
+@@ -703,7 +703,7 @@ copy_is_done:
  ;    unsigned char *ref_ptr_base,
  ;    int  ref_stride,
  ;    int  *results)
@@ -939,7 +1033,7 @@ index f0336ab..84c3240 100644
  sym(vp8_sad16x16x4d_sse3):
  
      STACK_FRAME_CREATE_X4
-@@ -685,7 +685,7 @@ sym(vp8_sad16x16x4d_sse3):
+@@ -754,7 +754,7 @@ sym(vp8_sad16x16x4d_sse3):
  ;    unsigned char *ref_ptr_base,
  ;    int  ref_stride,
  ;    int  *results)
@@ -948,7 +1042,7 @@ index f0336ab..84c3240 100644
  sym(vp8_sad16x8x4d_sse3):
  
      STACK_FRAME_CREATE_X4
-@@ -732,7 +732,7 @@ sym(vp8_sad16x8x4d_sse3):
+@@ -801,7 +801,7 @@ sym(vp8_sad16x8x4d_sse3):
  ;    unsigned char *ref_ptr,
  ;    int  ref_stride,
  ;    int  *results)
@@ -957,7 +1051,7 @@ index f0336ab..84c3240 100644
  sym(vp8_sad8x16x4d_sse3):
  
      STACK_FRAME_CREATE_X4
-@@ -765,7 +765,7 @@ sym(vp8_sad8x16x4d_sse3):
+@@ -834,7 +834,7 @@ sym(vp8_sad8x16x4d_sse3):
  ;    unsigned char *ref_ptr,
  ;    int  ref_stride,
  ;    int  *results)
@@ -966,7 +1060,7 @@ index f0336ab..84c3240 100644
  sym(vp8_sad8x8x4d_sse3):
  
      STACK_FRAME_CREATE_X4
-@@ -794,7 +794,7 @@ sym(vp8_sad8x8x4d_sse3):
+@@ -863,7 +863,7 @@ sym(vp8_sad8x8x4d_sse3):
  ;    unsigned char *ref_ptr,
  ;    int  ref_stride,
  ;    int  *results)
@@ -975,7 +1069,7 @@ index f0336ab..84c3240 100644
  sym(vp8_sad4x4x4d_sse3):
  
      STACK_FRAME_CREATE_X4
-diff --git a/vp8/encoder/x86/sad_sse4.asm b/libvpx/source/libvpx/vp8/encoder/x86/sad_sse4.asm
+diff --git a/vp8/encoder/x86/sad_sse4.asm b/vp8/encoder/x86/sad_sse4.asm
 index 03ecec4..f7fccd7 100644
 --- a/vp8/encoder/x86/sad_sse4.asm
 +++ b/vp8/encoder/x86/sad_sse4.asm
@@ -1024,8 +1118,8 @@ index 03ecec4..f7fccd7 100644
  sym(vp8_sad4x4x8_sse4):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/encoder/x86/sad_ssse3.asm b/libvpx/source/libvpx/vp8/encoder/x86/sad_ssse3.asm
-index 69c5eae..8fb850b 100644
+diff --git a/vp8/encoder/x86/sad_ssse3.asm b/vp8/encoder/x86/sad_ssse3.asm
+index 6ecf081..0c172cc 100644
 --- a/vp8/encoder/x86/sad_ssse3.asm
 +++ b/vp8/encoder/x86/sad_ssse3.asm
 @@ -152,7 +152,7 @@
@@ -1037,7 +1131,7 @@ index 69c5eae..8fb850b 100644
  sym(vp8_sad16x16x3_ssse3):
      push        rbp
      mov         rbp, rsp
-@@ -263,7 +263,7 @@ vp8_sad16x16x3_ssse3_store_off:
+@@ -265,7 +265,7 @@ vp8_sad16x16x3_ssse3_store_off:
  ;    unsigned char *ref_ptr,
  ;    int  ref_stride,
  ;    int  *results)
@@ -1046,8 +1140,8 @@ index 69c5eae..8fb850b 100644
  sym(vp8_sad16x8x3_ssse3):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/encoder/x86/ssim_opt.asm b/libvpx/source/libvpx/vp8/encoder/x86/ssim_opt.asm
-index c267cdb..4a8661b 100644
+diff --git a/vp8/encoder/x86/ssim_opt.asm b/vp8/encoder/x86/ssim_opt.asm
+index d5d267a..329e162 100644
 --- a/vp8/encoder/x86/ssim_opt.asm
 +++ b/vp8/encoder/x86/ssim_opt.asm
 @@ -61,7 +61,7 @@
@@ -1059,7 +1153,7 @@ index c267cdb..4a8661b 100644
  sym(vp8_ssim_parms_16x16_sse3):
      push        rbp
      mov         rbp, rsp
-@@ -149,7 +149,7 @@ NextRow:
+@@ -151,7 +151,7 @@ NextRow:
  ; or pavgb At this point this is just meant to be first pass for calculating
  ; all the parms needed for 16x16 ssim so we can play with dssim as distortion
  ; in mode selection code.
@@ -1068,7 +1162,7 @@ index c267cdb..4a8661b 100644
  sym(vp8_ssim_parms_8x8_sse3):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/encoder/x86/subtract_mmx.asm b/libvpx/source/libvpx/vp8/encoder/x86/subtract_mmx.asm
+diff --git a/vp8/encoder/x86/subtract_mmx.asm b/vp8/encoder/x86/subtract_mmx.asm
 index a47e1f0..08e7fa3 100644
 --- a/vp8/encoder/x86/subtract_mmx.asm
 +++ b/vp8/encoder/x86/subtract_mmx.asm
@@ -1099,8 +1193,8 @@ index a47e1f0..08e7fa3 100644
  sym(vp8_subtract_mbuv_mmx):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/encoder/x86/subtract_sse2.asm b/libvpx/source/libvpx/vp8/encoder/x86/subtract_sse2.asm
-index 3fb23d0..2a14730 100644
+diff --git a/vp8/encoder/x86/subtract_sse2.asm b/vp8/encoder/x86/subtract_sse2.asm
+index 95888f6..adb5a3a 100644
 --- a/vp8/encoder/x86/subtract_sse2.asm
 +++ b/vp8/encoder/x86/subtract_sse2.asm
 @@ -14,7 +14,7 @@
@@ -1130,8 +1224,8 @@ index 3fb23d0..2a14730 100644
  sym(vp8_subtract_mbuv_sse2):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/encoder/x86/temporal_filter_apply_sse2.asm b/libvpx/source/libvpx/vp8/encoder/x86/temporal_filter_apply_sse2.asm
-index 0127b01..8d66309 100644
+diff --git a/vp8/encoder/x86/temporal_filter_apply_sse2.asm b/vp8/encoder/x86/temporal_filter_apply_sse2.asm
+index b777ef5..0c24338 100644
 --- a/vp8/encoder/x86/temporal_filter_apply_sse2.asm
 +++ b/vp8/encoder/x86/temporal_filter_apply_sse2.asm
 @@ -20,7 +20,7 @@
@@ -1143,8 +1237,8 @@ index 0127b01..8d66309 100644
  sym(vp8_temporal_filter_apply_sse2):
  
      push        rbp
-diff --git a/vp8/encoder/x86/variance_impl_mmx.asm b/libvpx/source/libvpx/vp8/encoder/x86/variance_impl_mmx.asm
-index 67a9b4d..78122c7 100644
+diff --git a/vp8/encoder/x86/variance_impl_mmx.asm b/vp8/encoder/x86/variance_impl_mmx.asm
+index 13b76ea..f044d67 100644
 --- a/vp8/encoder/x86/variance_impl_mmx.asm
 +++ b/vp8/encoder/x86/variance_impl_mmx.asm
 @@ -12,7 +12,7 @@
@@ -1201,17 +1295,8 @@ index 67a9b4d..78122c7 100644
  sym(vp8_filter_block2d_bil_var_mmx):
      push        rbp
      mov         rbp, rsp
-@@ -850,7 +850,7 @@ filter_block2d_bil_var_mmx_loop:
- ;    unsigned char *ref_ptr,
- ;    int ref_stride
- ;)
--global sym(vp8_get16x16pred_error_mmx)
-+global sym(vp8_get16x16pred_error_mmx) PRIVATE
- sym(vp8_get16x16pred_error_mmx):
-     push        rbp
-     mov         rbp, rsp
-diff --git a/vp8/encoder/x86/variance_impl_sse2.asm b/libvpx/source/libvpx/vp8/encoder/x86/variance_impl_sse2.asm
-index c2c30de..feb0601 100644
+diff --git a/vp8/encoder/x86/variance_impl_sse2.asm b/vp8/encoder/x86/variance_impl_sse2.asm
+index b7a6b32..283c51c 100644
 --- a/vp8/encoder/x86/variance_impl_sse2.asm
 +++ b/vp8/encoder/x86/variance_impl_sse2.asm
 @@ -17,7 +17,7 @@
@@ -1232,16 +1317,7 @@ index c2c30de..feb0601 100644
  sym(vp8_get16x16var_sse2):
      push        rbp
      mov         rbp, rsp
-@@ -218,7 +218,7 @@ var16loop:
- ;    unsigned char *ref_ptr,
- ;    int ref_stride
- ;)
--global sym(vp8_get16x16pred_error_sse2)
-+global sym(vp8_get16x16pred_error_sse2) PRIVATE
- sym(vp8_get16x16pred_error_sse2):
-     push        rbp
-     mov         rbp, rsp
-@@ -336,7 +336,7 @@ var16peloop:
+@@ -224,7 +224,7 @@ var16loop:
  ;    unsigned int    *  SSE,
  ;    int             *  Sum
  ;)
@@ -1250,7 +1326,7 @@ index c2c30de..feb0601 100644
  sym(vp8_get8x8var_sse2):
      push        rbp
      mov         rbp, rsp
-@@ -523,7 +523,7 @@ sym(vp8_get8x8var_sse2):
+@@ -413,7 +413,7 @@ sym(vp8_get8x8var_sse2):
  ;    unsigned int *sumsquared;;
  ;
  ;)
@@ -1259,7 +1335,7 @@ index c2c30de..feb0601 100644
  sym(vp8_filter_block2d_bil_var_sse2):
      push        rbp
      mov         rbp, rsp
-@@ -800,7 +800,7 @@ filter_block2d_bil_variance:
+@@ -690,7 +690,7 @@ filter_block2d_bil_variance:
  ;    int *sum,
  ;    unsigned int *sumsquared
  ;)
@@ -1268,7 +1344,7 @@ index c2c30de..feb0601 100644
  sym(vp8_half_horiz_vert_variance8x_h_sse2):
      push        rbp
      mov         rbp, rsp
-@@ -920,7 +920,7 @@ vp8_half_horiz_vert_variance8x_h_1:
+@@ -812,7 +812,7 @@ vp8_half_horiz_vert_variance8x_h_1:
  ;    int *sum,
  ;    unsigned int *sumsquared
  ;)
@@ -1277,7 +1353,7 @@ index c2c30de..feb0601 100644
  sym(vp8_half_horiz_vert_variance16x_h_sse2):
      push        rbp
      mov         rbp, rsp
-@@ -1036,7 +1036,7 @@ vp8_half_horiz_vert_variance16x_h_1:
+@@ -928,7 +928,7 @@ vp8_half_horiz_vert_variance16x_h_1:
  ;    int *sum,
  ;    unsigned int *sumsquared
  ;)
@@ -1286,7 +1362,7 @@ index c2c30de..feb0601 100644
  sym(vp8_half_vert_variance8x_h_sse2):
      push        rbp
      mov         rbp, rsp
-@@ -1141,7 +1141,7 @@ vp8_half_vert_variance8x_h_1:
+@@ -1035,7 +1035,7 @@ vp8_half_vert_variance8x_h_1:
  ;    int *sum,
  ;    unsigned int *sumsquared
  ;)
@@ -1295,7 +1371,7 @@ index c2c30de..feb0601 100644
  sym(vp8_half_vert_variance16x_h_sse2):
      push        rbp
      mov         rbp, rsp
-@@ -1249,7 +1249,7 @@ vp8_half_vert_variance16x_h_1:
+@@ -1143,7 +1143,7 @@ vp8_half_vert_variance16x_h_1:
  ;    int *sum,
  ;    unsigned int *sumsquared
  ;)
@@ -1304,7 +1380,7 @@ index c2c30de..feb0601 100644
  sym(vp8_half_horiz_variance8x_h_sse2):
      push        rbp
      mov         rbp, rsp
-@@ -1352,7 +1352,7 @@ vp8_half_horiz_variance8x_h_1:
+@@ -1248,7 +1248,7 @@ vp8_half_horiz_variance8x_h_1:
  ;    int *sum,
  ;    unsigned int *sumsquared
  ;)
@@ -1313,8 +1389,8 @@ index c2c30de..feb0601 100644
  sym(vp8_half_horiz_variance16x_h_sse2):
      push        rbp
      mov         rbp, rsp
-diff --git a/vp8/encoder/x86/variance_impl_ssse3.asm b/libvpx/source/libvpx/vp8/encoder/x86/variance_impl_ssse3.asm
-index 3c0fef9..ec7141a 100644
+diff --git a/vp8/encoder/x86/variance_impl_ssse3.asm b/vp8/encoder/x86/variance_impl_ssse3.asm
+index a582f8d..ce77238 100644
 --- a/vp8/encoder/x86/variance_impl_ssse3.asm
 +++ b/vp8/encoder/x86/variance_impl_ssse3.asm
 @@ -29,7 +29,7 @@
@@ -1326,8 +1402,8 @@ index 3c0fef9..ec7141a 100644
  sym(vp8_filter_block2d_bil_var_ssse3):
      push        rbp
      mov         rbp, rsp
-diff --git a/vpx_ports/emms.asm b/libvpx/source/libvpx/vpx_ports/emms.asm
-index 306e235..555279a5 100644
+diff --git a/vpx_ports/emms.asm b/vpx_ports/emms.asm
+index 306e235..555279a 100644
 --- a/vpx_ports/emms.asm
 +++ b/vpx_ports/emms.asm
 @@ -12,14 +12,14 @@
@@ -1356,8 +1432,8 @@ index 306e235..555279a5 100644
  sym(vpx_winx64_fstcw):
      sub   rsp, 8
      fstcw [rsp]
-diff --git a/vpx_ports/x86_abi_support.asm b/libvpx/source/libvpx/vpx_ports/x86_abi_support.asm
-index be64cd7..e21c2ab 100644
+diff --git a/vpx_ports/x86_abi_support.asm b/vpx_ports/x86_abi_support.asm
+index 7382a91..178fd66 100644
 --- a/vpx_ports/x86_abi_support.asm
 +++ b/vpx_ports/x86_abi_support.asm
 @@ -92,6 +92,28 @@
@@ -1389,7 +1465,7 @@ index be64cd7..e21c2ab 100644
  ; arg()
  ; Return the address specification of the given argument
  ;
-@@ -177,7 +199,15 @@
+@@ -179,7 +201,15 @@
      %endmacro
    %endif
    %endif
@@ -1406,7 +1482,7 @@ index be64cd7..e21c2ab 100644
  %else
    %macro GET_GOT 1
    %endmacro
-@@ -185,6 +215,10 @@
+@@ -187,6 +217,10 @@
    %ifidn __OUTPUT_FORMAT__,elf64
      %define WRT_PLT wrt ..plt
      %define HIDDEN_DATA(x) x:data hidden

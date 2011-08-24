@@ -85,6 +85,7 @@ sym(vp8_get16x16var_sse2):
     push        rbp
     mov         rbp, rsp
     SHADOW_ARGS_TO_STACK 6
+    SAVE_XMM 7
     push rbx
     push rsi
     push rdi
@@ -206,124 +207,11 @@ var16loop:
     pop rdi
     pop rsi
     pop rbx
+    RESTORE_XMM
     UNSHADOW_ARGS
     pop         rbp
     ret
 
-
-;unsigned int vp8_get16x16pred_error_sse2
-;(
-;   unsigned char *src_ptr,
-;    int src_stride,
-;    unsigned char *ref_ptr,
-;    int ref_stride
-;)
-global sym(vp8_get16x16pred_error_sse2) PRIVATE
-sym(vp8_get16x16pred_error_sse2):
-    push        rbp
-    mov         rbp, rsp
-    SHADOW_ARGS_TO_STACK 4
-    GET_GOT     rbx
-    push rsi
-    push rdi
-    sub         rsp, 16
-    ; end prolog
-
-        mov         rsi,            arg(0) ;[src_ptr]
-        mov         rdi,            arg(2) ;[ref_ptr]
-
-        movsxd      rax,            DWORD PTR arg(1) ;[src_stride]
-        movsxd      rdx,            DWORD PTR arg(3) ;[ref_stride]
-
-        pxor        xmm0,           xmm0                        ; clear xmm0 for unpack
-        pxor        xmm7,           xmm7                        ; clear xmm7 for accumulating diffs
-
-        pxor        xmm6,           xmm6                        ; clear xmm6 for accumulating sse
-        mov         rcx,            16
-
-var16peloop:
-        movdqu      xmm1,           XMMWORD PTR [rsi]
-        movdqu      xmm2,           XMMWORD PTR [rdi]
-
-        movdqa      xmm3,           xmm1
-        movdqa      xmm4,           xmm2
-
-        punpcklbw   xmm1,           xmm0
-        punpckhbw   xmm3,           xmm0
-
-        punpcklbw   xmm2,           xmm0
-        punpckhbw   xmm4,           xmm0
-
-        psubw       xmm1,           xmm2
-        psubw       xmm3,           xmm4
-
-        paddw       xmm7,           xmm1
-        pmaddwd     xmm1,           xmm1
-
-        paddw       xmm7,           xmm3
-        pmaddwd     xmm3,           xmm3
-
-        paddd       xmm6,           xmm1
-        paddd       xmm6,           xmm3
-
-        add         rsi,            rax
-        add         rdi,            rdx
-
-        sub         rcx,            1
-        jnz         var16peloop
-
-
-        movdqa      xmm1,           xmm6
-        pxor        xmm6,           xmm6
-
-        pxor        xmm5,           xmm5
-        punpcklwd   xmm6,           xmm7
-
-        punpckhwd   xmm5,           xmm7
-        psrad       xmm5,           16
-
-        psrad       xmm6,           16
-        paddd       xmm6,           xmm5
-
-        movdqa      xmm2,           xmm1
-        punpckldq   xmm1,           xmm0
-
-        punpckhdq   xmm2,           xmm0
-        movdqa      xmm7,           xmm6
-
-        paddd       xmm1,           xmm2
-        punpckldq   xmm6,           xmm0
-
-        punpckhdq   xmm7,           xmm0
-        paddd       xmm6,           xmm7
-
-        movdqa      xmm2,           xmm1
-        movdqa      xmm7,           xmm6
-
-        psrldq      xmm1,           8
-        psrldq      xmm6,           8
-
-        paddd       xmm7,           xmm6
-        paddd       xmm1,           xmm2
-
-        movd DWORD PTR [rsp],       xmm7  ;Sum
-        movd DWORD PTR [rsp+4],     xmm1  ;SSE
-
-        ; return (SSE-((Sum*Sum)>>8));
-        movsxd      rdx, dword ptr [rsp]
-        imul        rdx, rdx
-        sar         rdx, 8
-        movsxd      rax, dword ptr [rsp + 4]
-        sub         rax, rdx
-
-    ; begin epilog
-    add rsp, 16
-    pop rdi
-    pop rsi
-    RESTORE_GOT
-    UNSHADOW_ARGS
-    pop         rbp
-    ret
 
 
 
@@ -341,6 +229,7 @@ sym(vp8_get8x8var_sse2):
     push        rbp
     mov         rbp, rsp
     SHADOW_ARGS_TO_STACK 6
+    SAVE_XMM 7
     GET_GOT     rbx
     push rsi
     push rdi
@@ -506,6 +395,7 @@ sym(vp8_get8x8var_sse2):
     pop rdi
     pop rsi
     RESTORE_GOT
+    RESTORE_XMM
     UNSHADOW_ARGS
     pop         rbp
     ret
@@ -528,7 +418,7 @@ sym(vp8_filter_block2d_bil_var_sse2):
     push        rbp
     mov         rbp, rsp
     SHADOW_ARGS_TO_STACK 9
-    SAVE_XMM
+    SAVE_XMM 7
     GET_GOT     rbx
     push rsi
     push rdi
@@ -805,6 +695,7 @@ sym(vp8_half_horiz_vert_variance8x_h_sse2):
     push        rbp
     mov         rbp, rsp
     SHADOW_ARGS_TO_STACK 7
+    SAVE_XMM 7
     GET_GOT     rbx
     push rsi
     push rdi
@@ -906,6 +797,7 @@ vp8_half_horiz_vert_variance8x_h_1:
     pop rdi
     pop rsi
     RESTORE_GOT
+    RESTORE_XMM
     UNSHADOW_ARGS
     pop         rbp
     ret
@@ -925,7 +817,7 @@ sym(vp8_half_horiz_vert_variance16x_h_sse2):
     push        rbp
     mov         rbp, rsp
     SHADOW_ARGS_TO_STACK 7
-    SAVE_XMM
+    SAVE_XMM 7
     GET_GOT     rbx
     push rsi
     push rdi
@@ -1041,6 +933,7 @@ sym(vp8_half_vert_variance8x_h_sse2):
     push        rbp
     mov         rbp, rsp
     SHADOW_ARGS_TO_STACK 7
+    SAVE_XMM 7
     GET_GOT     rbx
     push rsi
     push rdi
@@ -1127,6 +1020,7 @@ vp8_half_vert_variance8x_h_1:
     pop rdi
     pop rsi
     RESTORE_GOT
+    RESTORE_XMM
     UNSHADOW_ARGS
     pop         rbp
     ret
@@ -1146,7 +1040,7 @@ sym(vp8_half_vert_variance16x_h_sse2):
     push        rbp
     mov         rbp, rsp
     SHADOW_ARGS_TO_STACK 7
-    SAVE_XMM
+    SAVE_XMM 7
     GET_GOT     rbx
     push rsi
     push rdi
@@ -1254,6 +1148,7 @@ sym(vp8_half_horiz_variance8x_h_sse2):
     push        rbp
     mov         rbp, rsp
     SHADOW_ARGS_TO_STACK 7
+    SAVE_XMM 7
     GET_GOT     rbx
     push rsi
     push rdi
@@ -1338,6 +1233,7 @@ vp8_half_horiz_variance8x_h_1:
     pop rdi
     pop rsi
     RESTORE_GOT
+    RESTORE_XMM
     UNSHADOW_ARGS
     pop         rbp
     ret
@@ -1357,7 +1253,7 @@ sym(vp8_half_horiz_variance16x_h_sse2):
     push        rbp
     mov         rbp, rsp
     SHADOW_ARGS_TO_STACK 7
-    SAVE_XMM
+    SAVE_XMM 7
     GET_GOT     rbx
     push rsi
     push rdi
