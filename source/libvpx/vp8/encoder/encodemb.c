@@ -19,7 +19,6 @@
 #include "vp8/common/reconintra.h"
 #include "dct.h"
 #include "vpx_mem/vpx_mem.h"
-#include "rdopt.h"
 
 #if CONFIG_RUNTIME_CPU_DETECT
 #define IF_RTCD(x) (x)
@@ -101,9 +100,7 @@ void vp8_subtract_mby_c(short *diff, unsigned char *src, unsigned char *pred, in
 
 static void vp8_subtract_mb(const VP8_ENCODER_RTCD *rtcd, MACROBLOCK *x)
 {
-    BLOCK *b = &x->block[0];
-
-    ENCODEMB_INVOKE(&rtcd->encodemb, submby)(x->src_diff, *(b->base_src), x->e_mbd.predictor, b->src_stride);
+    ENCODEMB_INVOKE(&rtcd->encodemb, submby)(x->src_diff, x->src.y_buffer, x->e_mbd.predictor, x->src.y_stride);
     ENCODEMB_INVOKE(&rtcd->encodemb, submbuv)(x->src_diff, x->src.u_buffer, x->src.v_buffer, x->e_mbd.predictor, x->src.uv_stride);
 }
 
@@ -198,7 +195,42 @@ static void transform_mby(MACROBLOCK *x)
 }
 
 
+void vp8_stuff_inter16x16(MACROBLOCK *x)
+{
+    vp8_build_inter_predictors_mb_s(&x->e_mbd);
+    /*
+        // recon = copy from predictors to destination
+        {
+            BLOCKD *b = &x->e_mbd.block[0];
+            unsigned char *pred_ptr = b->predictor;
+            unsigned char *dst_ptr = *(b->base_dst) + b->dst;
+            int stride = b->dst_stride;
 
+            int i;
+            for(i=0;i<16;i++)
+                vpx_memcpy(dst_ptr+i*stride,pred_ptr+16*i,16);
+
+            b = &x->e_mbd.block[16];
+            pred_ptr = b->predictor;
+            dst_ptr = *(b->base_dst) + b->dst;
+            stride = b->dst_stride;
+
+            for(i=0;i<8;i++)
+                vpx_memcpy(dst_ptr+i*stride,pred_ptr+8*i,8);
+
+            b = &x->e_mbd.block[20];
+            pred_ptr = b->predictor;
+            dst_ptr = *(b->base_dst) + b->dst;
+            stride = b->dst_stride;
+
+            for(i=0;i<8;i++)
+                vpx_memcpy(dst_ptr+i*stride,pred_ptr+8*i,8);
+        }
+    */
+}
+
+#if !(CONFIG_REALTIME_ONLY)
+#define RDCOST(RM,DM,R,D) ( ((128+(R)*(RM)) >> 8) + (DM)*(D) )
 #define RDTRUNC(RM,DM,R,D) ( (128+(R)*(RM)) & 0xFF )
 
 typedef struct vp8_token_state vp8_token_state;
@@ -240,7 +272,7 @@ static void optimize_b(MACROBLOCK *mb, int ib, int type,
     int i0;
     int rc;
     int x;
-    int sz = 0;
+    int sz;
     int next;
     int rdmult;
     int rddiv;
@@ -576,6 +608,7 @@ void vp8_optimize_mbuv(MACROBLOCK *x, const VP8_ENCODER_RTCD *rtcd)
             ta + vp8_block2above[b], tl + vp8_block2left[b], rtcd);
     }
 }
+#endif
 
 void vp8_encode_inter16x16(const VP8_ENCODER_RTCD *rtcd, MACROBLOCK *x)
 {
@@ -587,8 +620,10 @@ void vp8_encode_inter16x16(const VP8_ENCODER_RTCD *rtcd, MACROBLOCK *x)
 
     vp8_quantize_mb(x);
 
+#if !(CONFIG_REALTIME_ONLY)
     if (x->optimize)
         optimize_mb(x, rtcd);
+#endif
 
     vp8_inverse_transform_mb(IF_RTCD(&rtcd->common->idct), &x->e_mbd);
 
@@ -600,11 +635,9 @@ void vp8_encode_inter16x16(const VP8_ENCODER_RTCD *rtcd, MACROBLOCK *x)
 /* this funciton is used by first pass only */
 void vp8_encode_inter16x16y(const VP8_ENCODER_RTCD *rtcd, MACROBLOCK *x)
 {
-    BLOCK *b = &x->block[0];
+    vp8_build_inter_predictors_mby(&x->e_mbd);
 
-    vp8_build_inter16x16_predictors_mby(&x->e_mbd);
-
-    ENCODEMB_INVOKE(&rtcd->encodemb, submby)(x->src_diff, *(b->base_src), x->e_mbd.predictor, b->src_stride);
+    ENCODEMB_INVOKE(&rtcd->encodemb, submby)(x->src_diff, x->src.y_buffer, x->e_mbd.predictor, x->src.y_stride);
 
     transform_mby(x);
 

@@ -24,13 +24,12 @@
     .include  "asm_com_offsets.asm"
 
 .text
-.p2align 2
 @void vpxyv12_copy_frame_yonly(YV12_BUFFER_CONFIG *src_ybc, YV12_BUFFER_CONFIG *dst_ybc)@
 @ Note: this is VP8 function, which has border=32 and 16. Internal y_width and y_height
 @ are always multiples of 16.
 
 _vp8_yv12_copy_frame_yonly_neon:
-	vp8_yv12_copy_frame_yonly_neon: @ PROC
+	vp8_yv12_copy_frame_yonly_neon:@
     push            {r4 - r11, lr}
     vpush           {d8 - d15}
 
@@ -402,13 +401,13 @@ extra_cp_src_to_dst_width_loop:
 
     b               end_of_cp_src_to_dst
 
-	.size vp8_yv12_copy_frame_yonly_neon, .-vp8_yv12_copy_frame_yonly_neon    @ ENDP
+   @
 
 @===========================================================
 @In vp8cx_pick_filter_level(), call vp8_yv12_copy_frame_yonly
 @without extend_frame_borders.
 _vp8_yv12_copy_frame_yonly_no_extend_frame_borders_neon:
-	vp8_yv12_copy_frame_yonly_no_extend_frame_borders_neon: @ PROC
+	vp8_yv12_copy_frame_yonly_no_extend_frame_borders_neon:@
     push            {r4 - r11, lr}
     vpush           {d8-d15}
 
@@ -503,6 +502,5 @@ extra_cp_src_to_dst_width_loop1:
 
     b               end_of_cp_src_to_dst1
 
-	.size vp8_yv12_copy_frame_yonly_no_extend_frame_borders_neon, .-vp8_yv12_copy_frame_yonly_no_extend_frame_borders_neon    @ ENDP
+   @
 
-	.section	.note.GNU-stack,"",%progbits

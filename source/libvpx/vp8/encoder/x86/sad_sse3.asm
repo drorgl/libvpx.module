@@ -20,7 +20,6 @@
   %define     ret_var       rbx
   %define     result_ptr    arg(4)
   %define     max_err       arg(4)
-  %define     height        dword ptr arg(4)
     push        rbp
     mov         rbp,        rsp
     push        rsi
@@ -34,16 +33,14 @@
     movsxd      rdx,        dword ptr arg(3)    ; ref_stride
 %else
   %ifidn __OUTPUT_FORMAT__,x64
-    SAVE_XMM 7, u
     %define     src_ptr     rcx
     %define     src_stride  rdx
     %define     ref_ptr     r8
     %define     ref_stride  r9
     %define     end_ptr     r10
     %define     ret_var     r11
-    %define     result_ptr  [rsp+xmm_stack_space+8+4*8]
-    %define     max_err     [rsp+xmm_stack_space+8+4*8]
-    %define     height      dword ptr [rsp+xmm_stack_space+8+4*8]
+    %define     result_ptr  [rsp+8+4*8]
+    %define     max_err     [rsp+8+4*8]
   %else
     %define     src_ptr     rdi
     %define     src_stride  rsi
@@ -53,7 +50,6 @@
     %define     ret_var     r10
     %define     result_ptr  r8
     %define     max_err     r8
-    %define     height      r8
   %endif
 %endif
 
@@ -68,7 +64,6 @@
   %define     ret_var
   %define     result_ptr
   %define     max_err
-  %define     height
 
 %if ABI_IS_32BIT
     pop         rbx
@@ -77,7 +72,6 @@
     pop         rbp
 %else
   %ifidn __OUTPUT_FORMAT__,x64
-    RESTORE_XMM
   %endif
 %endif
     ret
@@ -112,7 +106,6 @@
     xchg        rbx,        rax
 %else
   %ifidn __OUTPUT_FORMAT__,x64
-    SAVE_XMM 7, u
     %define     src_ptr     rcx
     %define     src_stride  rdx
     %define     r0_ptr      rsi
@@ -120,7 +113,7 @@
     %define     r2_ptr      r11
     %define     r3_ptr      r8
     %define     ref_stride  r9
-    %define     result_ptr  [rsp+xmm_stack_space+16+4*8]
+    %define     result_ptr  [rsp+16+4*8]
     push        rsi
 
     LOAD_X4_ADDRESSES r8, r0_ptr, r1_ptr, r2_ptr, r3_ptr
@@ -158,7 +151,6 @@
 %else
   %ifidn __OUTPUT_FORMAT__,x64
     pop         rsi
-    RESTORE_XMM
   %endif
 %endif
     ret
@@ -636,67 +628,6 @@ sym(vp8_sad16x16_sse3):
 
     STACK_FRAME_DESTROY_X3
 
-;void vp8_copy32xn_sse3(
-;    unsigned char *src_ptr,
-;    int  src_stride,
-;    unsigned char *dst_ptr,
-;    int  dst_stride,
-;    int height);
-global sym(vp8_copy32xn_sse3) PRIVATE
-sym(vp8_copy32xn_sse3):
-
-    STACK_FRAME_CREATE_X3
-
-block_copy_sse3_loopx4:
-        lea             end_ptr,    [src_ptr+src_stride*2]
-
-        movdqu          xmm0,       XMMWORD PTR [src_ptr]
-        movdqu          xmm1,       XMMWORD PTR [src_ptr + 16]
-        movdqu          xmm2,       XMMWORD PTR [src_ptr + src_stride]
-        movdqu          xmm3,       XMMWORD PTR [src_ptr + src_stride + 16]
-        movdqu          xmm4,       XMMWORD PTR [end_ptr]
-        movdqu          xmm5,       XMMWORD PTR [end_ptr + 16]
-        movdqu          xmm6,       XMMWORD PTR [end_ptr + src_stride]
-        movdqu          xmm7,       XMMWORD PTR [end_ptr + src_stride + 16]
-
-        lea             src_ptr,    [src_ptr+src_stride*4]
-
-        lea             end_ptr,    [ref_ptr+ref_stride*2]
-
-        movdqa          XMMWORD PTR [ref_ptr], xmm0
-        movdqa          XMMWORD PTR [ref_ptr + 16], xmm1
-        movdqa          XMMWORD PTR [ref_ptr + ref_stride], xmm2
-        movdqa          XMMWORD PTR [ref_ptr + ref_stride + 16], xmm3
-        movdqa          XMMWORD PTR [end_ptr], xmm4
-        movdqa          XMMWORD PTR [end_ptr + 16], xmm5
-        movdqa          XMMWORD PTR [end_ptr + ref_stride], xmm6
-        movdqa          XMMWORD PTR [end_ptr + ref_stride + 16], xmm7
-
-        lea             ref_ptr,    [ref_ptr+ref_stride*4]
-
-        sub             height,     4
-        cmp             height,     4
-        jge             block_copy_sse3_loopx4
-
-        ;Check to see if there is more rows need to be copied.
-        cmp             height, 0
-        je              copy_is_done
-
-block_copy_sse3_loop:
-        movdqu          xmm0,       XMMWORD PTR [src_ptr]
-        movdqu          xmm1,       XMMWORD PTR [src_ptr + 16]
-        lea             src_ptr,    [src_ptr+src_stride]
-
-        movdqa          XMMWORD PTR [ref_ptr], xmm0
-        movdqa          XMMWORD PTR [ref_ptr + 16], xmm1
-        lea             ref_ptr,    [ref_ptr+ref_stride]
-
-        sub             height,     1
-        jne             block_copy_sse3_loop
-
-copy_is_done:
-    STACK_FRAME_DESTROY_X3
-
 ;void vp8_sad16x16x4d_sse3(
 ;    unsigned char *src_ptr,
 ;    int  src_stride,
@@ -957,4 +888,3 @@ sym(vp8_sad4x4x4d_sse3):
 
 
     STACK_FRAME_DESTROY_X4
-

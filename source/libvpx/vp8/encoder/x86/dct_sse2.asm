@@ -33,7 +33,6 @@
     %define     input       rcx
     %define     output      rdx
     %define     pitch       r8
-    SAVE_XMM 7, u
   %else
     %define     input       rdi
     %define     output      rsi
@@ -54,7 +53,6 @@
     pop         rbp
 %else
   %ifidn __OUTPUT_FORMAT__,x64
-    RESTORE_XMM
   %endif
 %endif
     ret

@@ -13,6 +13,7 @@
 #include "vpx_ports/arm.h"
 #include "vp8/common/blockd.h"
 #include "vp8/common/pragmas.h"
+#include "vp8/common/postproc.h"
 #include "vp8/decoder/dequantize.h"
 #include "vp8/decoder/onyxd_int.h"
 
@@ -20,15 +21,12 @@ void vp8_arch_arm_decode_init(VP8D_COMP *pbi)
 {
 #if CONFIG_RUNTIME_CPU_DETECT
     int flags = pbi->common.rtcd.flags;
-
-#if HAVE_ARMV5TE
-    if (flags & HAS_EDSP)
-    {
-    }
-#endif
+    int has_edsp = flags & HAS_EDSP;
+    int has_media = flags & HAS_MEDIA;
+    int has_neon = flags & HAS_NEON;
 
 #if HAVE_ARMV6
-    if (flags & HAS_MEDIA)
+    if (has_media)
     {
         pbi->dequant.block               = vp8_dequantize_b_v6;
         pbi->dequant.idct_add            = vp8_dequant_idct_add_v6;
@@ -40,7 +38,7 @@ void vp8_arch_arm_decode_init(VP8D_COMP *pbi)
 #endif
 
 #if HAVE_ARMV7
-    if (flags & HAS_NEON)
+    if (has_neon)
     {
         pbi->dequant.block               = vp8_dequantize_b_neon;
         pbi->dequant.idct_add            = vp8_dequant_idct_add_neon;

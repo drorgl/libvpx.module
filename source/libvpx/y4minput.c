@@ -146,6 +146,7 @@ static int y4m_parse_tags(y4m_input *_y4m,char *_tags){
    mpeg2 and jpeg cases (thus requiring no vertical resampling).*/
 static void y4m_42xmpeg2_42xjpeg_helper(unsigned char *_dst,
  const unsigned char *_src,int _c_w,int _c_h){
+  int pli;
   int y;
   int x;
   for(y=0;y<_c_h;y++){
@@ -177,6 +178,8 @@ static void y4m_convert_42xmpeg2_42xjpeg(y4m_input *_y4m,unsigned char *_dst,
   int c_h;
   int c_sz;
   int pli;
+  int y;
+  int x;
   /*Skip past the luma data.*/
   _dst+=_y4m->pic_w*_y4m->pic_h;
   /*Compute the size of each chroma plane.*/
@@ -393,6 +396,8 @@ static void y4m_convert_422jpeg_420jpeg(y4m_input *_y4m,unsigned char *_dst,
   int dst_c_w;
   int dst_c_h;
   int dst_c_sz;
+  int tmp_sz;
+  int pic_sz;
   int pli;
   /*Skip past the luma data.*/
   _dst+=_y4m->pic_w*_y4m->pic_h;
@@ -456,9 +461,12 @@ static void y4m_convert_422_420jpeg(y4m_input *_y4m,unsigned char *_dst,
   int            c_w;
   int            c_h;
   int            c_sz;
+  int            dst_c_w;
   int            dst_c_h;
   int            dst_c_sz;
   int            pli;
+  int            y;
+  int            x;
   /*Skip past the luma data.*/
   _dst+=_y4m->pic_w*_y4m->pic_h;
   /*Compute the size of each chroma plane.*/
@@ -813,6 +821,8 @@ void y4m_input_close(y4m_input *_y4m){
 int y4m_input_fetch_frame(y4m_input *_y4m,FILE *_fin,vpx_image_t *_img){
   char frame[6];
   int  pic_sz;
+  int  frame_c_w;
+  int  frame_c_h;
   int  c_w;
   int  c_h;
   int  c_sz;

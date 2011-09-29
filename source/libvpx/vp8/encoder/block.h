@@ -34,7 +34,7 @@ typedef struct
     // 16 Y blocks, 4 U blocks, 4 V blocks each with 16 entries
     short *quant;
     short *quant_fast;
-    unsigned char *quant_shift;
+    short *quant_shift;
     short *zbin;
     short *zrun_zbin_boost;
     short *round;
@@ -54,20 +54,14 @@ typedef struct
 typedef struct
 {
     int count;
-    struct
-    {
-        B_PREDICTION_MODE mode;
-        int_mv mv;
-    } bmi[16];
+    B_MODE_INFO bmi[16];
 } PARTITION_INFO;
 
 typedef struct
 {
     DECLARE_ALIGNED(16, short, src_diff[400]);       // 16x16 Y 8x8 U 8x8 V 4x4 2nd Y
     DECLARE_ALIGNED(16, short, coeff[400]);     // 16x16 Y 8x8 U 8x8 V 4x4 2nd Y
-    DECLARE_ALIGNED(16, unsigned char, thismb[256]);
 
-    unsigned char *thismb_ptr;
     // 16 Y blocks, 4 U blocks, 4 V blocks, 1 DC 2nd order block each with 16 entries
     BLOCK block[25];
 
@@ -85,15 +79,14 @@ typedef struct
     int errorperbit;
     int sadperbit16;
     int sadperbit4;
+    int errthresh;
     int rddiv;
     int rdmult;
-    unsigned int * mb_activity_ptr;
-    int * mb_norm_activity_ptr;
-    signed int act_zbin_adj;
+    INT64 activity_sum;
 
     int mvcosts[2][MVvals+1];
     int *mvcost[2];
-    int mvsadcosts[2][MVfpvals+1];
+    int mvsadcosts[2][MVvals+1];
     int *mvsadcost[2];
     int mbmode_cost[2][MB_MODE_COUNT];
     int intra_uv_mode_cost[2][MB_MODE_COUNT];
@@ -117,7 +110,7 @@ typedef struct
     unsigned char *active_ptr;
     MV_CONTEXT *mvc;
 
-    unsigned int token_costs[BLOCK_TYPES] [COEF_BANDS] [PREV_COEF_CONTEXTS] [MAX_ENTROPY_TOKENS];
+    unsigned int token_costs[BLOCK_TYPES] [COEF_BANDS] [PREV_COEF_CONTEXTS] [vp8_coef_tokens];
     int optimize;
     int q_index;
 
@@ -125,7 +118,6 @@ typedef struct
     void (*vp8_short_fdct8x4)(short *input, short *output, int pitch);
     void (*short_walsh4x4)(short *input, short *output, int pitch);
     void (*quantize_b)(BLOCK *b, BLOCKD *d);
-    void (*quantize_b_pair)(BLOCK *b1, BLOCK *b2, BLOCKD *d0, BLOCKD *d1);
 
 } MACROBLOCK;
 
