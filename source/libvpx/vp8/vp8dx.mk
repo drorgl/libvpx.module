@@ -48,11 +48,15 @@ VP8_DX_SRCS-yes += vp8_dx_iface.c
 #INCLUDES += common
 #INCLUDES += decoder
 
+VP8_DX_SRCS-yes += decoder/asm_dec_offsets.c
 VP8_DX_SRCS-yes += decoder/dboolhuff.c
 VP8_DX_SRCS-yes += decoder/decodemv.c
 VP8_DX_SRCS-yes += decoder/decodframe.c
 VP8_DX_SRCS-yes += decoder/dequantize.c
 VP8_DX_SRCS-yes += decoder/detokenize.c
+VP8_DX_SRCS-$(CONFIG_ERROR_CONCEALMENT) += decoder/ec_types.h
+VP8_DX_SRCS-$(CONFIG_ERROR_CONCEALMENT) += decoder/error_concealment.h
+VP8_DX_SRCS-$(CONFIG_ERROR_CONCEALMENT) += decoder/error_concealment.c
 VP8_DX_SRCS-yes += decoder/generic/dsystemdependent.c
 VP8_DX_SRCS-yes += decoder/dboolhuff.h
 VP8_DX_SRCS-yes += decoder/decodemv.h

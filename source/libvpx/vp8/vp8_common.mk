@@ -15,10 +15,12 @@ VP8_COMMON_SRCS-yes += common/ppflags.h
 VP8_COMMON_SRCS-yes += common/onyx.h
 VP8_COMMON_SRCS-yes += common/onyxd.h
 VP8_COMMON_SRCS-yes += common/alloccommon.c
+VP8_COMMON_SRCS-yes += common/asm_com_offsets.c
 VP8_COMMON_SRCS-yes += common/blockd.c
 VP8_COMMON_SRCS-yes += common/coefupdateprobs.h
 VP8_COMMON_SRCS-yes += common/debugmodes.c
 VP8_COMMON_SRCS-yes += common/defaultcoefcounts.h
+VP8_COMMON_SRCS-yes += common/defaultcoefcounts.c
 VP8_COMMON_SRCS-yes += common/entropy.c
 VP8_COMMON_SRCS-yes += common/entropymode.c
 VP8_COMMON_SRCS-yes += common/entropymv.c
@@ -89,6 +91,7 @@ VP8_COMMON_SRCS-$(HAVE_MMX) += common/x86/subpixel_mmx.asm
 VP8_COMMON_SRCS-$(HAVE_MMX) += common/x86/loopfilter_mmx.asm
 VP8_COMMON_SRCS-$(HAVE_SSE2) += common/x86/idctllm_sse2.asm
 VP8_COMMON_SRCS-$(HAVE_SSE2) += common/x86/recon_sse2.asm
+VP8_COMMON_SRCS-$(HAVE_SSE2) += common/x86/recon_wrapper_sse2.c
 VP8_COMMON_SRCS-$(HAVE_SSE2) += common/x86/subpixel_sse2.asm
 VP8_COMMON_SRCS-$(HAVE_SSE2) += common/x86/loopfilter_sse2.asm
 VP8_COMMON_SRCS-$(HAVE_SSE2) += common/x86/iwalsh_sse2.asm
@@ -98,15 +101,17 @@ VP8_COMMON_SRCS-$(HAVE_MMX) += common/x86/postproc_mmx.asm
 VP8_COMMON_SRCS-$(HAVE_SSE2) += common/x86/postproc_sse2.asm
 endif
 
-VP8_COMMON_SRCS-$(ARCH_ARM)  += common/asm_com_offsets.c
-VP8_COMMON_SRCS-$(ARCH_ARM)  += common/arm/arm_systemdependent.c
-
 # common (c)
-VP8_COMMON_SRCS-$(HAVE_ARMV6)  += common/arm/bilinearfilter_arm.c
-VP8_COMMON_SRCS-$(HAVE_ARMV6)  += common/arm/bilinearfilter_arm.h
-VP8_COMMON_SRCS-$(HAVE_ARMV6)  += common/arm/filter_arm.c
-VP8_COMMON_SRCS-$(HAVE_ARMV6)  += common/arm/loopfilter_arm.c
-VP8_COMMON_SRCS-$(HAVE_ARMV6)  += common/arm/reconintra_arm.c
+VP8_COMMON_SRCS-$(ARCH_ARM)  += common/arm/arm_systemdependent.c
+VP8_COMMON_SRCS-$(ARCH_ARM)  += common/arm/bilinearfilter_arm.c
+VP8_COMMON_SRCS-$(ARCH_ARM)  += common/arm/bilinearfilter_arm.h
+VP8_COMMON_SRCS-$(ARCH_ARM)  += common/arm/filter_arm.c
+VP8_COMMON_SRCS-$(ARCH_ARM)  += common/arm/idct_arm.h
+VP8_COMMON_SRCS-$(ARCH_ARM)  += common/arm/loopfilter_arm.c
+VP8_COMMON_SRCS-$(ARCH_ARM)  += common/arm/loopfilter_arm.h
+VP8_COMMON_SRCS-$(ARCH_ARM)  += common/arm/recon_arm.h
+VP8_COMMON_SRCS-$(ARCH_ARM)  += common/arm/reconintra_arm.c
+VP8_COMMON_SRCS-$(ARCH_ARM)  += common/arm/subpixel_arm.h
 
 # common (armv6)
 VP8_COMMON_SRCS-$(HAVE_ARMV6)  += common/arm/armv6/bilinearfilter_v6$(ASM)

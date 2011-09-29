@@ -39,6 +39,7 @@ struct vp8_extracfg
     unsigned int                arnr_type;        /* alt_ref filter type */
     vp8e_tuning                 tuning;
     unsigned int                cq_level;         /* constrained quality level */
+    unsigned int                rc_max_intra_bitrate_pct;
 
 };
 
@@ -71,6 +72,7 @@ static const struct extraconfig_map extracfg_map[] =
             3,                          /* arnr_type*/
             0,                          /* tuning*/
             10,                         /* cq_level */
+            0,                          /* rc_max_intra_bitrate_pct */
         }
     }
 };
@@ -137,8 +139,8 @@ static vpx_codec_err_t validate_config(vpx_codec_alg_priv_t      *ctx,
                                        const vpx_codec_enc_cfg_t *cfg,
                                        const struct vp8_extracfg *vp8_cfg)
 {
-    RANGE_CHECK(cfg, g_w,                   1, 16384);
-    RANGE_CHECK(cfg, g_h,                   1, 16384);
+    RANGE_CHECK(cfg, g_w,                   1, 16383); /* 14 bits available */
+    RANGE_CHECK(cfg, g_h,                   1, 16383); /* 14 bits available */
     RANGE_CHECK(cfg, g_timebase.den,        1, 1000000000);
     RANGE_CHECK(cfg, g_timebase.num,        1, cfg->g_timebase.den);
     RANGE_CHECK_HI(cfg, g_profile,          3);
@@ -151,7 +153,8 @@ static vpx_codec_err_t validate_config(vpx_codec_alg_priv_t      *ctx,
     RANGE_CHECK_HI(cfg, g_lag_in_frames,    0);
 #endif
     RANGE_CHECK(cfg, rc_end_usage,          VPX_VBR, VPX_CQ);
-    RANGE_CHECK_HI(cfg, rc_undershoot_pct,  100);
+    RANGE_CHECK_HI(cfg, rc_undershoot_pct,  1000);
+    RANGE_CHECK_HI(cfg, rc_overshoot_pct,   1000);
     RANGE_CHECK_HI(cfg, rc_2pass_vbr_bias_pct, 100);
     RANGE_CHECK(cfg, kf_mode,               VPX_KF_DISABLED, VPX_KF_AUTO);
     //RANGE_CHECK_BOOL(cfg,                 g_delete_firstpassfile);
@@ -174,16 +177,13 @@ static vpx_codec_err_t validate_config(vpx_codec_alg_priv_t      *ctx,
               "or kf_max_dist instead.");
 
     RANGE_CHECK_BOOL(vp8_cfg,               enable_auto_alt_ref);
+    RANGE_CHECK(vp8_cfg, cpu_used,           -16, 16);
+
 #if !(CONFIG_REALTIME_ONLY)
     RANGE_CHECK(vp8_cfg, encoding_mode,      VP8_BEST_QUALITY_ENCODING, VP8_REAL_TIME_ENCODING);
-    RANGE_CHECK(vp8_cfg, cpu_used,           -16, 16);
     RANGE_CHECK_HI(vp8_cfg, noise_sensitivity,  6);
 #else
     RANGE_CHECK(vp8_cfg, encoding_mode,      VP8_REAL_TIME_ENCODING, VP8_REAL_TIME_ENCODING);
-
-    if (!((vp8_cfg->cpu_used >= -16 && vp8_cfg->cpu_used <= -4) || (vp8_cfg->cpu_used >= 4 && vp8_cfg->cpu_used <= 16)))
-        ERROR("cpu_used out of range [-16..-4] or [4..16]");
-
     RANGE_CHECK(vp8_cfg, noise_sensitivity,  0, 0);
 #endif
 
@@ -197,8 +197,6 @@ static vpx_codec_err_t validate_config(vpx_codec_alg_priv_t      *ctx,
 #if !(CONFIG_REALTIME_ONLY)
     if (cfg->g_pass == VPX_RC_LAST_PASS)
     {
-        int              mb_r = (cfg->g_h + 15) / 16;
-        int              mb_c = (cfg->g_w + 15) / 16;
         size_t           packet_sz = sizeof(FIRSTPASS_STATS);
         int              n_packets = cfg->rc_twopass_stats_in.sz / packet_sz;
         FIRSTPASS_STATS *stats;
@@ -309,6 +307,7 @@ static vpx_codec_err_t set_vp8e_config(VP8_CONFIG *oxcf,
     }
 
     oxcf->target_bandwidth       = cfg.rc_target_bitrate;
+    oxcf->rc_max_intra_bitrate_pct = vp8_cfg.rc_max_intra_bitrate_pct;
 
     oxcf->best_allowed_q          = cfg.rc_min_quantizer;
     oxcf->worst_allowed_q         = cfg.rc_max_quantizer;
@@ -316,7 +315,7 @@ static vpx_codec_err_t set_vp8e_config(VP8_CONFIG *oxcf,
     oxcf->fixed_q = -1;
 
     oxcf->under_shoot_pct         = cfg.rc_undershoot_pct;
-    //oxcf->over_shoot_pct        = cfg.rc_overshoot_pct;
+    oxcf->over_shoot_pct          = cfg.rc_overshoot_pct;
 
     oxcf->maximum_buffer_size     = cfg.rc_buf_sz;
     oxcf->starting_buffer_level   = cfg.rc_buf_initial_sz;
@@ -362,6 +361,7 @@ static vpx_codec_err_t set_vp8e_config(VP8_CONFIG *oxcf,
         printf("key_freq: %d\n", oxcf->key_freq);
         printf("end_usage: %d\n", oxcf->end_usage);
         printf("under_shoot_pct: %d\n", oxcf->under_shoot_pct);
+        printf("over_shoot_pct: %d\n", oxcf->over_shoot_pct);
         printf("starting_buffer_level: %d\n", oxcf->starting_buffer_level);
         printf("optimal_buffer_level: %d\n",  oxcf->optimal_buffer_level);
         printf("maximum_buffer_size: %d\n", oxcf->maximum_buffer_size);
@@ -464,6 +464,7 @@ static vpx_codec_err_t set_param(vpx_codec_alg_priv_t *ctx,
         MAP(VP8E_SET_ARNR_TYPE     ,        xcfg.arnr_type);
         MAP(VP8E_SET_TUNING,                xcfg.tuning);
         MAP(VP8E_SET_CQ_LEVEL,              xcfg.cq_level);
+        MAP(VP8E_SET_MAX_INTRA_BITRATE_PCT, xcfg.rc_max_intra_bitrate_pct);
 
     }
 
@@ -725,13 +726,16 @@ static vpx_codec_err_t vp8e_encode(vpx_codec_alg_priv_t  *ctx,
     {
         unsigned int lib_flags;
         YV12_BUFFER_CONFIG sd;
-        INT64 dst_time_stamp, dst_end_time_stamp;
+        int64_t dst_time_stamp, dst_end_time_stamp;
         unsigned long size, cx_data_sz;
         unsigned char *cx_data;
 
         /* Set up internal flags */
         if (ctx->base.init_flags & VPX_CODEC_USE_PSNR)
             ((VP8_COMP *)ctx->cpi)->b_calculate_psnr = 1;
+
+        if (ctx->base.init_flags & VPX_CODEC_USE_OUTPUT_PARTITION)
+            ((VP8_COMP *)ctx->cpi)->output_partition = 1;
 
         /* Convert API flags to internal codec lib flags */
         lib_flags = (flags & VPX_EFLAG_FORCE_KF) ? FRAMEFLAGS_KEY : 0;
@@ -772,8 +776,6 @@ static vpx_codec_err_t vp8e_encode(vpx_codec_alg_priv_t  *ctx,
                 round = 1000000 * ctx->cfg.g_timebase.num / 2 - 1;
                 delta = (dst_end_time_stamp - dst_time_stamp);
                 pkt.kind = VPX_CODEC_CX_FRAME_PKT;
-                pkt.data.frame.buf = cx_data;
-                pkt.data.frame.sz  = size;
                 pkt.data.frame.pts =
                     (dst_time_stamp * ctx->cfg.g_timebase.den + round)
                     / ctx->cfg.g_timebase.num / 10000000;
@@ -799,11 +801,41 @@ static vpx_codec_err_t vp8e_encode(vpx_codec_alg_priv_t  *ctx,
                     pkt.data.frame.duration = 0;
                 }
 
-                vpx_codec_pkt_list_add(&ctx->pkt_list.head, &pkt);
+                if (cpi->droppable)
+                    pkt.data.frame.flags |= VPX_FRAME_IS_DROPPABLE;
+
+                if (cpi->output_partition)
+                {
+                    int i;
+                    const int num_partitions =
+                            (1 << cpi->common.multi_token_partition) + 1;
+
+                    pkt.data.frame.flags |= VPX_FRAME_IS_FRAGMENT;
+
+                    for (i = 0; i < num_partitions; ++i)
+                    {
+                        pkt.data.frame.buf = cx_data;
+                        pkt.data.frame.sz = cpi->partition_sz[i];
+                        pkt.data.frame.partition_id = i;
+                        /* don't set the fragment bit for the last partition */
+                        if (i == (num_partitions - 1))
+                            pkt.data.frame.flags &= ~VPX_FRAME_IS_FRAGMENT;
+                        vpx_codec_pkt_list_add(&ctx->pkt_list.head, &pkt);
+                        cx_data += cpi->partition_sz[i];
+                        cx_data_sz -= cpi->partition_sz[i];
+                    }
+                }
+                else
+                {
+                    pkt.data.frame.buf = cx_data;
+                    pkt.data.frame.sz  = size;
+                    pkt.data.frame.partition_id = -1;
+                    vpx_codec_pkt_list_add(&ctx->pkt_list.head, &pkt);
+                    cx_data += size;
+                    cx_data_sz -= size;
+                }
 
                 //printf("timestamp: %lld, duration: %d\n", pkt->data.frame.pts, pkt->data.frame.duration);
-                cx_data += size;
-                cx_data_sz -= size;
             }
         }
     }
@@ -1056,6 +1088,7 @@ static vpx_codec_ctrl_fn_map_t vp8e_ctf_maps[] =
     {VP8E_SET_ARNR_TYPE     ,           set_param},
     {VP8E_SET_TUNING,                   set_param},
     {VP8E_SET_CQ_LEVEL,                 set_param},
+    {VP8E_SET_MAX_INTRA_BITRATE_PCT,    set_param},
     { -1, NULL},
 };
 
@@ -1088,11 +1121,10 @@ static vpx_codec_enc_cfg_map_t vp8e_usage_cfg_map[] =
         {0},                /* rc_twopass_stats_in */
 #endif
         256,                /* rc_target_bandwidth */
-
         4,                  /* rc_min_quantizer */
         63,                 /* rc_max_quantizer */
-        95,                 /* rc_undershoot_pct */
-        200,                /* rc_overshoot_pct */
+        100,                /* rc_undershoot_pct */
+        100,                /* rc_overshoot_pct */
 
         6000,               /* rc_max_buffer_size */
         4000,               /* rc_buffer_initial_size; */
@@ -1123,7 +1155,8 @@ CODEC_INTERFACE(vpx_codec_vp8_cx) =
 {
     "WebM Project VP8 Encoder" VERSION_STRING,
     VPX_CODEC_INTERNAL_ABI_VERSION,
-    VPX_CODEC_CAP_ENCODER | VPX_CODEC_CAP_PSNR,
+    VPX_CODEC_CAP_ENCODER | VPX_CODEC_CAP_PSNR |
+    VPX_CODEC_CAP_OUTPUT_PARTITION,
     /* vpx_codec_caps_t          caps; */
     vp8e_init,          /* vpx_codec_init_fn_t       init; */
     vp8e_destroy,       /* vpx_codec_destroy_fn_t    destroy; */
