@@ -32,7 +32,7 @@
 ;    unsigned int    output_width,
 ;    short           *vp8_filter
 ;)
-global sym(vp8_filter_block1d8_h6_sse2)
+global sym(vp8_filter_block1d8_h6_sse2) PRIVATE
 sym(vp8_filter_block1d8_h6_sse2):
     push        rbp
     mov         rbp, rsp
@@ -152,7 +152,7 @@ filter_block1d8_h6_rowloop:
 ; even number. This function handles 8 pixels in horizontal direction, calculating ONE
 ; rows each iteration to take advantage of the 128 bits operations.
 ;*************************************************************************************/
-global sym(vp8_filter_block1d16_h6_sse2)
+global sym(vp8_filter_block1d16_h6_sse2) PRIVATE
 sym(vp8_filter_block1d16_h6_sse2):
     push        rbp
     mov         rbp, rsp
@@ -328,7 +328,7 @@ filter_block1d16_h6_sse2_rowloop:
 ; Notes: filter_block1d8_v6 applies a 6 tap filter vertically to the input pixels. The
 ; input pixel array has output_height rows.
 ;*************************************************************************************/
-global sym(vp8_filter_block1d8_v6_sse2)
+global sym(vp8_filter_block1d8_v6_sse2) PRIVATE
 sym(vp8_filter_block1d8_v6_sse2):
     push        rbp
     mov         rbp, rsp
@@ -423,7 +423,7 @@ vp8_filter_block1d8_v6_sse2_loop:
 ; Notes: filter_block1d16_v6 applies a 6 tap filter vertically to the input pixels. The
 ; input pixel array has output_height rows.
 ;*************************************************************************************/
-global sym(vp8_filter_block1d16_v6_sse2)
+global sym(vp8_filter_block1d16_v6_sse2) PRIVATE
 sym(vp8_filter_block1d16_v6_sse2):
     push        rbp
     mov         rbp, rsp
@@ -533,7 +533,7 @@ vp8_filter_block1d16_v6_sse2_loop:
 ;    const short    *vp8_filter
 ;)
 ; First-pass filter only when yoffset==0
-global sym(vp8_filter_block1d8_h6_only_sse2)
+global sym(vp8_filter_block1d8_h6_only_sse2) PRIVATE
 sym(vp8_filter_block1d8_h6_only_sse2):
     push        rbp
     mov         rbp, rsp
@@ -646,7 +646,7 @@ filter_block1d8_h6_only_rowloop:
 ;    const short    *vp8_filter
 ;)
 ; First-pass filter only when yoffset==0
-global sym(vp8_filter_block1d16_h6_only_sse2)
+global sym(vp8_filter_block1d16_h6_only_sse2) PRIVATE
 sym(vp8_filter_block1d16_h6_only_sse2):
     push        rbp
     mov         rbp, rsp
@@ -811,7 +811,7 @@ filter_block1d16_h6_only_sse2_rowloop:
 ;    const short    *vp8_filter
 ;)
 ; Second-pass filter only when xoffset==0
-global sym(vp8_filter_block1d8_v6_only_sse2)
+global sym(vp8_filter_block1d8_v6_only_sse2) PRIVATE
 sym(vp8_filter_block1d8_v6_only_sse2):
     push        rbp
     mov         rbp, rsp
@@ -903,7 +903,7 @@ vp8_filter_block1d8_v6_only_sse2_loop:
 ;    unsigned int    output_height,
 ;    unsigned int    output_width
 ;)
-global sym(vp8_unpack_block1d16_h6_sse2)
+global sym(vp8_unpack_block1d16_h6_sse2) PRIVATE
 sym(vp8_unpack_block1d16_h6_sse2):
     push        rbp
     mov         rbp, rsp
@@ -962,7 +962,7 @@ unpack_block1d16_h6_sse2_rowloop:
 ;    int dst_pitch
 ;)
 extern sym(vp8_bilinear_filters_mmx)
-global sym(vp8_bilinear_predict16x16_sse2)
+global sym(vp8_bilinear_predict16x16_sse2) PRIVATE
 sym(vp8_bilinear_predict16x16_sse2):
     push        rbp
     mov         rbp, rsp
@@ -1231,7 +1231,7 @@ done:
 ;    int dst_pitch
 ;)
 extern sym(vp8_bilinear_filters_mmx)
-global sym(vp8_bilinear_predict8x8_sse2)
+global sym(vp8_bilinear_predict8x8_sse2) PRIVATE
 sym(vp8_bilinear_predict8x8_sse2):
     push        rbp
     mov         rbp, rsp
