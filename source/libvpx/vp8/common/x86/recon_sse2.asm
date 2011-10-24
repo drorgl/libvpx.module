@@ -465,7 +465,7 @@ sym(vp8_intra_pred_uv_dc128_mmx):
 ;    int src_stride,
 ;    )
 %macro vp8_intra_pred_uv_tm 1
-global sym(vp8_intra_pred_uv_tm_%1)
+global sym(vp8_intra_pred_uv_tm_%1) PRIVATE
 sym(vp8_intra_pred_uv_tm_%1):
     push        rbp
     mov         rbp, rsp
@@ -585,7 +585,7 @@ sym(vp8_intra_pred_uv_ve_mmx):
 ;    int src_stride,
 ;    )
 %macro vp8_intra_pred_uv_ho 1
-global sym(vp8_intra_pred_uv_ho_%1)
+global sym(vp8_intra_pred_uv_ho_%1) PRIVATE
 sym(vp8_intra_pred_uv_ho_%1):
     push        rbp
     mov         rbp, rsp

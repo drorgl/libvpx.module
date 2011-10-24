@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash
 #
 # Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
@@ -45,4 +45,7 @@ Index: source/libvpx/vpx_ports/x86_abi_support.asm
 EOF" | patch -p0
 
 # Add PRIVATE directive to all assembly functions.
-find source/libvpx -type f -name '*.asm' | xargs -i sed -i -E 's/^\s*global\s+sym\(([a-zA-Z][a-zA-Z0-9_]*)\)\s*$/global sym(\1) PRIVATE/' {}
+find source/libvpx -type f -name '*.asm' | xargs -i sed -i -E 's/^\s*global\s+sym\((.*)\)\s*$/global sym(\1) PRIVATE/' {}
+
+# Some code use HIDDEN_DATA(sym(...)) to enclose a symbol so handle this separately.
+find source/libvpx -type f -name '*.asm' | xargs -i sed -i -E 's/^\s*global\s+HIDDEN_DATA\((.*)\)\s*$/global HIDDEN_DATA(\1) PRIVATE/' {}
