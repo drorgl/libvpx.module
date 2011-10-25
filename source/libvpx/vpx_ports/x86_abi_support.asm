@@ -199,7 +199,12 @@
     %endmacro
   %endif
   %endif
-  %define HIDDEN_DATA(x) x
+
+  %ifidn __OUTPUT_FORMAT__,elf32
+    %define HIDDEN_DATA(x) x
+  %elifidn __OUTPUT_FORMAT__,macho32
+    %define HIDDEN_DATA(x) x:private_extern
+  %endif
 %else
   %macro GET_GOT 1
   %endmacro

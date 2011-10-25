@@ -42,10 +42,25 @@ Index: source/libvpx/vpx_ports/x86_abi_support.asm
  ; arg()
  ; Return the address specification of the given argument
  ;
+Index: source/libvpx/vpx_ports/x86_abi_support.asm
+===================================================================
+--- source/libvpx/vpx_ports/x86_abi_support.asm (revision 107105)
++++ source/libvpx/vpx_ports/x86_abi_support.asm (working copy)
+@@ -199,7 +199,12 @@
+     %endmacro
+   %endif
+   %endif
+-  %define HIDDEN_DATA(x) x
++
++  %ifidn __OUTPUT_FORMAT__,elf32
++    %define HIDDEN_DATA(x) x
++  %elifidn __OUTPUT_FORMAT__,macho32
++    %define HIDDEN_DATA(x) x:private_extern
++  %endif
+ %else
+   %macro GET_GOT 1
+   %endmacro
 EOF" | patch -p0
 
 # Add PRIVATE directive to all assembly functions.
 find source/libvpx -type f -name '*.asm' | xargs -i sed -i -E 's/^\s*global\s+sym\((.*)\)\s*$/global sym(\1) PRIVATE/' {}
-
-# Some code use HIDDEN_DATA(sym(...)) to enclose a symbol so handle this separately.
-find source/libvpx -type f -name '*.asm' | xargs -i sed -i -E 's/^\s*global\s+HIDDEN_DATA\((.*)\)\s*$/global HIDDEN_DATA(\1) PRIVATE/' {}
