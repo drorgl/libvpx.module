@@ -13,8 +13,8 @@
 echo "<<EOF
 Index: source/libvpx/vpx_ports/x86_abi_support.asm
 ===================================================================
---- source/libvpx/vpx_ports/x86_abi_support.asm	(revision 106910)
-+++ source/libvpx/vpx_ports/x86_abi_support.asm	(working copy)
+--- source/libvpx/vpx_ports/x86_abi_support.asm (revision 107119)
++++ source/libvpx/vpx_ports/x86_abi_support.asm (working copy)
 @@ -92,6 +92,26 @@
  %define sym(x) _ %+ x
  %endif
@@ -42,20 +42,16 @@ Index: source/libvpx/vpx_ports/x86_abi_support.asm
  ; arg()
  ; Return the address specification of the given argument
  ;
-Index: source/libvpx/vpx_ports/x86_abi_support.asm
-===================================================================
---- source/libvpx/vpx_ports/x86_abi_support.asm (revision 107105)
-+++ source/libvpx/vpx_ports/x86_abi_support.asm (working copy)
-@@ -199,7 +199,12 @@
+@@ -179,7 +199,12 @@
      %endmacro
    %endif
    %endif
 -  %define HIDDEN_DATA(x) x
 +
-+  %ifidn __OUTPUT_FORMAT__,elf32
-+    %define HIDDEN_DATA(x) x
-+  %elifidn __OUTPUT_FORMAT__,macho32
++  %ifidn __OUTPUT_FORMAT__,macho32
 +    %define HIDDEN_DATA(x) x:private_extern
++  %else
++    %define HIDDEN_DATA(x) x
 +  %endif
  %else
    %macro GET_GOT 1
