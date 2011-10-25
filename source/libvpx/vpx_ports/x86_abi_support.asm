@@ -92,26 +92,6 @@
 %define sym(x) _ %+ x
 %endif
 
-;  PRIVATE
-;  Macro for the attribute to hide a global symbol for the target ABI.
-;
-;  Chromium doesn't like exported global symbols due to symbol clashing with
-;  plugins among other things.
-;
-;  Requires Chromium's patched copy of yasm:
-;    http://src.chromium.org/viewvc/chrome?view=rev&revision=73761
-;    http://www.tortall.net/projects/yasm/ticket/236
-;
-%ifidn   __OUTPUT_FORMAT__,elf32
-%define PRIVATE :hidden
-%elifidn __OUTPUT_FORMAT__,elf64
-%define PRIVATE :hidden
-%elifidn __OUTPUT_FORMAT__,x64
-%define PRIVATE
-%else
-%define PRIVATE :private_extern
-%endif
-
 ; arg()
 ; Return the address specification of the given argument
 ;
@@ -199,12 +179,7 @@
     %endmacro
   %endif
   %endif
-
-  %ifidn __OUTPUT_FORMAT__,elf32
-    %define HIDDEN_DATA(x) x
-  %elifidn __OUTPUT_FORMAT__,macho32
-    %define HIDDEN_DATA(x) x:private_extern
-  %endif
+  %define HIDDEN_DATA(x) x
 %else
   %macro GET_GOT 1
   %endmacro
