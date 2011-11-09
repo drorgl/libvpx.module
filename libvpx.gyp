@@ -167,7 +167,7 @@
       # Copy the script to the output folder so that we can use it with
       # absolute path.
       'copies': [{
-        'destination': '<(shared_generated_dir)',
+        'destination': '<(shared_generated_dir)/simple_encoder',
         'files': [
           'source/libvpx/examples/gen_example_code.sh',
         ],
@@ -178,14 +178,14 @@
         {
           'rule_name': 'generate_example',
           'extension': 'txt',
-          'inputs': [ '<(shared_generated_dir)/gen_example_code.sh', ],
+          'inputs': [ '<(shared_generated_dir)/simple_encoder/gen_example_code.sh', ],
           'outputs': [
             '<(shared_generated_dir)/<(RULE_INPUT_ROOT).c',
           ],
           'action': [
             'bash',
             '-c',
-            '<(shared_generated_dir)/gen_example_code.sh <(RULE_INPUT_PATH) > <(shared_generated_dir)/<(RULE_INPUT_ROOT).c',
+            '<(shared_generated_dir)/simple_encoder/gen_example_code.sh <(RULE_INPUT_PATH) > <(shared_generated_dir)/<(RULE_INPUT_ROOT).c',
           ],
           'process_outputs_as_sources': 1,
           'message': 'Generate libvpx example code <(RULE_INPUT_PATH).',
@@ -211,7 +211,7 @@
       # Copy the script to the output folder so that we can use it with
       # absolute path.
       'copies': [{
-        'destination': '<(shared_generated_dir)',
+        'destination': '<(shared_generated_dir)/simple_decoder',
         'files': [
           'source/libvpx/examples/gen_example_code.sh',
         ],
@@ -222,14 +222,14 @@
         {
           'rule_name': 'generate_example',
           'extension': 'txt',
-          'inputs': [ '<(shared_generated_dir)/gen_example_code.sh', ],
+          'inputs': [ '<(shared_generated_dir)/simple_decoder/gen_example_code.sh', ],
           'outputs': [
             '<(shared_generated_dir)/<(RULE_INPUT_ROOT).c',
           ],
           'action': [
             'bash',
             '-c',
-            '<(shared_generated_dir)/gen_example_code.sh <(RULE_INPUT_PATH) > <(shared_generated_dir)/<(RULE_INPUT_ROOT).c',
+            '<(shared_generated_dir)/simple_decoder/gen_example_code.sh <(RULE_INPUT_PATH) > <(shared_generated_dir)/<(RULE_INPUT_ROOT).c',
           ],
           'process_outputs_as_sources': 1,
           'message': 'Generate libvpx example code <(RULE_INPUT_PATH).',
