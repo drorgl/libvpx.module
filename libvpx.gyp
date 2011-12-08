@@ -13,7 +13,7 @@
     ],
   },
   'conditions': [
-    [ '(OS=="linux" or OS=="mac" or OS=="win") and target_arch!="arm"', {
+    [ 'OS != "android" and target_arch != "arm"', {
       'targets': [
         {
           # This libvpx target contains both encoder and decoder.
@@ -22,8 +22,19 @@
           'type': 'static_library',
           'variables': {
             'yasm_output_path': '<(SHARED_INTERMEDIATE_DIR)/third_party/libvpx',
+            'variables': {
+              'conditions': [
+                # Reuse linux config for unsupported platforms like BSD and
+                # Solaris.  This compiles but no guarantee it'll run.
+                ['os_posix == 1 and OS != "mac"', {
+                  '_OS%': 'linux',
+                }, {
+                  '_OS%': '<(OS)',
+                }],
+              ]},
+            '_OS%': '<(_OS)',
             'yasm_flags': [
-              '-I', 'source/config/<(OS)/<(target_arch)',
+              '-I', 'source/config/<(_OS)/<(target_arch)',
               '-I', 'source/libvpx',
             ],
           },
@@ -31,7 +42,7 @@
             '../yasm/yasm_compile.gypi'
           ],
           'include_dirs': [
-            'source/config/<(OS)/<(target_arch)',
+            'source/config/<(_OS)/<(target_arch)',
             'source/libvpx',
             'source/libvpx/vp8/common',
             'source/libvpx/vp8/decoder',
