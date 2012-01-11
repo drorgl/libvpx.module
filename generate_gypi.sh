@@ -1,6 +1,6 @@
 #!/bin/bash -e
 #
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -16,9 +16,9 @@
 # for all platforms.
 
 LIBVPX_SRC_DIR="source/libvpx"
-COMMON_CONFIG="CONFIG_REALTIME_ONLY=yes CONFIG_GCC=yes"
+COMMON_CONFIG="CONFIG_REALTIME_ONLY=yes CONFIG_GCC=yes CONFIG_PIC=yes"
 X86_CONFIG="ARCH_X86=yes HAVE_MMX=yes HAVE_SSE2=yes HAVE_SSE3=yes HAVE_SSSE3=yes HAVE_SSE4_1=yes CONFIG_RUNTIME_CPU_DETECT=yes"
-X86_64_CONFIG="ARCH_X86_64=yes HAVE_MMX=yes HAVE_SSE2=yes HAVE_SSE3=yes HAVE_SSSE3=yes HAVE_SSE4_1=yes CONFIG_PIC=yes CONFIG_RUNTIME_CPU_DETECT=yes"
+X86_64_CONFIG="ARCH_X86_64=yes HAVE_MMX=yes HAVE_SSE2=yes HAVE_SSE3=yes HAVE_SSSE3=yes HAVE_SSE4_1=yes CONFIG_RUNTIME_CPU_DETECT=yes"
 ARM_CONFIG="ARCH_ARM=yes HAVE_ARMV5TE=yes HAVE_ARMV6=yes"
 ARM_NEON_CONFIG="ARCH_ARM=yes HAVE_ARMV5TE=yes HAVE_ARMV6=yes HAVE_ARMV7=yes"
 
