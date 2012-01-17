@@ -64,6 +64,20 @@
                 'libvpx_srcs_x86_64.gypi',
               ],
             }],
+            ['clang == 1', {
+              'xcode_settings': {
+                'WARNING_CFLAGS': [
+                  # libvpx heavily relies on implicit enum casting.
+                  '-Wno-conversion',
+                  # libvpx does `if ((a == b))` in some places.
+                  '-Wno-parentheses-equality',
+                ],
+              },
+              'cflags': [
+                '-Wno-conversion',
+                '-Wno-parentheses-equality',
+              ],
+            }],
           ],
         },
       ],
