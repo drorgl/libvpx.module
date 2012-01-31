@@ -1,4 +1,4 @@
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 {
@@ -53,6 +53,10 @@
               'source/libvpx',
             ],
           },
+          # VS2010 does not correctly incrementally link obj files generated
+          # from asm files. This flag disables UseLibraryDependencyInputs to
+          # avoid this problem.
+          'msvs_2010_disable_uldi_when_referenced': 1,
           'conditions': [
             [ 'target_arch=="ia32"', {
               'includes': [
