@@ -13,6 +13,7 @@
     EXPORT |vp8_encode_bool|
     EXPORT |vp8_stop_encode|
     EXPORT |vp8_encode_value|
+    IMPORT |vp8_validate_buffer_arm|
 
     INCLUDE asm_enc_offsets.asm
 
@@ -22,10 +23,25 @@
 
     AREA    |.text|, CODE, READONLY
 
+    ; macro for validating write buffer position
+    ; needs vp8_writer in r0
+    ; start shall not be in r1
+    MACRO
+    VALIDATE_POS $start, $pos
+    push {r0-r3, r12, lr}        ; rest of regs are preserved by subroutine call
+    ldr  r2, [r0, #vp8_writer_buffer_end]
+    ldr  r3, [r0, #vp8_writer_error]
+    mov  r1, $pos
+    mov  r0, $start
+    bl   vp8_validate_buffer_arm
+    pop  {r0-r3, r12, lr}
+    MEND
+
 ; r0 BOOL_CODER *br
 ; r1 unsigned char *source
-
+; r2 unsigned char *source_end
 |vp8_start_encode| PROC
+    str     r2,  [r0, #vp8_writer_buffer_end]
     mov     r12, #0
     mov     r3,  #255
     mvn     r2,  #23
@@ -42,7 +58,7 @@
 ; r1 int bit
 ; r2 int probability
 |vp8_encode_bool| PROC
-    push    {r4-r9, lr}
+    push    {r4-r10, lr}
 
     mov     r4, r2
 
@@ -53,10 +69,10 @@
     sub     r7, r5, #1                  ; range-1
 
     cmp     r1, #0
-    mul     r4, r4, r7                  ; ((range-1) * probability)
+    mul     r6, r4, r7                  ; ((range-1) * probability)
 
     mov     r7, #1
-    add     r4, r7, r4, lsr #8          ; 1 + (((range-1) * probability) >> 8)
+    add     r4, r7, r6, lsr #8          ; 1 + (((range-1) * probability) >> 8)
 
     addne   r2, r2, r4                  ; if  (bit) lowvalue += split
     subne   r4, r5, r4                  ; if  (bit) range = range-split
@@ -105,6 +121,9 @@ token_high_bit_not_set
     bic     r2, r2, #0xff000000         ; lowvalue &= 0xffffff
     str     r1, [r0, #vp8_writer_pos]
     sub     r3, r3, #8                  ; count -= 8
+
+    VALIDATE_POS r9, r1                 ; validate_buffer at pos
+
     strb    r7, [r9, r4]                ; w->buffer[w->pos++]
 
 token_count_lt_zero
@@ -113,7 +132,7 @@ token_count_lt_zero
     str     r2, [r0, #vp8_writer_lowvalue]
     str     r5, [r0, #vp8_writer_range]
     str     r3, [r0, #vp8_writer_count]
-    pop     {r4-r9, pc}
+    pop     {r4-r10, pc}
     ENDP
 
 ; r0 BOOL_CODER *br
@@ -178,6 +197,9 @@ token_high_bit_not_set_se
     bic     r2, r2, #0xff000000         ; lowvalue &= 0xffffff
     str     r1, [r0, #vp8_writer_pos]
     sub     r3, r3, #8                  ; count -= 8
+
+    VALIDATE_POS r9, r1                 ; validate_buffer at pos
+
     strb    r7, [r9, r4]                ; w->buffer[w->pos++]
 
 token_count_lt_zero_se
@@ -197,7 +219,7 @@ token_count_lt_zero_se
 ; r1 int data
 ; r2 int bits
 |vp8_encode_value| PROC
-    push    {r4-r11, lr}
+    push    {r4-r12, lr}
 
     mov     r10, r2
 
@@ -269,6 +291,9 @@ token_high_bit_not_set_ev
     bic     r2, r2, #0xff000000         ; lowvalue &= 0xffffff
     str     r11, [r0, #vp8_writer_pos]
     sub     r3, r3, #8                  ; count -= 8
+
+    VALIDATE_POS r9, r11                ; validate_buffer at pos
+
     strb    r7, [r9, r4]                ; w->buffer[w->pos++]
 
 token_count_lt_zero_ev
@@ -280,7 +305,7 @@ token_count_lt_zero_ev
     str     r2, [r0, #vp8_writer_lowvalue]
     str     r5, [r0, #vp8_writer_range]
     str     r3, [r0, #vp8_writer_count]
-    pop     {r4-r11, pc}
+    pop     {r4-r12, pc}
     ENDP
 
     END
