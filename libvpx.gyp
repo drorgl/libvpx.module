@@ -150,7 +150,7 @@
             # We need to explicitly tell the GCC assembler to look for
             # .include directive files from the place where they're
             # generated to.
-            '-Wa,-I,third_party/libvpx/source/config/<(_OS)/<(target_arch_full)',
+            '-Wa,-I,<(PRODUCT_DIR)/../../third_party/libvpx/source/config/<(_OS)/<(target_arch_full)',
           ],
           'include_dirs': [
             'source/config/<(_OS)/<(target_arch_full)',
