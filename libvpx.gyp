@@ -280,7 +280,7 @@
     },
     {
       'target_name': 'libvpx_lib',
-      'type': 'static_library',
+      'type': 'none',
       'dependencies': [
         'libvpx',
       ],
