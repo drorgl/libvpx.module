@@ -27,14 +27,14 @@
                 # Reuse linux config for unsupported platforms like BSD and
                 # Solaris.  This compiles but no guarantee it'll run.
                 ['os_posix == 1 and OS != "mac"', {
-                  '_OS%': 'linux',
+                  'OS_CATEGORY%': 'linux',
                 }, {
-                  '_OS%': '<(OS)',
+                  'OS_CATEGORY%': '<(OS)',
                 }],
               ]},
-            '_OS%': '<(_OS)',
+            'OS_CATEGORY%': '<(OS_CATEGORY)',
             'yasm_flags': [
-              '-I', 'source/config/<(_OS)/<(target_arch)',
+              '-I', 'source/config/<(OS_CATEGORY)/<(target_arch)',
               '-I', 'source/libvpx',
             ],
           },
@@ -42,7 +42,7 @@
             '../yasm/yasm_compile.gypi'
           ],
           'include_dirs': [
-            'source/config/<(_OS)/<(target_arch)',
+            'source/config/<(OS_CATEGORY)/<(target_arch)',
             'source/libvpx',
             'source/libvpx/vp8/common',
             'source/libvpx/vp8/decoder',
@@ -140,9 +140,9 @@
                 'target_arch_full': '<(target_arch)',
               }],
               ['OS=="android"', {
-                '_OS': 'linux',
+                'OS_CATEGORY': 'linux',
               }, {
-                '_OS': '<(OS)',
+                'OS_CATEGORY': '<(OS)',
               }],
             ],
           },
@@ -150,10 +150,10 @@
             # We need to explicitly tell the GCC assembler to look for
             # .include directive files from the place where they're
             # generated to.
-            '-Wa,-I,<!(pwd)/source/config/<(_OS)/<(target_arch_full)',
+            '-Wa,-I,<!(pwd)/source/config/<(OS_CATEGORY)/<(target_arch_full)',
           ],
           'include_dirs': [
-            'source/config/<(_OS)/<(target_arch_full)',
+            'source/config/<(OS_CATEGORY)/<(target_arch_full)',
             'source/libvpx',
           ],
           'direct_dependent_settings': {
