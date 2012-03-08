@@ -87,7 +87,7 @@
       ],
     },
     ],
-    # 'libvpx' target for Chrome OS ARM builds.
+    # 'libvpx' target for ARM builds.
     [ 'target_arch=="arm" ', {
       'targets': [
         {
@@ -172,6 +172,15 @@
             ['arm_neon==1', {
               'includes': [
                 'libvpx_srcs_arm_neon.gypi',
+              ],
+            }],
+            ['OS == "android"', {
+              'include_dirs': [
+                '<(android_ndk_include)',
+                '<(android_ndk_include)/machine',
+              ],
+              'defines': [
+                'ANDROID_CPU_ARM_FEATURE_NEON=4',
               ],
             }],
           ],
