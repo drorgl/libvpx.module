@@ -13,7 +13,7 @@
     ],
   },
   'conditions': [
-    [ 'OS != "android" and target_arch != "arm"', {
+    [ 'target_arch != "arm"', {
       'targets': [
         {
           # This libvpx target contains both encoder and decoder.
