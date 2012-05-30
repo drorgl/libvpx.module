@@ -17,6 +17,7 @@ The libvpx source is from webmproject.org:
 Notes on updating libvpx source code.
 
 Please follow these steps to update libvpx source code:
+
 1. Remove old source code.
 
    svn del source/libvpx
@@ -33,9 +34,21 @@ Please follow these steps to update libvpx source code:
 
    ./generate_gypi.sh
 
-6. Modify libvpx source code to hide global symbols.
+6. Commit the change.
 
-   ./hide_symbols.sh
+Tools needed to build libvpx:
 
-7. Commit the change.
+- generate_gypi.sh
 
+Generate .gypi files that contain the source list for each platform.
+Configuration for the build is taken from vpx_config.h for each platform.
+
+- lint_config.sh
+
+A tool to verify vpx_config.h and vpx_config.asm are matched. This also
+prints the final configuration after checking.
+
+- unpack_lib_posix.sh
+
+Unpack a static library of .a type. This tool takes a list of possible
+locations of the library file and extract the content.
