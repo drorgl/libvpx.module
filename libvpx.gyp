@@ -62,7 +62,6 @@
           },
           'dependencies': [
             'gen_asm_offsets',
-            'gen_rtcd_header',
           ],
           'includes': [
             '../yasm/yasm_compile.gypi'
@@ -213,56 +212,12 @@
       ]
     },
     {
-      # A target to generate vpx_rtcd.h from the current configuration.
-      # This target is a hard dependency because the vpx_rtcd.h is needed by
-      # multiple targets to build properly.
-      'target_name': 'gen_rtcd_header',
-      'type': 'none',
-      'actions': [
-        {
-          # Take vpx_config.h and generate a build configuration file.
-          'action_name': 'gen_config_options',
-          'inputs': [
-            'source/config/<(OS_CATEGORY)/<(target_arch_full)/vpx_config.h',
-            'source/config/<(OS_CATEGORY)/<(target_arch_full)/vpx_config.asm',
-          ],
-          'outputs': [
-            '<(shared_generated_dir)/libvpx.config',
-          ],
-          'action': [
-            'bash', '-c',
-            './lint_config.sh -p -h source/config/<(OS_CATEGORY)/<(target_arch_full)/vpx_config.h -a source/config/<(OS_CATEGORY)/<(target_arch_full)/vpx_config.asm > <@(_outputs)',
-          ],
-        },
-        {
-          # Take the build configuration file and output vpx_rtcd.h.
-          'action_name': 'gen_rtcd_header',
-          'inputs': [
-            '<(shared_generated_dir)/libvpx.config',
-            'source/libvpx/vp8/common/rtcd_defs.sh',
-            'source/libvpx/build/make/rtcd.sh',
-          ],
-          'outputs': [
-            '<(shared_generated_dir)/vpx_rtcd.h',
-          ],
-          'action': [
-            'bash', '-c',
-            'source/libvpx/build/make/rtcd.sh --arch=<(libvpx_arch) --sym=vpx_rtcd --config=<(shared_generated_dir)/libvpx.config source/libvpx/vp8/common/rtcd_defs.sh > <@(_outputs)',
-          ],
-        },
-      ],
-    },
-    {
       # A library that contains assembly offsets needed.
       'target_name': 'libvpx_asm_offsets',
-      'type': '<(library)',
-      'dependencies': [
-        'gen_rtcd_header',
-      ],
+      'type': 'static_library',
       'include_dirs': [
         'source/config/<(OS_CATEGORY)/<(target_arch_full)',
         'source/libvpx',
-        '<(shared_generated_dir)',
       ],
       'sources': [
         '<(shared_generated_dir)/vpx_rtcd.h',
@@ -282,38 +237,102 @@
         'libvpx_asm_offsets',
         'libvpx_obj_int_extract#host',
       ],
-      'hard_dependency': 1,
-      # TODO(hclam): This step needs to be platform specific.
-      'actions': [
-        {
-          # Take archived .a file and unpack it unto .o files.
-          'action_name': 'unpack_lib_posix',
-          'inputs': [
-            'unpack_lib_posix.sh',
+      'copies': [{
+        'destination': '<(INTERMEDIATE_DIR)',
+        'files': [
+          'obj_int_extract.sh',
+        ],
+      }],
+      'conditions': [
+        ['OS=="win"', {
+          'variables': {
+            'ninja_obj_dir': '<(PRODUCT_DIR)/obj/third_party/libvpx/source/libvpx/vp8',
+          },
+          'actions': [
+            {
+              'action_name': 'copy_enc_offsets_obj',
+              'inputs': [ 'copy_obj.sh' ],
+              'outputs': [ '<(INTERMEDIATE_DIR)/asm_enc_offsets.obj' ],
+              'action': [
+                '<(DEPTH)/third_party/libvpx/copy_obj.sh',
+                '-d', '<@(_outputs)',
+                '-s', '<(PRODUCT_DIR)/obj/libvpx_asm_offsets/asm_enc_offsets.obj',
+                '-s', '<(ninja_obj_dir)/encoder/libvpx_asm_offsets.asm_enc_offsets.obj',
+              ],
+              'process_output_as_sources': 1,
+            },
+            {
+              'action_name': 'copy_dec_offsets_obj',
+              'inputs': [ 'copy_obj.sh' ],
+              'outputs': [ '<(INTERMEDIATE_DIR)/asm_dec_offsets.obj' ],
+              'action': [
+                '<(DEPTH)/third_party/libvpx/copy_obj.sh',
+                '-d', '<@(_outputs)',
+                '-s', '<(PRODUCT_DIR)/obj/libvpx_asm_offsets/asm_dec_offsets.obj',
+                '-s', '<(ninja_obj_dir)/decoder/libvpx_asm_offsets.asm_dec_offsets.obj',
+              ],
+              'process_output_as_sources': 1,
+            },
+            {
+              'action_name': 'copy_com_offsets_obj',
+              'inputs': [ 'copy_obj.sh' ],
+              'outputs': [ '<(INTERMEDIATE_DIR)/asm_com_offsets.obj' ],
+              'action': [
+                '<(DEPTH)/third_party/libvpx/copy_obj.sh',
+                '-d', '<@(_outputs)',
+                '-s', '<(PRODUCT_DIR)/obj/libvpx_asm_offsets/asm_com_offsets.obj',
+                '-s', '<(ninja_obj_dir)/common/libvpx_asm_offsets.asm_com_offsets.obj',
+              ],
+              'process_output_as_sources': 1,
+            },
           ],
-          'outputs': [
-            '<(shared_generated_dir)/asm_com_offsets.o',
-            '<(shared_generated_dir)/asm_dec_offsets.o',
-            '<(shared_generated_dir)/asm_enc_offsets.o',
+          'sources': [
+            '<(INTERMEDIATE_DIR)/asm_com_offsets.obj',
+            '<(INTERMEDIATE_DIR)/asm_dec_offsets.obj',
+            '<(INTERMEDIATE_DIR)/asm_enc_offsets.obj',
           ],
-          'action': [
-            '<(DEPTH)/third_party/libvpx/unpack_lib_posix.sh',
-            '-d', '<(shared_generated_dir)',
-            '-a', '<(LIB_DIR)/libvpx_asm_offsets.a',
-            '-a', '<(LIB_DIR)/third_party/libvpx/libvpx_asm_offsets.a',
-            '-f', 'asm_com_offsets.o',
-            '-f', 'asm_dec_offsets.o',
-            '-f', 'asm_enc_offsets.o',
+        }, {
+          'actions': [
+            {
+              # Take archived .a file and unpack it unto .o files.
+              'action_name': 'unpack_lib_posix',
+              'inputs': [
+                'unpack_lib_posix.sh',
+              ],
+              'outputs': [
+                '<(INTERMEDIATE_DIR)/asm_com_offsets.o',
+                '<(INTERMEDIATE_DIR)/asm_dec_offsets.o',
+                '<(INTERMEDIATE_DIR)/asm_enc_offsets.o',
+              ],
+              'action': [
+                '<(DEPTH)/third_party/libvpx/unpack_lib_posix.sh',
+                '-d', '<(INTERMEDIATE_DIR)',
+                '-a', '<(LIB_DIR)/libvpx_asm_offsets.a',
+                '-a', '<(LIB_DIR)/third_party/libvpx/libvpx_asm_offsets.a',
+                '-f', 'asm_com_offsets.o',
+                '-f', 'asm_dec_offsets.o',
+                '-f', 'asm_enc_offsets.o',
+              ],
+              'process_output_as_sources': 1,
+            },
           ],
-          'process_output_as_sources': 1,
-        },
+          # Need this otherwise gyp won't run the rule on them.
+          'sources': [
+            '<(INTERMEDIATE_DIR)/asm_com_offsets.o',
+            '<(INTERMEDIATE_DIR)/asm_dec_offsets.o',
+            '<(INTERMEDIATE_DIR)/asm_enc_offsets.o',
+          ],
+        }],
       ],
       'rules': [
         {
           # Rule to extract integer values for each symbol from an object file.
           'rule_name': 'obj_int_extract',
-          'extension': 'o',
-          'inputs': [ '<(PRODUCT_DIR)/libvpx_obj_int_extract', ],
+          'extension': '<(asm_obj_extension)',
+          'inputs': [
+            '<(PRODUCT_DIR)/libvpx_obj_int_extract',
+            '<(INTERMEDIATE_DIR)/obj_int_extract.sh',
+          ],
           'outputs': [
             '<(shared_generated_dir)/<(RULE_INPUT_ROOT).asm',
           ],
@@ -327,9 +346,11 @@
             ],
           },
           'action': [
-            'bash',
-            '-c',
-            '<(PRODUCT_DIR)/libvpx_obj_int_extract <(asm_format) <(RULE_INPUT_PATH) > <(shared_generated_dir)/<(RULE_INPUT_ROOT).asm',
+            '<(INTERMEDIATE_DIR)/obj_int_extract.sh',
+            '-e', '<(PRODUCT_DIR)/libvpx_obj_int_extract',
+            '-f', '<(asm_format)',
+            '-b', '<(RULE_INPUT_PATH)',
+            '-o', '<(shared_generated_dir)/<(RULE_INPUT_ROOT).asm',
           ],
           'message': 'Generate assembly offsets <(RULE_INPUT_PATH).',
         },

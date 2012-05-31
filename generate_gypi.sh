@@ -69,6 +69,28 @@ function print_config {
     -a $BASE_DIR/$LIBVPX_CONFIG_DIR/$1/vpx_config.asm
 }
 
+# Generate vpx_rtcd.h.
+# $1 - Header file directory.
+# $2 - Architecture.
+function gen_rtcd_header {
+  echo "Generate $LIBVPX_CONFIG_DIR/$1/vpx_rtcd.h."
+
+  rm -rf $BASE_DIR/$TEMP_DIR/libvpx.config
+  $BASE_DIR/lint_config.sh -p \
+    -h $BASE_DIR/$LIBVPX_CONFIG_DIR/$1/vpx_config.h \
+    -a $BASE_DIR/$LIBVPX_CONFIG_DIR/$1/vpx_config.asm \
+    -o $BASE_DIR/$TEMP_DIR/libvpx.config
+
+  $BASE_DIR/$LIBVPX_SRC_DIR/build/make/rtcd.sh \
+    --arch=$2 \
+    --sym=vpx_rtcd \
+    --config=$BASE_DIR/$TEMP_DIR/libvpx.config \
+    $BASE_DIR/$LIBVPX_SRC_DIR/vp8/common/rtcd_defs.sh \
+    > $BASE_DIR/$LIBVPX_CONFIG_DIR/$1/vpx_rtcd.h
+
+  rm -rf $BASE_DIR/$TEMP_DIR/libvpx.config
+}
+
 echo "Lint libvpx configuration."
 lint_config linux/ia32
 lint_config linux/x64
@@ -82,6 +104,13 @@ TEMP_DIR="$LIBVPX_SRC_DIR.temp"
 rm -rf $TEMP_DIR
 cp -R $LIBVPX_SRC_DIR $TEMP_DIR
 cd $TEMP_DIR
+
+gen_rtcd_header linux/ia32 x86
+gen_rtcd_header linux/x64 x86_64
+gen_rtcd_header linux/arm armv6
+gen_rtcd_header linux/arm-neon armv7
+gen_rtcd_header win/ia32 x86
+gen_rtcd_header mac/ia32 x86
 
 echo "Prepare Makefile."
 ./configure --target=generic-gnu > /dev/null

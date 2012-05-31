@@ -5,28 +5,30 @@
 # found in the LICENSE file.
 
 # This script is used to compare vpx_config.h and vpx_config.asm to
-# verify the two files have the same configuration.
+# verify the two files match.
 #
 # Arguments:
 #
-# h - C Header file.
-# a - ASM file.
-# p - Print the options if correct.
+# -h - C Header file.
+# -a - ASM file.
+# -p - Print the options if correct.
+# -o - Output file.
 #
 # Usage:
 #
 # # Compare the two configuration files and output the final results.
-# $ ./lint_config.sh -h vpx_config.h -a vpx_config.asm -p
-#
+# ./lint_config.sh -h vpx_config.h -a vpx_config.asm -o libvpx.config -p
 
 print_final="no"
 
-while getopts "h:a:p" flag
+while getopts "h:a:o:p" flag
 do
   if [ "$flag" = "h" ]; then
     header_file=$OPTARG
   elif [ "$flag" = "a" ]; then
     asm_file=$OPTARG
+  elif [ "$flag" = "o" ]; then
+    out_file=$OPTARG
   elif [ "$flag" = "p" ]; then
     print_final="yes"
   fi
@@ -96,4 +98,8 @@ combined_config="$(echo "$combined_config" | grep -v ARCH_X86=no)"
 combined_config="$(echo "$combined_config" | grep -v ARCH_X86_64=no)"
 
 # Print out the unique configurations.
-echo "$combined_config" | sort | uniq
+if [ -n "$out_file" ]; then
+  echo "$combined_config" | sort | uniq > $out_file
+else
+  echo "$combined_config" | sort | uniq
+fi
