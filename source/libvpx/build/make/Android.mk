@@ -99,7 +99,7 @@ $$(eval $$(call ev-build-file))
 
 $(1) : $$(_OBJ) $(2)
 	@mkdir -p $$(dir $$@)
-	@grep -w EQU $$< | tr -d '\#' | $(CONFIG_DIR)/$(ASM_CONVERSION) > $$@
+	@grep $(OFFSET_PATTERN) $$< | tr -d '\#' | $(CONFIG_DIR)/$(ASM_CONVERSION) > $$@
 endef
 
 # Use ads2gas script to convert from RVCT format to GAS format.  This passes
@@ -118,6 +118,9 @@ $(ASM_CNV_PATH)/libvpx/%.asm.s: $(LIBVPX_PATH)/%.asm $(ASM_CNV_OFFSETS_DEPEND)
 	@mkdir -p $(dir $@)
 	@$(CONFIG_DIR)/$(ASM_CONVERSION) <$< > $@
 
+# For building vpx_rtcd.h, which has a rule in libs.mk
+TGT_ISA:=$(word 1, $(subst -, ,$(TOOLCHAIN)))
+target := libs
 
 LOCAL_SRC_FILES += vpx_config.c
 
@@ -165,12 +168,15 @@ LOCAL_LDLIBS := -llog
 
 LOCAL_STATIC_LIBRARIES := cpufeatures
 
+$(foreach file, $(LOCAL_SRC_FILES), $(LOCAL_PATH)/$(file)): vpx_rtcd.h
+
 .PHONY: clean
 clean:
 	@echo "Clean: ads2gas files [$(TARGET_ARCH_ABI)]"
 	@$(RM) $(CODEC_SRCS_ASM_ADS2GAS) $(CODEC_SRCS_ASM_NEON_ADS2GAS)
 	@$(RM) $(patsubst %.asm, %.*, $(ASM_CNV_OFFSETS_DEPEND))
 	@$(RM) -r $(ASM_CNV_PATH)
+	@$(RM) $(CLEAN-OBJS)
 
 include $(BUILD_SHARED_LIBRARY)
 

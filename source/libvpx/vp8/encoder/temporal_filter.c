@@ -22,7 +22,6 @@
 #include "ratectrl.h"
 #include "vp8/common/quant_common.h"
 #include "segmentation.h"
-#include "vpx_scale/yv12extend.h"
 #include "vpx_mem/vpx_mem.h"
 #include "vp8/common/swapyv12buffer.h"
 #include "vp8/common/threading.h"
@@ -61,7 +60,7 @@ static void vp8_temporal_filter_predictors_mb_c
     }
     else
     {
-        RECON_INVOKE(&x->rtcd->recon, copy16x16)(yptr, stride, &pred[0], 16);
+        vp8_copy_mem16x16(yptr, stride, &pred[0], 16);
     }
 
     // U & V
@@ -81,8 +80,8 @@ static void vp8_temporal_filter_predictors_mb_c
     }
     else
     {
-        RECON_INVOKE(&x->rtcd->recon, copy8x8)(uptr, stride, &pred[256], 8);
-        RECON_INVOKE(&x->rtcd->recon, copy8x8)(vptr, stride, &pred[320], 8);
+        vp8_copy_mem8x8(uptr, stride, &pred[256], 8);
+        vp8_copy_mem8x8(vptr, stride, &pred[320], 8);
     }
 }
 void vp8_temporal_filter_apply_c
@@ -135,7 +134,6 @@ void vp8_temporal_filter_apply_c
 }
 
 #if ALT_REF_MC_ENABLED
-static int dummy_cost[2*mv_max+1];
 
 static int vp8_temporal_filter_find_matching_mb_c
 (
@@ -148,7 +146,6 @@ static int vp8_temporal_filter_find_matching_mb_c
 {
     MACROBLOCK *x = &cpi->mb;
     int step_param;
-    int further_steps;
     int sadpb = x->sadperbit16;
     int bestsme = INT_MAX;
 
@@ -157,16 +154,13 @@ static int vp8_temporal_filter_find_matching_mb_c
     int_mv best_ref_mv1;
     int_mv best_ref_mv1_full; /* full-pixel value of best_ref_mv1 */
 
-    int *mvcost[2]    = { &dummy_cost[mv_max+1], &dummy_cost[mv_max+1] };
-    int *mvsadcost[2] = { &dummy_cost[mv_max+1], &dummy_cost[mv_max+1] };
-
     // Save input state
     unsigned char **base_src = b->base_src;
     int src = b->src;
     int src_stride = b->src_stride;
-    unsigned char **base_pre = d->base_pre;
-    int pre = d->pre;
-    int pre_stride = d->pre_stride;
+    unsigned char *base_pre = x->e_mbd.pre.y_buffer;
+    int pre = d->offset;
+    int pre_stride = x->e_mbd.pre.y_stride;
 
     best_ref_mv1.as_int = 0;
     best_ref_mv1_full.as_mv.col = best_ref_mv1.as_mv.col >>3;
@@ -177,32 +171,27 @@ static int vp8_temporal_filter_find_matching_mb_c
     b->src_stride = arf_frame->y_stride;
     b->src = mb_offset;
 
-    d->base_pre = &frame_ptr->y_buffer;
-    d->pre_stride = frame_ptr->y_stride;
-    d->pre = mb_offset;
+    x->e_mbd.pre.y_buffer = frame_ptr->y_buffer;
+    x->e_mbd.pre.y_stride = frame_ptr->y_stride;
+    d->offset = mb_offset;
 
     // Further step/diamond searches as necessary
     if (cpi->Speed < 8)
     {
-        step_param = cpi->sf.first_step +
-                    (cpi->Speed > 5);
-        further_steps =
-            (cpi->sf.max_step_search_steps - 1)-step_param;
+        step_param = cpi->sf.first_step + (cpi->Speed > 5);
     }
     else
     {
         step_param = cpi->sf.first_step + 2;
-        further_steps = 0;
     }
 
     /*cpi->sf.search_method == HEX*/
     // TODO Check that the 16x16 vf & sdf are selected here
-    bestsme = vp8_hex_search(x, b, d,
-        &best_ref_mv1_full, &d->bmi.mv,
-        step_param,
-        sadpb,
-        &cpi->fn_ptr[BLOCK_16X16],
-        mvsadcost, mvcost, &best_ref_mv1);
+    // Ignore mv costing by sending NULL cost arrays
+    bestsme = vp8_hex_search(x, b, d, &best_ref_mv1_full, &d->bmi.mv,
+                             step_param, sadpb,
+                             &cpi->fn_ptr[BLOCK_16X16],
+                             NULL, NULL, &best_ref_mv1);
 
 #if ALT_REF_SUBPEL_ENABLED
     // Try sub-pixel MC?
@@ -210,10 +199,13 @@ static int vp8_temporal_filter_find_matching_mb_c
     {
         int distortion;
         unsigned int sse;
+        // Ignore mv costing by sending NULL cost array
         bestsme = cpi->find_fractional_mv_step(x, b, d,
-                    &d->bmi.mv, &best_ref_mv1,
-                    x->errorperbit, &cpi->fn_ptr[BLOCK_16X16],
-                    mvcost, &distortion, &sse);
+                                               &d->bmi.mv,
+                                               &best_ref_mv1,
+                                               x->errorperbit,
+                                               &cpi->fn_ptr[BLOCK_16X16],
+                                               NULL, &distortion, &sse);
     }
 #endif
 
@@ -221,9 +213,9 @@ static int vp8_temporal_filter_find_matching_mb_c
     b->base_src = base_src;
     b->src = src;
     b->src_stride = src_stride;
-    d->base_pre = base_pre;
-    d->pre = pre;
-    d->pre_stride = pre_stride;
+    x->e_mbd.pre.y_buffer = base_pre;
+    d->offset = pre;
+    x->e_mbd.pre.y_stride = pre_stride;
 
     return bestsme;
 }
@@ -291,32 +283,36 @@ static void vp8_temporal_filter_iterate_c
 
             for (frame = 0; frame < frame_count; frame++)
             {
-                int err = 0;
-
                 if (cpi->frames[frame] == NULL)
                     continue;
 
                 mbd->block[0].bmi.mv.as_mv.row = 0;
                 mbd->block[0].bmi.mv.as_mv.col = 0;
 
+                if (frame == alt_ref_index)
+                {
+                    filter_weight = 2;
+                }
+                else
+                {
+                    int err = 0;
 #if ALT_REF_MC_ENABLED
 #define THRESH_LOW   10000
 #define THRESH_HIGH  20000
-
-                // Find best match in this frame by MC
-                err = vp8_temporal_filter_find_matching_mb_c
-                      (cpi,
-                       cpi->frames[alt_ref_index],
-                       cpi->frames[frame],
-                       mb_y_offset,
-                       THRESH_LOW);
-
+                    // Find best match in this frame by MC
+                    err = vp8_temporal_filter_find_matching_mb_c
+                              (cpi,
+                               cpi->frames[alt_ref_index],
+                               cpi->frames[frame],
+                               mb_y_offset,
+                               THRESH_LOW);
 #endif
-                // Assign higher weight to matching MB if it's error
-                // score is lower. If not applying MC default behavior
-                // is to weight all MBs equal.
-                filter_weight = err<THRESH_LOW
-                                  ? 2 : err<THRESH_HIGH ? 1 : 0;
+                    // Assign higher weight to matching MB if it's error
+                    // score is lower. If not applying MC default behavior
+                    // is to weight all MBs equal.
+                    filter_weight = err<THRESH_LOW
+                                       ? 2 : err<THRESH_HIGH ? 1 : 0;
+                }
 
                 if (filter_weight != 0)
                 {
@@ -332,7 +328,7 @@ static void vp8_temporal_filter_iterate_c
                          predictor);
 
                     // Apply the filter (YUV)
-                    TEMPORAL_INVOKE(&cpi->rtcd.temporal, apply)
+                    vp8_temporal_filter_apply
                         (f->y_buffer + mb_y_offset,
                          f->y_stride,
                          predictor,
@@ -342,7 +338,7 @@ static void vp8_temporal_filter_iterate_c
                          accumulator,
                          count);
 
-                    TEMPORAL_INVOKE(&cpi->rtcd.temporal, apply)
+                    vp8_temporal_filter_apply
                         (f->u_buffer + mb_uv_offset,
                          f->uv_stride,
                          predictor + 256,
@@ -352,7 +348,7 @@ static void vp8_temporal_filter_iterate_c
                          accumulator + 256,
                          count + 256);
 
-                    TEMPORAL_INVOKE(&cpi->rtcd.temporal, apply)
+                    vp8_temporal_filter_apply
                         (f->v_buffer + mb_uv_offset,
                          f->uv_stride,
                          predictor + 320,
@@ -525,7 +521,8 @@ void vp8_temporal_filter_prepare_c
     {
         int which_buffer =  start_frame - frame;
         struct lookahead_entry* buf = vp8_lookahead_peek(cpi->lookahead,
-                                                         which_buffer);
+                                                         which_buffer,
+                                                         PEEK_FORWARD);
         cpi->frames[frames_to_blur-1-frame] = &buf->img;
     }
 

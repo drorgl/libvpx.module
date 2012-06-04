@@ -32,6 +32,7 @@ vpxenc.SRCS                 += args.c args.h y4minput.c y4minput.h
 vpxenc.SRCS                 += tools_common.c tools_common.h
 vpxenc.SRCS                 += vpx_ports/mem_ops.h
 vpxenc.SRCS                 += vpx_ports/mem_ops_aligned.h
+vpxenc.SRCS                 += vpx_ports/vpx_timer.h
 vpxenc.SRCS                 += libmkv/EbmlIDs.h
 vpxenc.SRCS                 += libmkv/EbmlWriter.c
 vpxenc.SRCS                 += libmkv/EbmlWriter.h
@@ -97,7 +98,7 @@ vp8cx_set_ref.GUID                  = C5E31F7F-96F6-48BD-BD3E-10EBF6E8057A
 vp8cx_set_ref.DESCRIPTION           = VP8 set encoder reference frame
 
 # C file is provided, not generated automatically.
-GEN_EXAMPLES-$(CONFIG_MULTI_RES_ENCODING) += vp8_multi_resolution_encoder.c
+UTILS-$(CONFIG_MULTI_RES_ENCODING) += vp8_multi_resolution_encoder.c
 vp8_multi_resolution_encoder.SRCS  \
                          += third_party/libyuv/include/libyuv/basic_types.h  \
                             third_party/libyuv/include/libyuv/cpu_id.h  \
@@ -168,12 +169,12 @@ $(eval $(if $(filter universal%,$(TOOLCHAIN)),LIPO_OBJS,BUILD_OBJS):=yes)
 # Create build/install dependencies for all examples. The common case
 # is handled here. The MSVS case is handled below.
 NOT_MSVS = $(if $(CONFIG_MSVS),,yes)
-DIST-BINS-$(NOT_MSVS)      += $(addprefix bin/,$(ALL_EXAMPLES:.c=))
-INSTALL-BINS-$(NOT_MSVS)   += $(addprefix bin/,$(UTILS:.c=))
+DIST-BINS-$(NOT_MSVS)      += $(addprefix bin/,$(ALL_EXAMPLES:.c=$(EXE_SFX)))
+INSTALL-BINS-$(NOT_MSVS)   += $(addprefix bin/,$(UTILS:.c=$(EXE_SFX)))
 DIST-SRCS-yes              += $(ALL_SRCS)
 INSTALL-SRCS-yes           += $(UTIL_SRCS)
 OBJS-$(NOT_MSVS)           += $(if $(BUILD_OBJS),$(call objs,$(ALL_SRCS)))
-BINS-$(NOT_MSVS)           += $(addprefix $(BUILD_PFX),$(ALL_EXAMPLES:.c=))
+BINS-$(NOT_MSVS)           += $(addprefix $(BUILD_PFX),$(ALL_EXAMPLES:.c=$(EXE_SFX)))
 
 
 # Instantiate linker template for all examples.
@@ -183,7 +184,7 @@ $(foreach bin,$(BINS-yes),\
     $(if $(BUILD_OBJS),$(eval $(bin):\
         $(LIB_PATH)/lib$(CODEC_LIB)$(CODEC_LIB_SUF)))\
     $(if $(BUILD_OBJS),$(eval $(call linker_template,$(bin),\
-        $(call objs,$($(notdir $(bin)).SRCS)) \
+        $(call objs,$($(notdir $(bin:$(EXE_SFX)=)).SRCS)) \
         -l$(CODEC_LIB) $(addprefix -l,$(CODEC_EXTRA_LIBS))\
         )))\
     $(if $(LIPO_OBJS),$(eval $(call lipo_bin_template,$(bin))))\

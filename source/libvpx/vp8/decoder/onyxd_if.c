@@ -17,7 +17,6 @@
 #include "onyxd_int.h"
 #include "vpx_mem/vpx_mem.h"
 #include "vp8/common/alloccommon.h"
-#include "vpx_scale/yv12extend.h"
 #include "vp8/common/loopfilter.h"
 #include "vp8/common/swapyv12buffer.h"
 #include "vp8/common/threading.h"
@@ -42,20 +41,6 @@ extern void vp8cx_init_de_quantizer(VP8D_COMP *pbi);
 static int get_free_fb (VP8_COMMON *cm);
 static void ref_cnt_fb (int *buf, int *idx, int new_idx);
 
-
-void vp8dx_initialize()
-{
-    static int init_done = 0;
-
-    if (!init_done)
-    {
-        vp8_initialize_common();
-        vp8_scale_machine_specific_config();
-        init_done = 1;
-    }
-}
-
-
 struct VP8D_COMP * vp8dx_create_decompressor(VP8D_CONFIG *oxcf)
 {
     VP8D_COMP *pbi = vpx_memalign(32, sizeof(VP8D_COMP));
@@ -73,10 +58,8 @@ struct VP8D_COMP * vp8dx_create_decompressor(VP8D_CONFIG *oxcf)
     }
 
     pbi->common.error.setjmp = 1;
-    vp8dx_initialize();
 
     vp8_create_common(&pbi->common);
-    vp8_dmachine_specific_config(pbi);
 
     pbi->common.current_video_frame = 0;
     pbi->ready_for_new_data = 1;
@@ -97,6 +80,7 @@ struct VP8D_COMP * vp8dx_create_decompressor(VP8D_CONFIG *oxcf)
 
 #if CONFIG_ERROR_CONCEALMENT
     pbi->ec_enabled = oxcf->error_concealment;
+    pbi->overlaps = NULL;
 #else
     pbi->ec_enabled = 0;
 #endif
@@ -115,6 +99,8 @@ struct VP8D_COMP * vp8dx_create_decompressor(VP8D_CONFIG *oxcf)
      * PREV_COEF context.
      */
     pbi->independent_partitions = 0;
+
+    vp8_setup_block_dptrs(&pbi->mb);
 
     return pbi;
 }
@@ -164,7 +150,7 @@ vpx_codec_err_t vp8dx_get_reference(VP8D_COMP *pbi, VP8_REFFRAME ref_frame_flag,
             "Incorrect buffer dimensions");
     }
     else
-        vp8_yv12_copy_frame_ptr(&cm->yv12_fb[ref_fb_idx], sd);
+        vp8_yv12_copy_frame(&cm->yv12_fb[ref_fb_idx], sd);
 
     return pbi->common.error.error_code;
 }
@@ -204,14 +190,14 @@ vpx_codec_err_t vp8dx_set_reference(VP8D_COMP *pbi, VP8_REFFRAME ref_frame_flag,
 
         /* Manage the reference counters and copy image. */
         ref_cnt_fb (cm->fb_idx_ref_cnt, ref_fb_ptr, free_fb);
-        vp8_yv12_copy_frame_ptr(sd, &cm->yv12_fb[*ref_fb_ptr]);
+        vp8_yv12_copy_frame(sd, &cm->yv12_fb[*ref_fb_ptr]);
     }
 
    return pbi->common.error.error_code;
 }
 
 /*For ARM NEON, d8-d15 are callee-saved registers, and need to be saved by us.*/
-#if HAVE_ARMV7
+#if HAVE_NEON
 extern void vp8_push_neon(int64_t *store);
 extern void vp8_pop_neon(int64_t *store);
 #endif
@@ -298,7 +284,7 @@ static int swap_frame_buffers (VP8_COMMON *cm)
 
 int vp8dx_receive_compressed_data(VP8D_COMP *pbi, unsigned long size, const unsigned char *source, int64_t time_stamp)
 {
-#if HAVE_ARMV7
+#if HAVE_NEON
     int64_t dx_store_reg[8];
 #endif
     VP8_COMMON *cm = &pbi->common;
@@ -317,7 +303,7 @@ int vp8dx_receive_compressed_data(VP8D_COMP *pbi, unsigned long size, const unsi
     if (pbi->num_fragments == 0)
     {
         /* New frame, reset fragment pointers and sizes */
-        vpx_memset(pbi->fragments, 0, sizeof(pbi->fragments));
+        vpx_memset((void*)pbi->fragments, 0, sizeof(pbi->fragments));
         vpx_memset(pbi->fragment_sizes, 0, sizeof(pbi->fragment_sizes));
     }
     if (pbi->input_fragments && !(source == NULL && size == 0))
@@ -368,7 +354,7 @@ int vp8dx_receive_compressed_data(VP8D_COMP *pbi, unsigned long size, const unsi
             const int prev_idx = cm->lst_fb_idx;
             cm->fb_idx_ref_cnt[prev_idx]--;
             cm->lst_fb_idx = get_free_fb(cm);
-            vp8_yv12_copy_frame_ptr(&cm->yv12_fb[prev_idx],
+            vp8_yv12_copy_frame(&cm->yv12_fb[prev_idx],
                                     &cm->yv12_fb[cm->lst_fb_idx]);
         }
         /* This is used to signal that we are missing frames.
@@ -387,9 +373,9 @@ int vp8dx_receive_compressed_data(VP8D_COMP *pbi, unsigned long size, const unsi
         return 0;
     }
 
-#if HAVE_ARMV7
+#if HAVE_NEON
 #if CONFIG_RUNTIME_CPU_DETECT
-    if (cm->rtcd.flags & HAS_NEON)
+    if (cm->cpu_caps & HAS_NEON)
 #endif
     {
         vp8_push_neon(dx_store_reg);
@@ -400,9 +386,9 @@ int vp8dx_receive_compressed_data(VP8D_COMP *pbi, unsigned long size, const unsi
 
     if (setjmp(pbi->common.error.jmp))
     {
-#if HAVE_ARMV7
+#if HAVE_NEON
 #if CONFIG_RUNTIME_CPU_DETECT
-        if (cm->rtcd.flags & HAS_NEON)
+        if (cm->cpu_caps & HAS_NEON)
 #endif
         {
             vp8_pop_neon(dx_store_reg);
@@ -429,9 +415,9 @@ int vp8dx_receive_compressed_data(VP8D_COMP *pbi, unsigned long size, const unsi
 
     if (retcode < 0)
     {
-#if HAVE_ARMV7
+#if HAVE_NEON
 #if CONFIG_RUNTIME_CPU_DETECT
-        if (cm->rtcd.flags & HAS_NEON)
+        if (cm->cpu_caps & HAS_NEON)
 #endif
         {
             vp8_pop_neon(dx_store_reg);
@@ -450,9 +436,9 @@ int vp8dx_receive_compressed_data(VP8D_COMP *pbi, unsigned long size, const unsi
     {
         if (swap_frame_buffers (cm))
         {
-#if HAVE_ARMV7
+#if HAVE_NEON
 #if CONFIG_RUNTIME_CPU_DETECT
-            if (cm->rtcd.flags & HAS_NEON)
+            if (cm->cpu_caps & HAS_NEON)
 #endif
             {
                 vp8_pop_neon(dx_store_reg);
@@ -468,9 +454,9 @@ int vp8dx_receive_compressed_data(VP8D_COMP *pbi, unsigned long size, const unsi
     {
         if (swap_frame_buffers (cm))
         {
-#if HAVE_ARMV7
+#if HAVE_NEON
 #if CONFIG_RUNTIME_CPU_DETECT
-            if (cm->rtcd.flags & HAS_NEON)
+            if (cm->cpu_caps & HAS_NEON)
 #endif
             {
                 vp8_pop_neon(dx_store_reg);
@@ -485,9 +471,9 @@ int vp8dx_receive_compressed_data(VP8D_COMP *pbi, unsigned long size, const unsi
         if(cm->filter_level)
         {
             /* Apply the loop filter if appropriate. */
-            vp8_loop_filter_frame(cm, &pbi->mb);
+            vp8_loop_filter_frame(cm, &pbi->mb, cm->frame_type);
         }
-        vp8_yv12_extend_frame_borders_ptr(cm->frame_to_show);
+        vp8_yv12_extend_frame_borders(cm->frame_to_show);
     }
 
 
@@ -558,9 +544,9 @@ int vp8dx_receive_compressed_data(VP8D_COMP *pbi, unsigned long size, const unsi
     }
 #endif
 
-#if HAVE_ARMV7
+#if HAVE_NEON
 #if CONFIG_RUNTIME_CPU_DETECT
-    if (cm->rtcd.flags & HAS_NEON)
+    if (cm->cpu_caps & HAS_NEON)
 #endif
     {
         vp8_pop_neon(dx_store_reg);

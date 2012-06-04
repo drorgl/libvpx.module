@@ -34,17 +34,23 @@ int vp8_mv_bit_cost(int_mv *mv, int_mv *ref, int *mvcost[2], int Weight)
 
 static int mv_err_cost(int_mv *mv, int_mv *ref, int *mvcost[2], int error_per_bit)
 {
-    return ((mvcost[0][(mv->as_mv.row - ref->as_mv.row) >> 1] +
-        mvcost[1][(mv->as_mv.col - ref->as_mv.col) >> 1])
-        * error_per_bit + 128) >> 8;
+    // Ignore mv costing if mvcost is NULL
+    if (mvcost)
+        return ((mvcost[0][(mv->as_mv.row - ref->as_mv.row) >> 1] +
+                 mvcost[1][(mv->as_mv.col - ref->as_mv.col) >> 1])
+                 * error_per_bit + 128) >> 8;
+    return 0;
 }
 
 static int mvsad_err_cost(int_mv *mv, int_mv *ref, int *mvsadcost[2], int error_per_bit)
 {
-    /* Calculate sad error cost on full pixel basis. */
-    return ((mvsadcost[0][(mv->as_mv.row - ref->as_mv.row)] +
-        mvsadcost[1][(mv->as_mv.col - ref->as_mv.col)])
-        * error_per_bit + 128) >> 8;
+    // Calculate sad error cost on full pixel basis.
+    // Ignore mv costing if mvsadcost is NULL
+    if (mvsadcost)
+        return ((mvsadcost[0][(mv->as_mv.row - ref->as_mv.row)] +
+                 mvsadcost[1][(mv->as_mv.col - ref->as_mv.col)])
+                * error_per_bit + 128) >> 8;
+    return 0;
 }
 
 void vp8_init_dsmotion_compensation(MACROBLOCK *x, int stride)
@@ -176,7 +182,7 @@ void vp8_init3smotion_compensation(MACROBLOCK *x, int stride)
  * 32 cols area that is enough for 16x16 macroblock. Later, for SPLITMV, we
  * could reduce the area.
  */
-#define MVC(r,c) (((mvcost[0][(r)-rr] + mvcost[1][(c) - rc]) * error_per_bit + 128 )>>8 ) // estimated cost of a motion vector (r,c)
+#define MVC(r,c) (mvcost ? ((mvcost[0][(r)-rr] + mvcost[1][(c) - rc]) * error_per_bit + 128 )>>8 : 0) // estimated cost of a motion vector (r,c)
 #define PRE(r,c) (y + (((r)>>2) * y_stride + ((c)>>2) -(offset))) // pointer to predictor base of a motionvector
 #define SP(x) (((x)&3)<<1) // convert motion vector component to offset for svf calc
 #define DIST(r,c) vfp->svf( PRE(r,c), y_stride, SP(c),SP(r), z,b->src_stride,&sse) // returns subpixel variance error function.
@@ -211,10 +217,13 @@ int vp8_find_best_sub_pixel_step_iteratively(MACROBLOCK *x, BLOCK *b, BLOCKD *d,
 
     int y_stride;
     int offset;
+    int pre_stride = x->e_mbd.pre.y_stride;
+    unsigned char *base_pre = x->e_mbd.pre.y_buffer;
+
 
 #if ARCH_X86 || ARCH_X86_64
     MACROBLOCKD *xd = &x->e_mbd;
-    unsigned char *y0 = *(d->base_pre) + d->pre + (bestmv->as_mv.row) * d->pre_stride + bestmv->as_mv.col;
+    unsigned char *y0 = base_pre + d->offset + (bestmv->as_mv.row) * pre_stride + bestmv->as_mv.col;
     unsigned char *y;
     int buf_r1, buf_r2, buf_c1, buf_c2;
 
@@ -226,11 +235,11 @@ int vp8_find_best_sub_pixel_step_iteratively(MACROBLOCK *x, BLOCK *b, BLOCKD *d,
     y_stride = 32;
 
     /* Copy to intermediate buffer before searching. */
-    vfp->copymem(y0 - buf_c1 - d->pre_stride*buf_r1, d->pre_stride, xd->y_buf, y_stride, 16+buf_r1+buf_r2);
+    vfp->copymem(y0 - buf_c1 - pre_stride*buf_r1, pre_stride, xd->y_buf, y_stride, 16+buf_r1+buf_r2);
     y = xd->y_buf + y_stride*buf_r1 +buf_c1;
 #else
-    unsigned char *y = *(d->base_pre) + d->pre + (bestmv->as_mv.row) * d->pre_stride + bestmv->as_mv.col;
-    y_stride = d->pre_stride;
+    unsigned char *y = base_pre + d->offset + (bestmv->as_mv.row) * pre_stride + bestmv->as_mv.col;
+    y_stride = pre_stride;
 #endif
 
     offset = (bestmv->as_mv.row) * y_stride + bestmv->as_mv.col;
@@ -347,19 +356,21 @@ int vp8_find_best_sub_pixel_step(MACROBLOCK *x, BLOCK *b, BLOCKD *d,
     int whichdir ;
     int thismse;
     int y_stride;
+    int pre_stride = x->e_mbd.pre.y_stride;
+    unsigned char *base_pre = x->e_mbd.pre.y_buffer;
 
 #if ARCH_X86 || ARCH_X86_64
     MACROBLOCKD *xd = &x->e_mbd;
-    unsigned char *y0 = *(d->base_pre) + d->pre + (bestmv->as_mv.row) * d->pre_stride + bestmv->as_mv.col;
+    unsigned char *y0 = base_pre + d->offset + (bestmv->as_mv.row) * pre_stride + bestmv->as_mv.col;
     unsigned char *y;
 
     y_stride = 32;
     /* Copy 18 rows x 32 cols area to intermediate buffer before searching. */
-     vfp->copymem(y0 - 1 - d->pre_stride, d->pre_stride, xd->y_buf, y_stride, 18);
+     vfp->copymem(y0 - 1 - pre_stride, pre_stride, xd->y_buf, y_stride, 18);
      y = xd->y_buf + y_stride + 1;
 #else
-     unsigned char *y = *(d->base_pre) + d->pre + (bestmv->as_mv.row) * d->pre_stride + bestmv->as_mv.col;
-     y_stride = d->pre_stride;
+     unsigned char *y = base_pre + d->offset + (bestmv->as_mv.row) * pre_stride + bestmv->as_mv.col;
+     y_stride = pre_stride;
 #endif
 
     // central mv
@@ -662,19 +673,21 @@ int vp8_find_best_half_pixel_step(MACROBLOCK *x, BLOCK *b, BLOCKD *d,
     int whichdir ;
     int thismse;
     int y_stride;
+    int pre_stride = x->e_mbd.pre.y_stride;
+    unsigned char *base_pre = x->e_mbd.pre.y_buffer;
 
 #if ARCH_X86 || ARCH_X86_64
     MACROBLOCKD *xd = &x->e_mbd;
-    unsigned char *y0 = *(d->base_pre) + d->pre + (bestmv->as_mv.row) * d->pre_stride + bestmv->as_mv.col;
+    unsigned char *y0 = base_pre + d->offset + (bestmv->as_mv.row) * pre_stride + bestmv->as_mv.col;
     unsigned char *y;
 
     y_stride = 32;
     /* Copy 18 rows x 32 cols area to intermediate buffer before searching. */
-    vfp->copymem(y0 - 1 - d->pre_stride, d->pre_stride, xd->y_buf, y_stride, 18);
+    vfp->copymem(y0 - 1 - pre_stride, pre_stride, xd->y_buf, y_stride, 18);
     y = xd->y_buf + y_stride + 1;
 #else
-    unsigned char *y = *(d->base_pre) + d->pre + (bestmv->as_mv.row) * d->pre_stride + bestmv->as_mv.col;
-    y_stride = d->pre_stride;
+    unsigned char *y = base_pre + d->offset + (bestmv->as_mv.row) * pre_stride + bestmv->as_mv.col;
+    y_stride = pre_stride;
 #endif
 
     // central mv
@@ -842,7 +855,10 @@ int vp8_hex_search
 
     unsigned char *what = (*(b->base_src) + b->src);
     int what_stride = b->src_stride;
-    int in_what_stride = d->pre_stride;
+    int pre_stride = x->e_mbd.pre.y_stride;
+    unsigned char *base_pre = x->e_mbd.pre.y_buffer;
+
+    int in_what_stride = pre_stride;
     int br, bc;
     int_mv this_mv;
     unsigned int bestsad = 0x7fffffff;
@@ -865,8 +881,8 @@ int vp8_hex_search
     bc = ref_mv->as_mv.col;
 
     // Work out the start point for the search
-    base_offset = (unsigned char *)(*(d->base_pre) + d->pre);
-    this_offset = base_offset + (br * (d->pre_stride)) + bc;
+    base_offset = (unsigned char *)(base_pre + d->offset);
+    this_offset = base_offset + (br * (pre_stride)) + bc;
     this_mv.as_mv.row = br;
     this_mv.as_mv.col = bc;
     bestsad = vfp->sdf( what, what_stride, this_offset,
@@ -1009,7 +1025,7 @@ cal_neighbors:
 #undef CHECK_POINT
 #undef CHECK_BETTER
 
-int vp8_diamond_search_sad
+int vp8_diamond_search_sad_c
 (
     MACROBLOCK *x,
     BLOCK *b,
@@ -1029,7 +1045,9 @@ int vp8_diamond_search_sad
     unsigned char *what = (*(b->base_src) + b->src);
     int what_stride = b->src_stride;
     unsigned char *in_what;
-    int in_what_stride = d->pre_stride;
+    int pre_stride = x->e_mbd.pre.y_stride;
+    unsigned char *base_pre = x->e_mbd.pre.y_buffer;
+    int in_what_stride = pre_stride;
     unsigned char *best_address;
 
     int tot_steps;
@@ -1061,7 +1079,7 @@ int vp8_diamond_search_sad
     best_mv->as_mv.col = ref_col;
 
     // Work out the start point for the search
-    in_what = (unsigned char *)(*(d->base_pre) + d->pre + (ref_row * (d->pre_stride)) + ref_col);
+    in_what = (unsigned char *)(base_pre + d->offset + (ref_row * pre_stride) + ref_col);
     best_address = in_what;
 
     // Check the starting position
@@ -1150,7 +1168,9 @@ int vp8_diamond_search_sadx4
     unsigned char *what = (*(b->base_src) + b->src);
     int what_stride = b->src_stride;
     unsigned char *in_what;
-    int in_what_stride = d->pre_stride;
+    int pre_stride = x->e_mbd.pre.y_stride;
+    unsigned char *base_pre = x->e_mbd.pre.y_buffer;
+    int in_what_stride = pre_stride;
     unsigned char *best_address;
 
     int tot_steps;
@@ -1182,7 +1202,7 @@ int vp8_diamond_search_sadx4
     best_mv->as_mv.col = ref_col;
 
     // Work out the start point for the search
-    in_what = (unsigned char *)(*(d->base_pre) + d->pre + (ref_row * (d->pre_stride)) + ref_col);
+    in_what = (unsigned char *)(base_pre + d->offset + (ref_row * pre_stride) + ref_col);
     best_address = in_what;
 
     // Check the starting position
@@ -1292,7 +1312,7 @@ int vp8_diamond_search_sadx4
         + mv_err_cost(&this_mv, center_mv, mvcost, x->errorperbit);
 }
 
-int vp8_full_search_sad(MACROBLOCK *x, BLOCK *b, BLOCKD *d, int_mv *ref_mv,
+int vp8_full_search_sad_c(MACROBLOCK *x, BLOCK *b, BLOCKD *d, int_mv *ref_mv,
                         int sad_per_bit, int distance,
                         vp8_variance_fn_ptr_t *fn_ptr, int *mvcost[2],
                         int_mv *center_mv)
@@ -1300,8 +1320,10 @@ int vp8_full_search_sad(MACROBLOCK *x, BLOCK *b, BLOCKD *d, int_mv *ref_mv,
     unsigned char *what = (*(b->base_src) + b->src);
     int what_stride = b->src_stride;
     unsigned char *in_what;
-    int in_what_stride = d->pre_stride;
-    int mv_stride = d->pre_stride;
+    int pre_stride = x->e_mbd.pre.y_stride;
+    unsigned char *base_pre = x->e_mbd.pre.y_buffer;
+    int in_what_stride = pre_stride;
+    int mv_stride = pre_stride;
     unsigned char *bestaddress;
     int_mv *best_mv = &d->bmi.mv;
     int_mv this_mv;
@@ -1325,8 +1347,8 @@ int vp8_full_search_sad(MACROBLOCK *x, BLOCK *b, BLOCKD *d, int_mv *ref_mv,
     fcenter_mv.as_mv.col = center_mv->as_mv.col >> 3;
 
     // Work out the mid point for the search
-    in_what = *(d->base_pre) + d->pre;
-    bestaddress = in_what + (ref_row * d->pre_stride) + ref_col;
+    in_what = base_pre + d->offset;
+    bestaddress = in_what + (ref_row * pre_stride) + ref_col;
 
     best_mv->as_mv.row = ref_row;
     best_mv->as_mv.col = ref_col;
@@ -1392,8 +1414,10 @@ int vp8_full_search_sadx3(MACROBLOCK *x, BLOCK *b, BLOCKD *d, int_mv *ref_mv,
     unsigned char *what = (*(b->base_src) + b->src);
     int what_stride = b->src_stride;
     unsigned char *in_what;
-    int in_what_stride = d->pre_stride;
-    int mv_stride = d->pre_stride;
+    int pre_stride = x->e_mbd.pre.y_stride;
+    unsigned char *base_pre = x->e_mbd.pre.y_buffer;
+    int in_what_stride = pre_stride;
+    int mv_stride = pre_stride;
     unsigned char *bestaddress;
     int_mv *best_mv = &d->bmi.mv;
     int_mv this_mv;
@@ -1419,8 +1443,8 @@ int vp8_full_search_sadx3(MACROBLOCK *x, BLOCK *b, BLOCKD *d, int_mv *ref_mv,
     fcenter_mv.as_mv.col = center_mv->as_mv.col >> 3;
 
     // Work out the mid point for the search
-    in_what = *(d->base_pre) + d->pre;
-    bestaddress = in_what + (ref_row * d->pre_stride) + ref_col;
+    in_what = base_pre + d->offset;
+    bestaddress = in_what + (ref_row * pre_stride) + ref_col;
 
     best_mv->as_mv.row = ref_row;
     best_mv->as_mv.col = ref_col;
@@ -1521,9 +1545,11 @@ int vp8_full_search_sadx8(MACROBLOCK *x, BLOCK *b, BLOCKD *d, int_mv *ref_mv,
 {
     unsigned char *what = (*(b->base_src) + b->src);
     int what_stride = b->src_stride;
+    int pre_stride = x->e_mbd.pre.y_stride;
+    unsigned char *base_pre = x->e_mbd.pre.y_buffer;
     unsigned char *in_what;
-    int in_what_stride = d->pre_stride;
-    int mv_stride = d->pre_stride;
+    int in_what_stride = pre_stride;
+    int mv_stride = pre_stride;
     unsigned char *bestaddress;
     int_mv *best_mv = &d->bmi.mv;
     int_mv this_mv;
@@ -1550,8 +1576,8 @@ int vp8_full_search_sadx8(MACROBLOCK *x, BLOCK *b, BLOCKD *d, int_mv *ref_mv,
     fcenter_mv.as_mv.col = center_mv->as_mv.col >> 3;
 
     // Work out the mid point for the search
-    in_what = *(d->base_pre) + d->pre;
-    bestaddress = in_what + (ref_row * d->pre_stride) + ref_col;
+    in_what = base_pre + d->offset;
+    bestaddress = in_what + (ref_row * pre_stride) + ref_col;
 
     best_mv->as_mv.row = ref_row;
     best_mv->as_mv.col = ref_col;
@@ -1674,7 +1700,7 @@ int vp8_full_search_sadx8(MACROBLOCK *x, BLOCK *b, BLOCKD *d, int_mv *ref_mv,
         return INT_MAX;
 }
 
-int vp8_refining_search_sad(MACROBLOCK *x, BLOCK *b, BLOCKD *d, int_mv *ref_mv,
+int vp8_refining_search_sad_c(MACROBLOCK *x, BLOCK *b, BLOCKD *d, int_mv *ref_mv,
                             int error_per_bit, int search_range,
                             vp8_variance_fn_ptr_t *fn_ptr, int *mvcost[2],
                             int_mv *center_mv)
@@ -1684,10 +1710,12 @@ int vp8_refining_search_sad(MACROBLOCK *x, BLOCK *b, BLOCKD *d, int_mv *ref_mv,
     short this_row_offset, this_col_offset;
 
     int what_stride = b->src_stride;
-    int in_what_stride = d->pre_stride;
+    int pre_stride = x->e_mbd.pre.y_stride;
+    unsigned char *base_pre = x->e_mbd.pre.y_buffer;
+    int in_what_stride = pre_stride;
     unsigned char *what = (*(b->base_src) + b->src);
-    unsigned char *best_address = (unsigned char *)(*(d->base_pre) + d->pre +
-        (ref_mv->as_mv.row * (d->pre_stride)) + ref_mv->as_mv.col);
+    unsigned char *best_address = (unsigned char *)(base_pre + d->offset +
+        (ref_mv->as_mv.row * pre_stride) + ref_mv->as_mv.col);
     unsigned char *check_here;
     unsigned int thissad;
     int_mv this_mv;
@@ -1761,10 +1789,12 @@ int vp8_refining_search_sadx4(MACROBLOCK *x, BLOCK *b, BLOCKD *d,
     short this_row_offset, this_col_offset;
 
     int what_stride = b->src_stride;
-    int in_what_stride = d->pre_stride;
+    int pre_stride = x->e_mbd.pre.y_stride;
+    unsigned char *base_pre = x->e_mbd.pre.y_buffer;
+    int in_what_stride = pre_stride;
     unsigned char *what = (*(b->base_src) + b->src);
-    unsigned char *best_address = (unsigned char *)(*(d->base_pre) + d->pre +
-        (ref_mv->as_mv.row * (d->pre_stride)) + ref_mv->as_mv.col);
+    unsigned char *best_address = (unsigned char *)(base_pre + d->offset +
+        (ref_mv->as_mv.row * pre_stride) + ref_mv->as_mv.col);
     unsigned char *check_here;
     unsigned int thissad;
     int_mv this_mv;

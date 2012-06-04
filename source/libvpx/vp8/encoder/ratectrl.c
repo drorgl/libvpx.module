@@ -235,11 +235,9 @@ void vp8_save_coding_context(VP8_COMP *cpi)
     cc->frames_since_golden       = cpi->common.frames_since_golden;
 
     vp8_copy(cc->mvc,      cpi->common.fc.mvc);
-    vp8_copy(cc->mvcosts,  cpi->mb.mvcosts);
+    vp8_copy(cc->mvcosts,  cpi->rd_costs.mvcosts);
 
-    vp8_copy(cc->kf_ymode_prob,   cpi->common.kf_ymode_prob);
     vp8_copy(cc->ymode_prob,   cpi->common.fc.ymode_prob);
-    vp8_copy(cc->kf_uv_mode_prob,  cpi->common.kf_uv_mode_prob);
     vp8_copy(cc->uv_mode_prob,  cpi->common.fc.uv_mode_prob);
 
     vp8_copy(cc->ymode_count, cpi->ymode_count);
@@ -274,11 +272,9 @@ void vp8_restore_coding_context(VP8_COMP *cpi)
 
     vp8_copy(cpi->common.fc.mvc, cc->mvc);
 
-    vp8_copy(cpi->mb.mvcosts, cc->mvcosts);
+    vp8_copy(cpi->rd_costs.mvcosts, cc->mvcosts);
 
-    vp8_copy(cpi->common.kf_ymode_prob,   cc->kf_ymode_prob);
     vp8_copy(cpi->common.fc.ymode_prob,   cc->ymode_prob);
-    vp8_copy(cpi->common.kf_uv_mode_prob,  cc->kf_uv_mode_prob);
     vp8_copy(cpi->common.fc.uv_mode_prob,  cc->uv_mode_prob);
 
     vp8_copy(cpi->ymode_count, cc->ymode_count);
@@ -304,9 +300,6 @@ void vp8_setup_key_frame(VP8_COMP *cpi)
     // Setup for Key frame:
 
     vp8_default_coef_probs(& cpi->common);
-
-
-    vp8_kf_default_bmode_probs(cpi->common.kf_bmode_prob);
 
     vpx_memcpy(cpi->common.fc.mvc, vp8_default_mv_context, sizeof(vp8_default_mv_context));
     {
@@ -357,7 +350,7 @@ static void calc_iframe_target_size(VP8_COMP *cpi)
 {
     // boost defaults to half second
     int kf_boost;
-    int target;
+    unsigned int target;
 
     // Clear down mmx registers to allow floating point in what follows
     vp8_clear_system_state();  //__asm emms;
@@ -392,10 +385,17 @@ static void calc_iframe_target_size(VP8_COMP *cpi)
         int Q = (cpi->common.frame_flags & FRAMEFLAGS_KEY)
                 ? cpi->avg_frame_qindex : cpi->ni_av_qi;
 
-        // Boost depends somewhat on frame rate
-        kf_boost = (int)(2 * cpi->output_frame_rate - 16);
+        int initial_boost = 24; // Corresponds to: |2.5 * per_frame_bandwidth|
+        // Boost depends somewhat on frame rate: only used for 1 layer case.
+        if (cpi->oxcf.number_of_layers == 1) {
+          kf_boost = MAX(initial_boost, (int)(2 * cpi->output_frame_rate - 16));
+        }
+        else {
+          // Initial factor: set target size to: |2.5 * per_frame_bandwidth|.
+          kf_boost = initial_boost;
+        }
 
-        // adjustment up based on q
+        // adjustment up based on q: this factor ranges from ~1.2 to 2.2.
         kf_boost = kf_boost * kf_boost_qadjustment[Q] / 100;
 
         // frame separation adjustment ( down)
@@ -403,6 +403,7 @@ static void calc_iframe_target_size(VP8_COMP *cpi)
             kf_boost = (int)(kf_boost
                        * cpi->frames_since_key / (cpi->output_frame_rate / 2));
 
+        // Minimal target size is |2* per_frame_bandwidth|.
         if (kf_boost < 16)
             kf_boost = 16;
 
@@ -1525,6 +1526,15 @@ void vp8_compute_frame_size_bounds(VP8_COMP *cpi, int *frame_under_shoot_limit, 
                 }
             }
         }
+
+        // For very small rate targets where the fractional adjustment
+        // (eg * 7/8) may be tiny make sure there is at least a minimum
+        // range.
+        *frame_over_shoot_limit += 200;
+        *frame_under_shoot_limit -= 200;
+        if ( *frame_under_shoot_limit < 0 )
+            *frame_under_shoot_limit = 0;
+
     }
 }
 
