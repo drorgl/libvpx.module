@@ -166,17 +166,6 @@ is_in(){
 
 add_cflags() {
     CFLAGS="${CFLAGS} $@"
-    CXXFLAGS="${CXXFLAGS} $@"
-}
-
-
-add_cflags_only() {
-    CFLAGS="${CFLAGS} $@"
-}
-
-
-add_cxxflags_only() {
-    CXXFLAGS="${CXXFLAGS} $@"
 }
 
 
@@ -288,13 +277,6 @@ check_cc() {
     check_cmd ${CC} ${CFLAGS} "$@" -c -o ${TMP_O} ${TMP_C}
 }
 
-check_cxx() {
-    log check_cxx "$@"
-    cat >${TMP_C}
-    log_file ${TMP_C}
-    check_cmd ${CXX} ${CXXFLAGS} "$@" -c -o ${TMP_O} ${TMP_C}
-}
-
 check_cpp() {
     log check_cpp "$@"
     cat > ${TMP_C}
@@ -328,25 +310,8 @@ int x;
 EOF
 }
 
-check_cxxflags() {
-    log check_cxxflags "$@"
-
-    # Catch CFLAGS that trigger CXX warnings
-    case "$CXX" in
-      *g++*) check_cxx -Werror "$@" <<EOF
-int x;
-EOF
-      ;;
-      *) check_cxx "$@" <<EOF
-int x;
-EOF
-      ;;
-    esac
-}
-
 check_add_cflags() {
-    check_cxxflags "$@" && add_cxxflags_only "$@"
-    check_cflags "$@" && add_cflags_only "$@"
+    check_cflags "$@" && add_cflags "$@"
 }
 
 check_add_asflags() {
@@ -402,9 +367,7 @@ true
 
 write_common_target_config_mk() {
     local CC=${CC}
-    local CXX=${CXX}
     enabled ccache && CC="ccache ${CC}"
-    enabled ccache && CXX="ccache ${CXX}"
     print_webm_license $1 "##" ""
 
     cat >> $1 << EOF
@@ -416,7 +379,6 @@ TOOLCHAIN=${toolchain}
 ASM_CONVERSION=${asm_conversion_cmd:-${source_path}/build/make/ads2gas.pl}
 
 CC=${CC}
-CXX=${CXX}
 AR=${AR}
 LD=${LD}
 AS=${AS}
@@ -424,7 +386,6 @@ STRIP=${STRIP}
 NM=${NM}
 
 CFLAGS  = ${CFLAGS}
-CXXFLAGS  = ${CXXFLAGS}
 ARFLAGS = -rus\$(if \$(quiet),c,v)
 LDFLAGS = ${LDFLAGS}
 ASFLAGS = ${ASFLAGS}
@@ -577,7 +538,6 @@ post_process_cmdline() {
 
 setup_gnu_toolchain() {
         CC=${CC:-${CROSS}gcc}
-        CXX=${CXX:-${CROSS}g++}
         AR=${AR:-${CROSS}ar}
         LD=${LD:-${CROSS}${link_with_cc:-ld}}
         AS=${AS:-${CROSS}as}
@@ -589,7 +549,7 @@ setup_gnu_toolchain() {
 
 process_common_toolchain() {
     if [ -z "$toolchain" ]; then
-        gcctarget="${CHOST:-$(gcc -dumpmachine 2> /dev/null)}"
+        gcctarget="$(gcc -dumpmachine 2> /dev/null)"
 
         # detect tgt_isa
         case "$gcctarget" in
@@ -832,7 +792,6 @@ process_common_toolchain() {
                                -name "arm-linux-androideabi-gcc*" -print -quit`
             TOOLCHAIN_PATH=${COMPILER_LOCATION%/*}/arm-linux-androideabi-
             CC=${TOOLCHAIN_PATH}gcc
-            CXX=${TOOLCHAIN_PATH}g++
             AR=${TOOLCHAIN_PATH}ar
             LD=${TOOLCHAIN_PATH}gcc
             AS=${TOOLCHAIN_PATH}as
@@ -868,7 +827,6 @@ process_common_toolchain() {
                 SDK_PATH=${sdk_path}
             fi
             TOOLCHAIN_PATH=${SDK_PATH}/usr/bin
-            CXX=${TOOLCHAIN_PATH}/g++
             CC=${TOOLCHAIN_PATH}/gcc
             AR=${TOOLCHAIN_PATH}/ar
             LD=${TOOLCHAIN_PATH}/arm-apple-darwin10-llvm-gcc-4.2
@@ -980,7 +938,6 @@ process_common_toolchain() {
                 ;;
             solaris*)
                 CC=${CC:-${CROSS}gcc}
-                CXX=${CXX:-${CROSS}g++}
                 LD=${LD:-${CROSS}gcc}
                 CROSS=${CROSS:-g}
                 ;;

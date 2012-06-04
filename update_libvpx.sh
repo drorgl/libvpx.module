@@ -11,7 +11,7 @@
 
 # Usage:
 #
-# $ ./update_libvpx.sh
+# $ ./update_libvpx.sh [branch]
 
 # Tools required for running this tool:
 #
@@ -25,6 +25,10 @@ GIT_REPO="http://git.chromium.org/webm/libvpx.git"
 GIT_BRANCH="master"
 LIBVPX_SRC_DIR="source/libvpx"
 BASE_DIR=`pwd`
+
+if [ -n "$1" ]; then
+  GIT_BRANCH="$1"
+fi
 
 cd $LIBVPX_SRC_DIR
 

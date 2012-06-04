@@ -227,7 +227,7 @@ static vpx_codec_err_t validate_config(vpx_codec_alg_priv_t      *ctx,
 
     if (cfg->ts_number_layers > 1)
     {
-        unsigned int i;
+        int i;
         RANGE_CHECK_HI(cfg, ts_periodicity, 16);
 
         for (i=1; i<cfg->ts_number_layers; i++)
@@ -447,7 +447,7 @@ static vpx_codec_err_t vp8e_set_config(vpx_codec_alg_priv_t       *ctx,
     vpx_codec_err_t res;
 
     if (((cfg->g_w != ctx->cfg.g_w) || (cfg->g_h != ctx->cfg.g_h))
-        && (cfg->g_lag_in_frames > 1 || cfg->g_pass != VPX_RC_ONE_PASS))
+        && cfg->g_lag_in_frames > 1)
         ERROR("Cannot change width or height after initialization");
 
     /* Prevent increasing lag_in_frames. This check is stricter than it needs
@@ -542,27 +542,19 @@ static vpx_codec_err_t vp8e_mr_alloc_mem(const vpx_codec_enc_cfg_t *cfg,
     vpx_codec_err_t res = 0;
 
 #if CONFIG_MULTI_RES_ENCODING
-    LOWER_RES_FRAME_INFO *shared_mem_loc;
     int mb_rows = ((cfg->g_w + 15) >>4);
     int mb_cols = ((cfg->g_h + 15) >>4);
 
-    shared_mem_loc = calloc(1, sizeof(LOWER_RES_FRAME_INFO));
-    if(!shared_mem_loc)
+    *mem_loc = calloc(mb_rows*mb_cols, sizeof(LOWER_RES_INFO));
+    if(!(*mem_loc))
     {
-        res = VPX_CODEC_MEM_ERROR;
-    }
-
-    shared_mem_loc->mb_info = calloc(mb_rows*mb_cols, sizeof(LOWER_RES_MB_INFO));
-    if(!(shared_mem_loc->mb_info))
-    {
+        free(*mem_loc);
         res = VPX_CODEC_MEM_ERROR;
     }
     else
-    {
-        *mem_loc = (void *)shared_mem_loc;
         res = VPX_CODEC_OK;
-    }
 #endif
+
     return res;
 }
 
@@ -655,11 +647,7 @@ static vpx_codec_err_t vp8e_destroy(vpx_codec_alg_priv_t *ctx)
 #if CONFIG_MULTI_RES_ENCODING
     /* Free multi-encoder shared memory */
     if (ctx->oxcf.mr_total_resolutions > 0 && (ctx->oxcf.mr_encoder_id == ctx->oxcf.mr_total_resolutions-1))
-    {
-        LOWER_RES_FRAME_INFO *shared_mem_loc = (LOWER_RES_FRAME_INFO *)ctx->oxcf.mr_low_res_mode_info;
-        free(shared_mem_loc->mb_info);
         free(ctx->oxcf.mr_low_res_mode_info);
-    }
 #endif
 
     free(ctx->cx_data);
@@ -741,9 +729,6 @@ static vpx_codec_err_t vp8e_encode(vpx_codec_alg_priv_t  *ctx,
                                    unsigned long          deadline)
 {
     vpx_codec_err_t res = VPX_CODEC_OK;
-
-    if (!ctx->cfg.rc_target_bitrate)
-        return res;
 
     if (!ctx->cfg.rc_target_bitrate)
         return res;

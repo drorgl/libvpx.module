@@ -1610,6 +1610,11 @@ void vp8_change_config(VP8_COMP *cpi, VP8_CONFIG *oxcf)
     // Only allow dropped frames in buffered mode
     cpi->drop_frames_allowed = cpi->oxcf.allow_df && cpi->buffered_mode;
 
+    if (!cm->use_bilinear_mc_filter)
+        cm->mcomp_filter_type = SIXTAP;
+    else
+        cm->mcomp_filter_type = BILINEAR;
+
     cpi->target_bandwidth = cpi->oxcf.target_bandwidth;
 
 
@@ -1650,6 +1655,7 @@ void vp8_change_config(VP8_COMP *cpi, VP8_CONFIG *oxcf)
           cm->yv12_fb[cm->lst_fb_idx].y_height ||
         cm->yv12_fb[cm->lst_fb_idx].y_width == 0)
     {
+        dealloc_raw_frame_buffers(cpi);
         alloc_raw_frame_buffers(cpi);
         vp8_alloc_compressor_data(cpi);
     }
@@ -1898,6 +1904,13 @@ struct VP8_COMP* vp8_create_compressor(VP8_CONFIG *oxcf)
     cpi->gf_rate_correction_factor  = 1.0;
     cpi->twopass.est_max_qcorrection_factor  = 1.0;
 
+    cpi->mb.mvcost[0] = &cpi->mb.mvcosts[0][mv_max+1];
+    cpi->mb.mvcost[1] = &cpi->mb.mvcosts[1][mv_max+1];
+    cpi->mb.mvsadcost[0] = &cpi->mb.mvsadcosts[0][mvfp_max+1];
+    cpi->mb.mvsadcost[1] = &cpi->mb.mvsadcosts[1][mvfp_max+1];
+
+    cal_mvsadcosts(cpi->mb.mvsadcost);
+
     for (i = 0; i < KEY_FRAME_CONTEXT; i++)
     {
         cpi->prior_key_frame_distance[i] = (int)cpi->output_frame_rate;
@@ -2031,29 +2044,13 @@ struct VP8_COMP* vp8_create_compressor(VP8_CONFIG *oxcf)
     cpi->common.error.setjmp = 0;
 
 #if CONFIG_MULTI_RES_ENCODING
-
     /* Calculate # of MBs in a row in lower-resolution level image. */
     if (cpi->oxcf.mr_encoder_id > 0)
         vp8_cal_low_res_mb_cols(cpi);
-
 #endif
 
-    /* setup RD costs to MACROBLOCK struct */
-
-    cpi->mb.mvcost[0] = &cpi->rd_costs.mvcosts[0][mv_max+1];
-    cpi->mb.mvcost[1] = &cpi->rd_costs.mvcosts[1][mv_max+1];
-    cpi->mb.mvsadcost[0] = &cpi->rd_costs.mvsadcosts[0][mvfp_max+1];
-    cpi->mb.mvsadcost[1] = &cpi->rd_costs.mvsadcosts[1][mvfp_max+1];
-
-    cal_mvsadcosts(cpi->mb.mvsadcost);
-
-    cpi->mb.mbmode_cost = cpi->rd_costs.mbmode_cost;
-    cpi->mb.intra_uv_mode_cost = cpi->rd_costs.intra_uv_mode_cost;
-    cpi->mb.bmode_costs = cpi->rd_costs.bmode_costs;
-    cpi->mb.inter_bmode_costs = cpi->rd_costs.inter_bmode_costs;
-    cpi->mb.token_costs = cpi->rd_costs.token_costs;
-
     return  cpi;
+
 }
 
 
@@ -3311,17 +3308,6 @@ static void encode_frame_to_data_rate
         // Key frame from VFW/auto-keyframe/first frame
         cm->frame_type = KEY_FRAME;
     }
-
-#if CONFIG_MULTI_RES_ENCODING
-    /* In multi-resolution encoding, frame_type is decided by lowest-resolution
-     * encoder. Same frame_type is adopted while encoding at other resolution.
-     */
-    if (cpi->oxcf.mr_encoder_id)
-    {
-        cm->frame_type =
-            ((LOWER_RES_FRAME_INFO*)cpi->oxcf.mr_low_res_mode_info)->frame_type;
-    }
-#endif
 
     // Set default state for segment and mode based loop filter update flags
     cpi->mb.e_mbd.update_mb_segmentation_map = 0;
@@ -4923,7 +4909,7 @@ int vp8_get_compressed_data(VP8_COMP *cpi, unsigned int *frame_flags, unsigned l
 
             if (cpi->oxcf.number_of_layers > 1)
             {
-                unsigned int i;
+                int i;
 
                 // Update frame rates for each layer
                 for (i=0; i<cpi->oxcf.number_of_layers; i++)

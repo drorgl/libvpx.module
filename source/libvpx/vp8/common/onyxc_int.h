@@ -59,6 +59,12 @@ typedef enum
     RECON_CLAMP_NOTREQUIRED     = 1
 } CLAMP_TYPE;
 
+typedef enum
+{
+    SIXTAP   = 0,
+    BILINEAR = 1
+} INTERPOLATIONFILTERTYPE;
+
 typedef struct VP8Common
 
 {
@@ -124,11 +130,11 @@ typedef struct VP8Common
 
     MODE_INFO *mip; /* Base of allocated array */
     MODE_INFO *mi;  /* Corresponds to upper left visible macroblock */
-#if CONFIG_ERROR_CONCEALMENT
     MODE_INFO *prev_mip; /* MODE_INFO array 'mip' from last decoded frame */
     MODE_INFO *prev_mi;  /* 'mi' from last frame (points into prev_mip) */
-#endif
 
+
+    INTERPOLATIONFILTERTYPE mcomp_filter_type;
     LOOPFILTERTYPE filter_type;
 
     loop_filter_info_n lf_info;
@@ -151,6 +157,14 @@ typedef struct VP8Common
     /* Y,U,V,Y2 */
     ENTROPY_CONTEXT_PLANES *above_context;   /* row of context for each plane */
     ENTROPY_CONTEXT_PLANES left_context;  /* (up to) 4 contexts "" */
+
+
+    /* keyframe block modes are predicted by their above, left neighbors */
+
+    vp8_prob kf_bmode_prob [VP8_BINTRAMODES] [VP8_BINTRAMODES] [VP8_BINTRAMODES-1];
+    vp8_prob kf_ymode_prob [VP8_YMODES-1];  /* keyframe "" */
+    vp8_prob kf_uv_mode_prob [VP8_UV_MODES-1];
+
 
     FRAME_CONTEXT lfc; /* last frame entropy */
     FRAME_CONTEXT fc;  /* this frame entropy */

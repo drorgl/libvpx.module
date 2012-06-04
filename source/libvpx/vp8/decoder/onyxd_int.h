@@ -31,6 +31,7 @@ typedef struct
 typedef struct
 {
     MACROBLOCKD  mbd;
+    int mb_row;
 } MB_ROW_DEC;
 
 typedef struct
@@ -61,7 +62,7 @@ typedef struct VP8D_COMP
     volatile int b_multithreaded_rd;
     int max_threads;
     int current_mb_col_main;
-    unsigned int decoding_thread_count;
+    int decoding_thread_count;
     int allocated_decoding_thread_count;
 
     int mt_baseline_filter_level[MAX_MB_SEGMENTS];

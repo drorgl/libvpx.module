@@ -132,7 +132,7 @@ static int pick_intra4x4block(
     MACROBLOCK *x,
     int ib,
     B_PREDICTION_MODE *best_mode,
-    const int *mode_costs,
+    unsigned int *mode_costs,
 
     int *bestrate,
     int *bestdistortion)
@@ -185,7 +185,7 @@ static int pick_intra4x4mby_modes
     int cost = mb->mbmode_cost [xd->frame_type] [B_PRED];
     int error;
     int distortion = 0;
-    const int *bmode_costs;
+    unsigned int *bmode_costs;
 
     intra_prediction_down_copy(xd, xd->dst.y_buffer - xd->dst.y_stride + 16);
 
@@ -405,8 +405,8 @@ void get_lower_res_motion_info(VP8_COMP *cpi, MACROBLOCKD *xd, int *dissim,
                                MB_PREDICTION_MODE *parent_mode,
                                int_mv *parent_ref_mv, int mb_row, int mb_col)
 {
-    LOWER_RES_MB_INFO* store_mode_info
-                          = ((LOWER_RES_FRAME_INFO*)cpi->oxcf.mr_low_res_mode_info)->mb_info;
+    LOWER_RES_INFO* store_mode_info
+                          = (LOWER_RES_INFO*)cpi->oxcf.mr_low_res_mode_info;
     unsigned int parent_mb_index;
     //unsigned int parent_mb_index = map_640x480_to_320x240[mb_row][mb_col];
 
@@ -458,7 +458,7 @@ static void check_for_encode_breakout(unsigned int sse, MACROBLOCK* x)
     if (sse < x->encode_breakout)
     {
         // Check u and v to make sure skip is ok
-        unsigned int sse2 = 0;
+        int sse2 = 0;
 
         sse2 = VP8_UVSSE(x);
 

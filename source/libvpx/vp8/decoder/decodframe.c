@@ -549,8 +549,8 @@ static void setup_token_decoder(VP8D_COMP *pbi,
 {
     vp8_reader *bool_decoder = &pbi->bc2;
     unsigned int partition_idx;
-    unsigned int fragment_idx;
-    unsigned int num_token_partitions;
+    int fragment_idx;
+    int num_token_partitions;
     const unsigned char *first_fragment_end = pbi->fragments[0] +
                                           pbi->fragment_sizes[0];
 
@@ -661,6 +661,7 @@ static void init_frame(VP8D_COMP *pbi)
         vp8_init_mbmode_probs(pc);
 
         vp8_default_coef_probs(pc);
+        vp8_kf_default_bmode_probs(pc->kf_bmode_prob);
 
         /* reset the segment feature data to 0 with delta coding (Default state). */
         vpx_memset(xd->segment_feature_data, 0, sizeof(xd->segment_feature_data));
@@ -684,8 +685,13 @@ static void init_frame(VP8D_COMP *pbi)
     }
     else
     {
-        /* To enable choice of different interploation filters */
         if (!pc->use_bilinear_mc_filter)
+            pc->mcomp_filter_type = SIXTAP;
+        else
+            pc->mcomp_filter_type = BILINEAR;
+
+        /* To enable choice of different interploation filters */
+        if (pc->mcomp_filter_type == SIXTAP)
         {
             xd->subpixel_predict        = vp8_sixtap_predict4x4;
             xd->subpixel_predict8x4     = vp8_sixtap_predict8x4;
@@ -730,8 +736,6 @@ int vp8_decode_frame(VP8D_COMP *pbi)
     const int *const mb_feature_data_bits = vp8_mb_feature_data_bits;
     int corrupt_tokens = 0;
     int prev_independent_partitions = pbi->independent_partitions;
-
-    int frame_size_change = 0;
 
     /* start with no corruption of current frame */
     xd->corrupted = 0;
@@ -821,42 +825,21 @@ int vp8_decode_frame(VP8D_COMP *pbi)
                     vpx_internal_error(&pc->error, VPX_CODEC_MEM_ERROR,
                                        "Failed to allocate frame buffers");
 
-                /* allocate memory for last frame MODE_INFO array */
 #if CONFIG_ERROR_CONCEALMENT
-
+                pbi->overlaps = NULL;
                 if (pbi->ec_enabled)
                 {
-                    /* old prev_mip was released by vp8_de_alloc_frame_buffers()
-                     * called in vp8_alloc_frame_buffers() */
-                    pc->prev_mip = vpx_calloc(
-                                       (pc->mb_cols + 1) * (pc->mb_rows + 1),
-                                       sizeof(MODE_INFO));
-
-                    if (!pc->prev_mip)
-                    {
-                        vp8_de_alloc_frame_buffers(pc);
-                        vpx_internal_error(&pc->error, VPX_CODEC_MEM_ERROR,
-                                           "Failed to allocate"
-                                           "last frame MODE_INFO array");
-                    }
-
-                    pc->prev_mi = pc->prev_mip + pc->mode_info_stride + 1;
-
                     if (vp8_alloc_overlap_lists(pbi))
                         vpx_internal_error(&pc->error, VPX_CODEC_MEM_ERROR,
                                            "Failed to allocate overlap lists "
                                            "for error concealment");
                 }
-
 #endif
 
 #if CONFIG_MULTITHREAD
-
                 if (pbi->b_multithreaded_rd)
                     vp8mt_alloc_temp_buffers(pbi, pc->Width, prev_mb_rows);
-
 #endif
-                frame_size_change = 1;
             }
         }
     }
@@ -1120,17 +1103,9 @@ int vp8_decode_frame(VP8D_COMP *pbi)
 #endif
         vp8_setup_intra_recon(&pc->yv12_fb[pc->new_fb_idx]);
 
-    if(frame_size_change)
-    {
-#if CONFIG_MULTITHREAD
-        for (i = 0; i < pbi->allocated_decoding_thread_count; i++)
-        {
-            pbi->mb_row_di[i].mbd.dst = pc->yv12_fb[pc->new_fb_idx];
-            vp8_build_block_doffsets(&pbi->mb_row_di[i].mbd);
-        }
-#endif
-        vp8_build_block_doffsets(&pbi->mb);
-    }
+    vp8_setup_block_dptrs(xd);
+
+    vp8_build_block_doffsets(xd);
 
     /* clear out the coeff buffer */
     vpx_memset(xd->qcoeff, 0, sizeof(xd->qcoeff));
@@ -1157,7 +1132,7 @@ int vp8_decode_frame(VP8D_COMP *pbi)
 #if CONFIG_MULTITHREAD
     if (pbi->b_multithreaded_rd && pc->multi_token_partition != ONE_PARTITION)
     {
-        unsigned int i;
+        int i;
         vp8mt_decode_mb_rows(pbi, xd);
         vp8_yv12_extend_frame_borders(&pc->yv12_fb[pc->new_fb_idx]);    /*cm->frame_to_show);*/
         for (i = 0; i < pbi->decoding_thread_count; ++i)

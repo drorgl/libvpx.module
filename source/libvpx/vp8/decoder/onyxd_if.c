@@ -80,7 +80,6 @@ struct VP8D_COMP * vp8dx_create_decompressor(VP8D_CONFIG *oxcf)
 
 #if CONFIG_ERROR_CONCEALMENT
     pbi->ec_enabled = oxcf->error_concealment;
-    pbi->overlaps = NULL;
 #else
     pbi->ec_enabled = 0;
 #endif
@@ -99,8 +98,6 @@ struct VP8D_COMP * vp8dx_create_decompressor(VP8D_CONFIG *oxcf)
      * PREV_COEF context.
      */
     pbi->independent_partitions = 0;
-
-    vp8_setup_block_dptrs(&pbi->mb);
 
     return pbi;
 }
@@ -303,7 +300,7 @@ int vp8dx_receive_compressed_data(VP8D_COMP *pbi, unsigned long size, const unsi
     if (pbi->num_fragments == 0)
     {
         /* New frame, reset fragment pointers and sizes */
-        vpx_memset((void*)pbi->fragments, 0, sizeof(pbi->fragments));
+        vpx_memset(pbi->fragments, 0, sizeof(pbi->fragments));
         vpx_memset(pbi->fragment_sizes, 0, sizeof(pbi->fragment_sizes));
     }
     if (pbi->input_fragments && !(source == NULL && size == 0))
