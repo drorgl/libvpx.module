@@ -215,6 +215,7 @@
       # A library that contains assembly offsets needed.
       'target_name': 'libvpx_asm_offsets',
       'type': 'static_library',
+      'hard_dependency': 1,
       'include_dirs': [
         'source/config/<(OS_CATEGORY)/<(target_arch_full)',
         'source/libvpx',
@@ -233,6 +234,7 @@
       # are needed all assembly optimized files in libvpx.
       'target_name': 'gen_asm_offsets',
       'type': 'none',
+      'hard_dependency': 1,
       'dependencies': [
         'libvpx_asm_offsets',
         'libvpx_obj_int_extract#host',
