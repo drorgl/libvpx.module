@@ -163,6 +163,7 @@
             # .include directive files from the place where they're
             # generated to.
             '-Wa,-I,<!(pwd)/source/config/<(OS_CATEGORY)/<(target_arch_full)',
+            '-Wa,-I,<(shared_generated_dir)',
           ],
           'include_dirs': [
             'source/config/<(OS_CATEGORY)/<(target_arch_full)',
