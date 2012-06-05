@@ -121,6 +121,9 @@
           # Encoder is configured to be realtime only.
           'target_name': 'libvpx',
           'type': 'static_library',
+          'dependencies': [
+            'gen_asm_offsets',
+          ],
 
           # Copy the script to the output folder so that we can use it with
           # absolute path.
