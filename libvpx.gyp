@@ -240,6 +240,15 @@
         'source/config/<(OS_CATEGORY)/<(target_arch_full)',
         'source/libvpx',
       ],
+      'conditions': [
+        ['asan==1', {
+          'cflags!': [ '-faddress-sanitizer', ],
+          'xcode_settings': {
+            'OTHER_CFLAGS!': [ '-faddress-sanitizer', ],
+          },
+          'ldflags!': [ '-faddress-sanitizer', ],
+        }],
+      ],
       'sources': [
         '<(shared_generated_dir)/vpx_rtcd.h',
         'source/libvpx/vp8/common/asm_com_offsets.c',
