@@ -221,3 +221,4 @@ sym(vp8_subtract_mbuv_mmx):
     UNSHADOW_ARGS
     pop         rbp
     ret
+

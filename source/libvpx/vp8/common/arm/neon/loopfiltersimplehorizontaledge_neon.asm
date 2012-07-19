@@ -115,3 +115,4 @@
     ENDP        ;|vp8_loop_filter_bhs_neon|
 
     END
+

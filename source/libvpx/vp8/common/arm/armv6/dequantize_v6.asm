@@ -67,3 +67,4 @@ dequant_loop
     ENDP    ;|vp8_dequantize_b_loop_v6|
 
     END
+

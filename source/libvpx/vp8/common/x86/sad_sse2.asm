@@ -408,3 +408,4 @@ sym(vp8_copy32xn_sse2):
     UNSHADOW_ARGS
     pop         rbp
     ret
+

@@ -384,3 +384,4 @@ sym(vp8_mbuverror_xmm_impl):
     UNSHADOW_ARGS
     pop         rbp
     ret
+

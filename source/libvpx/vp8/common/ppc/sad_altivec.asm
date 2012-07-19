@@ -275,3 +275,4 @@ vp8_sad4x4_ppc:
     epilogue
 
     blr
+

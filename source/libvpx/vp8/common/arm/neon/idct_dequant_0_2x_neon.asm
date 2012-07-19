@@ -77,3 +77,4 @@
 
     ENDP            ; |idct_dequant_0_2x_neon|
     END
+

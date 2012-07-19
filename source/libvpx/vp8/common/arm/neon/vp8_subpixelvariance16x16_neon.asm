@@ -421,3 +421,4 @@ sub_pixel_variance16x16_neon_loop
     ENDP
 
     END
+

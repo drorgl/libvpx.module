@@ -41,3 +41,4 @@
     ENDP  ; |vp8_copy_mem8x8_neon|
 
     END
+

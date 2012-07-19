@@ -119,3 +119,4 @@ sym(vp8_short_inv_walsh4x4_sse2):
     UNSHADOW_ARGS
     pop         rbp
     ret
+

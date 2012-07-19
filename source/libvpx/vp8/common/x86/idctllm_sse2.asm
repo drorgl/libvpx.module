@@ -706,3 +706,4 @@ x_s1sqr2:
 align 16
 x_c1sqr2less1:
     times 8 dw 0x4E7B
+

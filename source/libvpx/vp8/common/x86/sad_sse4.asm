@@ -351,3 +351,4 @@ sym(vp8_sad4x4x8_sse4):
 
 
 
+

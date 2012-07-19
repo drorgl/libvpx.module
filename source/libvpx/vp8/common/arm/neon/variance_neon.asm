@@ -274,3 +274,4 @@ variance8x8_neon_loop
     ENDP
 
     END
+

@@ -425,3 +425,4 @@ sym(vp8_sad16x8_mmx):
     UNSHADOW_ARGS
     pop         rbp
     ret
+

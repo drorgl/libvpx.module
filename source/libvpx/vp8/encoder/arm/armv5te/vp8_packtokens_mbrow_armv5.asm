@@ -350,3 +350,4 @@ _VP8_COMP_tplist_
     DCD     vp8_comp_tplist
 
     END
+

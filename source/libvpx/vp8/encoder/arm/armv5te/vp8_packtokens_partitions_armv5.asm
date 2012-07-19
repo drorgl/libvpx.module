@@ -469,3 +469,4 @@ _vp8_writer_sz_
     DCD     vp8_writer_sz
 
     END
+

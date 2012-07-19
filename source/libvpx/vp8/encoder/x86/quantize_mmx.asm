@@ -284,3 +284,4 @@ sym(vp8_fast_quantize_b_impl_mmx):
     UNSHADOW_ARGS
     pop         rbp
     ret
+

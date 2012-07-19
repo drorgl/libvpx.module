@@ -254,3 +254,4 @@ align 16
 ; vp8/common/entropy.c: vp8_default_zig_zag1d
 zig_zag1d:
     db 0, 1, 4, 8, 5, 2, 3, 6, 9, 12, 13, 10, 7, 11, 14, 15
+

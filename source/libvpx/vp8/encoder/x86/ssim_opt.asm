@@ -214,3 +214,4 @@ sym(vp8_ssim_parms_8x8_sse2):
     UNSHADOW_ARGS
     pop         rbp
     ret
+

@@ -958,3 +958,4 @@ sym(vp8_sad4x4x4d_sse3):
 
     STACK_FRAME_DESTROY_X4
 
+

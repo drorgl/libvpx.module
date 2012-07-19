@@ -488,3 +488,4 @@ secondpass_only_inner_loop_neon
 
 ;-----------------
     END
+
