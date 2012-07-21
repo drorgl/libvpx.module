@@ -257,18 +257,6 @@
       ],
     },
     {
-      # A target that copies obj_int_extract.sh to INTERMEDIATE_DIR.
-      'target_name': 'copy_scripts',
-      'type': 'none',
-      'hard_dependency': 1,
-      'copies': [{
-        'destination': '<(INTERMEDIATE_DIR)',
-        'files': [
-          'obj_int_extract.sh',
-        ],
-      }],
-    },
-    {
       # A target that takes assembly offsets library and generate the
       # corresponding assembly files.
       # This target is a hard dependency because the generated .asm files
@@ -279,7 +267,6 @@
       'dependencies': [
         'libvpx_asm_offsets',
         'libvpx_obj_int_extract#host',
-        'copy_scripts',
       ],
       'conditions': [
         ['OS=="win"', {
@@ -369,7 +356,7 @@
           'extension': '<(asm_obj_extension)',
           'inputs': [
             '<(PRODUCT_DIR)/libvpx_obj_int_extract',
-            '<(INTERMEDIATE_DIR)/obj_int_extract.sh',
+            'obj_int_extract.sh',
           ],
           'outputs': [
             '<(shared_generated_dir)/<(RULE_INPUT_ROOT).asm',
@@ -384,7 +371,7 @@
             ],
           },
           'action': [
-            '<(INTERMEDIATE_DIR)/obj_int_extract.sh',
+            '<(DEPTH)/third_party/libvpx/obj_int_extract.sh',
             '-e', '<(PRODUCT_DIR)/libvpx_obj_int_extract',
             '-f', '<(asm_format)',
             '-b', '<(RULE_INPUT_PATH)',
