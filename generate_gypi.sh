@@ -33,7 +33,7 @@ function convert_srcs_to_gypi {
 
   # Build the gypi file.
   echo "# This file is generated. Do not edit." > $2
-  echo "# Copyright (c) 2011 The Chromium Authors. All rights reserved." >> $2
+  echo "# Copyright (c) 2012 The Chromium Authors. All rights reserved." >> $2
   echo "# Use of this source code is governed by a BSD-style license that can be" >> $2
   echo "# found in the LICENSE file." >> $2
   echo "" >> $2

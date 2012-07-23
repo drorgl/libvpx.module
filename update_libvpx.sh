@@ -30,6 +30,9 @@ if [ -n "$1" ]; then
   GIT_BRANCH="$1"
 fi
 
+rm -rf $(svn ls $LIBVPX_SRC_DIR)
+svn update $LIBVPX_SRC_DIR
+
 cd $LIBVPX_SRC_DIR
 
 # Make sure git doesn't mess up with svn.
@@ -61,5 +64,7 @@ echo "$delete" | xargs -i svn rm {}
 
 # Find empty directories and remove them from SVN.
 find . -type d -empty -not -iwholename '*.svn*' -exec svn rm {} \;
+
+chmod 755 build/make/*.sh build/make/*.pl configure
 
 cd $BASE_DIR
