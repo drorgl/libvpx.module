@@ -18,23 +18,15 @@ Notes on updating libvpx source code.
 
 Please follow these steps to update libvpx source code:
 
-1. Remove old source code.
+1. Update libvpx source tree.
 
-   svn del source/libvpx
+   ./update_libvpx.sh [branch name]
 
-2. Commit the change.
-
-3. Download the latest libvpx source code and put it in source/libvpx.
-
-4. Add latest libvpx source code to SVN repo.
-
-   svn add source/libvpx
-
-5. Generate updated .gypi files.
+2. Generate updated .gypi files.
 
    ./generate_gypi.sh
 
-6. Commit the change.
+3. Commit the change.
 
 Tools needed to build libvpx:
 
