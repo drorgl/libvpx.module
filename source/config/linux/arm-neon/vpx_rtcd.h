@@ -456,13 +456,13 @@ RTCD_EXTERN void (*vp8_yv12_copy_frame)(struct yv12_buffer_config *src_ybc, stru
 void vp8_yv12_copy_y_c(struct yv12_buffer_config *src_ybc, struct yv12_buffer_config *dst_ybc);
 void vp8_yv12_copy_y_neon(struct yv12_buffer_config *src_ybc, struct yv12_buffer_config *dst_ybc);
 RTCD_EXTERN void (*vp8_yv12_copy_y)(struct yv12_buffer_config *src_ybc, struct yv12_buffer_config *dst_ybc);
-#include "vpx_config.h"
 
 void vpx_rtcd(void);
+#include "vpx_config.h"
 
 #ifdef RTCD_C
 #include "vpx_ports/arm.h"
-void vpx_rtcd(void)
+static void setup_rtcd_internal(void)
 {
     int flags = arm_cpu_caps();
 

@@ -49,4 +49,3 @@ vp8_block_error_ppc:
     mtspr   256, r11            ;# reset old VRSAVE
 
     blr
-

@@ -85,4 +85,3 @@
     ENDP    ; |vp8_short_inv_walsh4x4_neon|
 
     END
-

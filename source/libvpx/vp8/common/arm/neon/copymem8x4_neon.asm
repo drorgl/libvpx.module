@@ -32,4 +32,3 @@
     ENDP  ; |vp8_copy_mem8x4_neon|
 
     END
-

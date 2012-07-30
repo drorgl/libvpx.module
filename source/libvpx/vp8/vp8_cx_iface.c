@@ -9,6 +9,7 @@
  */
 
 
+#include "vpx_rtcd.h"
 #include "vpx/vpx_codec.h"
 #include "vpx/internal/vpx_codec_internal.h"
 #include "vpx_version.h"
@@ -227,7 +228,7 @@ static vpx_codec_err_t validate_config(vpx_codec_alg_priv_t      *ctx,
 
     if (cfg->ts_number_layers > 1)
     {
-        int i;
+        unsigned int i;
         RANGE_CHECK_HI(cfg, ts_periodicity, 16);
 
         for (i=1; i<cfg->ts_number_layers; i++)
@@ -567,6 +568,8 @@ static vpx_codec_err_t vp8e_init(vpx_codec_ctx_t *ctx,
     unsigned int               i;
 
     struct VP8_COMP *optr;
+
+    vpx_rtcd();
 
     if (!ctx->priv)
     {

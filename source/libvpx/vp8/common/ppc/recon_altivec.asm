@@ -173,4 +173,3 @@ recon_b_ppc:
     mtspr   256, r12                    ;# reset old VRSAVE
 
     blr
-

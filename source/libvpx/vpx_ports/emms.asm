@@ -36,4 +36,3 @@ sym(vpx_winx64_fstcw):
     add   rsp, 8
     ret
 %endif
-

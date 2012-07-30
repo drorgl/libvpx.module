@@ -256,4 +256,3 @@ inv_zig_zag
 
     END
 
-

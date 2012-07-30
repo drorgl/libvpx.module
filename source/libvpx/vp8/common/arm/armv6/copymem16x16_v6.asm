@@ -184,4 +184,3 @@ copy_mem16x16_fast_loop
     ENDP  ; |vp8_copy_mem16x16_v6|
 
     END
-

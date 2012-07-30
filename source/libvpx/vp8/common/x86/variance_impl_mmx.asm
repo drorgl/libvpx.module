@@ -849,4 +849,3 @@ SECTION_RODATA
 align 16
 mmx_bi_rd:
     times 4 dw 64
-

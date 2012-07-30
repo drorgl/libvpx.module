@@ -205,4 +205,3 @@ _const_top_bit:
 align 16
 _const_16w
     times 8 dw 16
-

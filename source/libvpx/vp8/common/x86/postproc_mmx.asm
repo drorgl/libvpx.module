@@ -577,4 +577,3 @@ Blur:
 
 rd:
     times 4 dw 0x40
-

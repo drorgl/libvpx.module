@@ -188,4 +188,3 @@ sinpi8sqrt2       DCD 0x00008A8C
 c0x00040004       DCD 0x00040004
 
     END
-

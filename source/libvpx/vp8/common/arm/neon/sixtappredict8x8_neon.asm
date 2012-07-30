@@ -522,4 +522,3 @@ filt_blk2d_spo8x8_loop_neon
 ;-----------------
 
     END
-

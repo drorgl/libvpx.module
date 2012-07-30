@@ -129,4 +129,3 @@ cospi8sqrt2minus1 DCD 0x4e7b4e7b
 sinpi8sqrt2       DCD 0x8a8c8a8c
 
     END
-

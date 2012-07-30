@@ -622,4 +622,3 @@
     ENDP  ; |vp8_filter_block2d_second_pass_only_armv6|
 
     END
-

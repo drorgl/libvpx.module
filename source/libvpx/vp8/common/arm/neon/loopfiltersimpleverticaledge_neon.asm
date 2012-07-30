@@ -152,4 +152,3 @@
     b           vp8_loop_filter_simple_vertical_edge_neon
     ENDP        ;|vp8_loop_filter_bvs_neon|
     END
-

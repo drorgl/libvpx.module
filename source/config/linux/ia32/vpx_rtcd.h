@@ -502,11 +502,12 @@ void vp8_yv12_copy_frame_c(struct yv12_buffer_config *src_ybc, struct yv12_buffe
 
 void vp8_yv12_copy_y_c(struct yv12_buffer_config *src_ybc, struct yv12_buffer_config *dst_ybc);
 #define vp8_yv12_copy_y vp8_yv12_copy_y_c
+
 void vpx_rtcd(void);
 
 #ifdef RTCD_C
 #include "vpx_ports/x86.h"
-void vpx_rtcd(void)
+static void setup_rtcd_internal(void)
 {
     int flags = x86_simd_caps();
 

@@ -373,4 +373,3 @@ vp8_variance4x4_ppc:
     epilogue
 
     blr
-

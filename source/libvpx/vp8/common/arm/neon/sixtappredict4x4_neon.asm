@@ -420,4 +420,3 @@ secondpass_filter4x4_only
 ;-----------------
 
     END
-

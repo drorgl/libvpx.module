@@ -399,13 +399,13 @@ void vp8_yv12_copy_frame_c(struct yv12_buffer_config *src_ybc, struct yv12_buffe
 
 void vp8_yv12_copy_y_c(struct yv12_buffer_config *src_ybc, struct yv12_buffer_config *dst_ybc);
 #define vp8_yv12_copy_y vp8_yv12_copy_y_c
-#include "vpx_config.h"
 
 void vpx_rtcd(void);
+#include "vpx_config.h"
 
 #ifdef RTCD_C
 #include "vpx_ports/arm.h"
-void vpx_rtcd(void)
+static void setup_rtcd_internal(void)
 {
     int flags = arm_cpu_caps();
 

@@ -256,4 +256,3 @@ x_c1sqr2less1:
 align 16
 fours:
     times 4 dw 0x0004
-

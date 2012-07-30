@@ -1638,4 +1638,3 @@ te0:
 align 16
 t1f:
     times 16 db 0x1f
-

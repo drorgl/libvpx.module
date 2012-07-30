@@ -1370,4 +1370,3 @@ SECTION_RODATA
 align 16
 rd:
     times 8 dw 0x40
-

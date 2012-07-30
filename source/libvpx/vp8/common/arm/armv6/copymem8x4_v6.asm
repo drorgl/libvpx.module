@@ -126,4 +126,3 @@ copy_mem8x4_fast_loop
     ENDP  ; |vp8_copy_mem8x4_v6|
 
     END
-

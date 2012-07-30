@@ -272,4 +272,3 @@ sym(vp8_copy_mem16x16_mmx):
     UNSHADOW_ARGS
     pop         rbp
     ret
-

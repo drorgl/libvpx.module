@@ -362,4 +362,3 @@ vp8_bilinear_filters_ssse3:
     times 8 db 48,  80
     times 8 db 32,  96
     times 8 db 16,  112
-
