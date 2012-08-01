@@ -1,7 +1,9 @@
 Name: libvpx
 URL: http://www.webmproject.org
 Version: v0.9.7p1
+License: BSD
 License File: source/libvpx/LICENSE
+Security Critical: yes
 
 Date: Tuesday August 16 2011
 Branch: cayuga
