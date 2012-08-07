@@ -56,6 +56,7 @@
             'yasm_flags': [
               '-D', 'CHROMIUM',
               '-I', 'source/config/<(OS_CATEGORY)/<(target_arch)',
+              '-I', 'source/config',
               '-I', 'source/libvpx',
               '-I', '<(shared_generated_dir)', # Generated assembly offsets
             ],
@@ -68,6 +69,7 @@
           ],
           'include_dirs': [
             'source/config/<(OS_CATEGORY)/<(target_arch)',
+            'source/config',
             'source/libvpx',
             'source/libvpx/vp8/common',
             'source/libvpx/vp8/decoder',
@@ -171,10 +173,12 @@
             # .include directive files from the place where they're
             # generated to.
             '-Wa,-I,<!(pwd)/source/config/<(OS_CATEGORY)/<(target_arch_full)',
+            '-Wa,-I,<!(pwd)/source/config',
             '-Wa,-I,<(shared_generated_dir)',
           ],
           'include_dirs': [
             'source/config/<(OS_CATEGORY)/<(target_arch_full)',
+            'source/config',
             'source/libvpx',
           ],
           'direct_dependent_settings': {
@@ -225,6 +229,7 @@
       'toolsets': ['host'],
       'include_dirs': [
         'source/config/<(OS_CATEGORY)/<(target_arch_full)',
+        'source/config',
         'source/libvpx',
       ],
       'sources': [
@@ -238,6 +243,7 @@
       'hard_dependency': 1,
       'include_dirs': [
         'source/config/<(OS_CATEGORY)/<(target_arch_full)',
+        'source/config',
         'source/libvpx',
       ],
       'conditions': [
