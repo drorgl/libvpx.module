@@ -43,7 +43,7 @@
   },
 
   'conditions': [
-    [ 'target_arch != "arm"', {
+    [ 'target_arch != "arm" and target_arch != "mipsel"', {
       'targets': [
         {
           # This libvpx target contains both encoder and decoder.
@@ -118,6 +118,44 @@
                 'source/libvpx/libmkv/EbmlWriter.h',
               ],
             }],
+          ],
+        },
+      ],
+    },
+    ],
+    # 'libvpx' target for mips builds.
+    [ 'target_arch=="mipsel" ', {
+      'targets': [
+        {
+          # This libvpx target contains both encoder and decoder.
+          # Encoder is configured to be realtime only.
+          'target_name': 'libvpx',
+          'type': 'static_library',
+          'variables': {
+            'shared_generated_dir':
+              '<(SHARED_INTERMEDIATE_DIR)/third_party/libvpx',
+          },
+          'includes': [
+            'libvpx_srcs_mips.gypi',
+          ],
+          'cflags': [
+            '-EL -static -mips32',
+          ],
+          'include_dirs': [
+            'source/config/<(OS)/<(target_arch)',
+            'source/config',
+            'source/libvpx',
+            'source/libvpx/vp8/common',
+            'source/libvpx/vp8/decoder',
+            'source/libvpx/vp8/encoder',
+          ],
+          'direct_dependent_settings': {
+            'include_dirs': [
+              'source/libvpx',
+            ],
+          },
+          'sources': [
+            'source/config/<(OS)/<(target_arch)/vpx_config.c',
           ],
         },
       ],

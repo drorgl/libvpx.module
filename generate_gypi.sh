@@ -69,6 +69,21 @@ function print_config {
     -a $BASE_DIR/$LIBVPX_CONFIG_DIR/$1/vpx_config.asm
 }
 
+# Print the configuration from Header file.
+# This function is an abridged version of print_config which does not use
+# lint_config and it does not require existence of vpx_config.asm.
+# $1 - Header file directory.
+function print_config_basic {
+  combined_config="$(cat $BASE_DIR/$LIBVPX_CONFIG_DIR/$1/vpx_config.h \
+                   | grep -E ' +[01] *$')"
+  combined_config="$(echo "$combined_config" | grep -v DO1STROUNDING)"
+  combined_config="$(echo "$combined_config" | sed 's/[ \t]//g')"
+  combined_config="$(echo "$combined_config" | sed 's/.*define//')"
+  combined_config="$(echo "$combined_config" | sed 's/0$/=no/')"
+  combined_config="$(echo "$combined_config" | sed 's/1$/=yes/')"
+  echo "$combined_config" | sort | uniq
+}
+
 # Generate vpx_rtcd.h.
 # $1 - Header file directory.
 # $2 - Architecture.
@@ -76,10 +91,14 @@ function gen_rtcd_header {
   echo "Generate $LIBVPX_CONFIG_DIR/$1/vpx_rtcd.h."
 
   rm -rf $BASE_DIR/$TEMP_DIR/libvpx.config
-  $BASE_DIR/lint_config.sh -p \
-    -h $BASE_DIR/$LIBVPX_CONFIG_DIR/$1/vpx_config.h \
-    -a $BASE_DIR/$LIBVPX_CONFIG_DIR/$1/vpx_config.asm \
-    -o $BASE_DIR/$TEMP_DIR/libvpx.config
+  if [ "$2" = "mipsel" ]; then
+    print_config_basic $1 > $BASE_DIR/$TEMP_DIR/libvpx.config
+  else
+    $BASE_DIR/lint_config.sh -p \
+      -h $BASE_DIR/$LIBVPX_CONFIG_DIR/$1/vpx_config.h \
+      -a $BASE_DIR/$LIBVPX_CONFIG_DIR/$1/vpx_config.asm \
+      -o $BASE_DIR/$TEMP_DIR/libvpx.config
+  fi
 
   $BASE_DIR/$LIBVPX_SRC_DIR/build/make/rtcd.sh \
     --arch=$2 \
@@ -109,6 +128,7 @@ gen_rtcd_header linux/ia32 x86
 gen_rtcd_header linux/x64 x86_64
 gen_rtcd_header linux/arm armv6
 gen_rtcd_header linux/arm-neon armv7
+gen_rtcd_header linux/mipsel mipsel
 gen_rtcd_header win/ia32 x86
 gen_rtcd_header mac/ia32 x86
 
@@ -139,6 +159,12 @@ config=$(print_config linux/arm-neon)
 make_clean
 make libvpx_srcs.txt target=libs $config > /dev/null
 convert_srcs_to_gypi libvpx_srcs.txt $BASE_DIR/libvpx_srcs_arm_neon.gypi
+
+echo "Generate MIPS source list."
+config=$(print_config_basic linux/mipsel)
+make_clean
+make libvpx_srcs.txt target=libs $config > /dev/null
+convert_srcs_to_gypi libvpx_srcs.txt $BASE_DIR/libvpx_srcs_mips.gypi
 
 echo "Remove temporary directory."
 cd $BASE_DIR
