@@ -117,6 +117,7 @@ lint_config linux/arm
 lint_config linux/arm-neon
 lint_config win/ia32
 lint_config mac/ia32
+lint_config mac/x64
 
 echo "Create temporary directory."
 TEMP_DIR="$LIBVPX_SRC_DIR.temp"
@@ -131,6 +132,7 @@ gen_rtcd_header linux/arm-neon armv7
 gen_rtcd_header linux/mipsel mipsel
 gen_rtcd_header win/ia32 x86
 gen_rtcd_header mac/ia32 x86
+gen_rtcd_header mac/x64 x86_64
 
 echo "Prepare Makefile."
 ./configure --target=generic-gnu > /dev/null
