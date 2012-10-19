@@ -9,7 +9,7 @@
 // This is a shim header to include the right libvpx headers.
 // Use this instead of referencing the libvpx headers directly.
 
-#if defined(USE_SYSTEM_VPX)
+#if defined(USE_SYSTEM_LIBVPX)
 #include "vpx/vpx_codec.h"
 #include "vpx/vpx_decoder.h"
 #include "vpx/vpx_encoder.h"
