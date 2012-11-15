@@ -121,6 +121,45 @@ void vp8_intra4x4_predict_d_c(unsigned char *above, unsigned char *left, int lef
 void vp8_intra4x4_predict_c(unsigned char *src, int src_stride, int b_mode, unsigned char *dst, int dst_stride);
 #define vp8_intra4x4_predict vp8_intra4x4_predict_c
 
+void vp8_mbpost_proc_down_c(unsigned char *dst, int pitch, int rows, int cols,int flimit);
+void vp8_mbpost_proc_down_mmx(unsigned char *dst, int pitch, int rows, int cols,int flimit);
+void vp8_mbpost_proc_down_xmm(unsigned char *dst, int pitch, int rows, int cols,int flimit);
+RTCD_EXTERN void (*vp8_mbpost_proc_down)(unsigned char *dst, int pitch, int rows, int cols,int flimit);
+
+void vp8_mbpost_proc_across_ip_c(unsigned char *dst, int pitch, int rows, int cols,int flimit);
+void vp8_mbpost_proc_across_ip_xmm(unsigned char *dst, int pitch, int rows, int cols,int flimit);
+RTCD_EXTERN void (*vp8_mbpost_proc_across_ip)(unsigned char *dst, int pitch, int rows, int cols,int flimit);
+
+void vp8_post_proc_down_and_across_c(unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch, int rows, int cols, int flimit);
+void vp8_post_proc_down_and_across_mmx(unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch, int rows, int cols, int flimit);
+void vp8_post_proc_down_and_across_xmm(unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch, int rows, int cols, int flimit);
+RTCD_EXTERN void (*vp8_post_proc_down_and_across)(unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch, int rows, int cols, int flimit);
+
+void vp8_plane_add_noise_c(unsigned char *s, char *noise, char blackclamp[16], char whiteclamp[16], char bothclamp[16], unsigned int w, unsigned int h, int pitch);
+void vp8_plane_add_noise_mmx(unsigned char *s, char *noise, char blackclamp[16], char whiteclamp[16], char bothclamp[16], unsigned int w, unsigned int h, int pitch);
+void vp8_plane_add_noise_wmt(unsigned char *s, char *noise, char blackclamp[16], char whiteclamp[16], char bothclamp[16], unsigned int w, unsigned int h, int pitch);
+RTCD_EXTERN void (*vp8_plane_add_noise)(unsigned char *s, char *noise, char blackclamp[16], char whiteclamp[16], char bothclamp[16], unsigned int w, unsigned int h, int pitch);
+
+void vp8_blend_mb_inner_c(unsigned char *y, unsigned char *u, unsigned char *v, int y1, int u1, int v1, int alpha, int stride);
+#define vp8_blend_mb_inner vp8_blend_mb_inner_c
+
+void vp8_blend_mb_outer_c(unsigned char *y, unsigned char *u, unsigned char *v, int y1, int u1, int v1, int alpha, int stride);
+#define vp8_blend_mb_outer vp8_blend_mb_outer_c
+
+void vp8_blend_b_c(unsigned char *y, unsigned char *u, unsigned char *v, int y1, int u1, int v1, int alpha, int stride);
+#define vp8_blend_b vp8_blend_b_c
+
+void vp8_filter_by_weight16x16_c(unsigned char *src, int src_stride, unsigned char *dst, int dst_stride, int src_weight);
+void vp8_filter_by_weight16x16_sse2(unsigned char *src, int src_stride, unsigned char *dst, int dst_stride, int src_weight);
+RTCD_EXTERN void (*vp8_filter_by_weight16x16)(unsigned char *src, int src_stride, unsigned char *dst, int dst_stride, int src_weight);
+
+void vp8_filter_by_weight8x8_c(unsigned char *src, int src_stride, unsigned char *dst, int dst_stride, int src_weight);
+void vp8_filter_by_weight8x8_sse2(unsigned char *src, int src_stride, unsigned char *dst, int dst_stride, int src_weight);
+RTCD_EXTERN void (*vp8_filter_by_weight8x8)(unsigned char *src, int src_stride, unsigned char *dst, int dst_stride, int src_weight);
+
+void vp8_filter_by_weight4x4_c(unsigned char *src, int src_stride, unsigned char *dst, int dst_stride, int src_weight);
+#define vp8_filter_by_weight4x4 vp8_filter_by_weight4x4_c
+
 void vp8_sixtap_predict16x16_c(unsigned char *src, int src_pitch, int xofst, int yofst, unsigned char *dst, int dst_pitch);
 void vp8_sixtap_predict16x16_mmx(unsigned char *src, int src_pitch, int xofst, int yofst, unsigned char *dst, int dst_pitch);
 void vp8_sixtap_predict16x16_sse2(unsigned char *src, int src_pitch, int xofst, int yofst, unsigned char *dst, int dst_pitch);
@@ -428,6 +467,10 @@ RTCD_EXTERN int (*vp8_diamond_search_sad)(struct macroblock *x, struct block *b,
 void vp8_yv12_copy_partial_frame_c(struct yv12_buffer_config *src_ybc, struct yv12_buffer_config *dst_ybc);
 #define vp8_yv12_copy_partial_frame vp8_yv12_copy_partial_frame_c
 
+int vp8_denoiser_filter_c(struct yv12_buffer_config* mc_running_avg, struct yv12_buffer_config* running_avg, struct macroblock* signal, unsigned int motion_magnitude2, int y_offset, int uv_offset);
+int vp8_denoiser_filter_sse2(struct yv12_buffer_config* mc_running_avg, struct yv12_buffer_config* running_avg, struct macroblock* signal, unsigned int motion_magnitude2, int y_offset, int uv_offset);
+RTCD_EXTERN int (*vp8_denoiser_filter)(struct yv12_buffer_config* mc_running_avg, struct yv12_buffer_config* running_avg, struct macroblock* signal, unsigned int motion_magnitude2, int y_offset, int uv_offset);
+
 void vp8_horizontal_line_4_5_scale_c(const unsigned char *source, unsigned int source_width, unsigned char *dest, unsigned int dest_width);
 #define vp8_horizontal_line_4_5_scale vp8_horizontal_line_4_5_scale_c
 
@@ -588,6 +631,31 @@ static void setup_rtcd_internal(void)
     if (flags & HAS_SSE2) vp8_build_intra_predictors_mbuv_s = vp8_build_intra_predictors_mbuv_s_sse2;
     if (flags & HAS_SSSE3) vp8_build_intra_predictors_mbuv_s = vp8_build_intra_predictors_mbuv_s_ssse3;
 
+
+
+    vp8_mbpost_proc_down = vp8_mbpost_proc_down_c;
+    if (flags & HAS_MMX) vp8_mbpost_proc_down = vp8_mbpost_proc_down_mmx;
+    if (flags & HAS_SSE2) vp8_mbpost_proc_down = vp8_mbpost_proc_down_xmm;
+
+    vp8_mbpost_proc_across_ip = vp8_mbpost_proc_across_ip_c;
+    if (flags & HAS_SSE2) vp8_mbpost_proc_across_ip = vp8_mbpost_proc_across_ip_xmm;
+
+    vp8_post_proc_down_and_across = vp8_post_proc_down_and_across_c;
+    if (flags & HAS_MMX) vp8_post_proc_down_and_across = vp8_post_proc_down_and_across_mmx;
+    if (flags & HAS_SSE2) vp8_post_proc_down_and_across = vp8_post_proc_down_and_across_xmm;
+
+    vp8_plane_add_noise = vp8_plane_add_noise_c;
+    if (flags & HAS_MMX) vp8_plane_add_noise = vp8_plane_add_noise_mmx;
+    if (flags & HAS_SSE2) vp8_plane_add_noise = vp8_plane_add_noise_wmt;
+
+
+
+
+    vp8_filter_by_weight16x16 = vp8_filter_by_weight16x16_c;
+    if (flags & HAS_SSE2) vp8_filter_by_weight16x16 = vp8_filter_by_weight16x16_sse2;
+
+    vp8_filter_by_weight8x8 = vp8_filter_by_weight8x8_c;
+    if (flags & HAS_SSE2) vp8_filter_by_weight8x8 = vp8_filter_by_weight8x8_sse2;
 
 
     vp8_sixtap_predict16x16 = vp8_sixtap_predict16x16_c;
@@ -823,6 +891,10 @@ static void setup_rtcd_internal(void)
 
     vp8_diamond_search_sad = vp8_diamond_search_sad_c;
     if (flags & HAS_SSE3) vp8_diamond_search_sad = vp8_diamond_search_sadx4;
+
+
+    vp8_denoiser_filter = vp8_denoiser_filter_c;
+    if (flags & HAS_SSE2) vp8_denoiser_filter = vp8_denoiser_filter_sse2;
 }
 #endif
 #endif

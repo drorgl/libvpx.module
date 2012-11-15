@@ -1,2 +1,2 @@
-static const char* const cfg = "--target=x86-win32-gcc --disable-install-docs --disable-install-srcs --disable-examples --disable-psnr --disable-postproc";
+static const char* const cfg = "--target=x86-win32-gcc --disable-install-docs --disable-install-srcs --disable-examples --disable-psnr --enable-postproc --enable-temporal-denoising --enable-multi-res-encoding";
 const char *vpx_codec_build_config(void) {return cfg;}
