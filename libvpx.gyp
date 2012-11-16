@@ -22,20 +22,6 @@
             'target_arch_full': '<(target_arch)',
           }],
 
-          # Conversion to libvpx arch names.
-          ['target_arch=="arm" and arm_neon==1', {
-            'libvpx_arch': 'armv7',
-          }],
-          ['target_arch=="arm" and arm_neon==0', {
-            'libvpx_arch': 'armv6',
-          }],
-          ['target_arch=="ia32"', {
-            'libvpx_arch': 'x86',
-          }],
-          ['target_arch=="x64"', {
-            'libvpx_arch': 'x86_64',
-          }],
-
           ['os_posix == 1 and OS != "mac"', {
             'OS_CATEGORY%': 'linux',
           }, {
