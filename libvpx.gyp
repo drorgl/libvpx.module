@@ -235,7 +235,6 @@
                 ['OS == "android"', {
                   'include_dirs': [
                     '<(android_ndk_include)',
-                    '<(android_ndk_include)/machine',
                   ],
                   'defines': [
                     'ANDROID_CPU_ARM_FEATURE_NEON=4',
