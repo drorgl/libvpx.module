@@ -278,6 +278,26 @@ EOF
 }
 
 
+mips() {
+  determine_indirection c $ALL_ARCHS
+  cat <<EOF
+$(common_top)
+#include "vpx_config.h"
+
+#ifdef RTCD_C
+static void setup_rtcd_internal(void)
+{
+$(set_function_pointers c $ALL_ARCHS)
+#if HAVE_DSPR2
+void dsputil_static_init();
+dsputil_static_init();
+#endif
+}
+#endif
+$(common_bottom)
+EOF
+}
+
 unoptimized() {
   determine_indirection c
   cat <<EOF
@@ -308,6 +328,15 @@ case $arch in
     REQUIRES=${REQUIRES:-mmx sse sse2}
     require $(filter $REQUIRES)
     x86
+    ;;
+  mips32)
+    ALL_ARCHS=$(filter mips32)
+    dspr2=$([ -f "$config_file" ] && eval echo $(grep HAVE_DSPR2 "$config_file"))
+    HAVE_DSPR2="${dspr2#*=}"
+    if [ "$HAVE_DSPR2" = "yes" ]; then
+        ALL_ARCHS=$(filter mips32 dspr2)
+    fi
+    mips
     ;;
   armv5te)
     ALL_ARCHS=$(filter edsp)
