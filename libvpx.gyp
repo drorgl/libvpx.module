@@ -38,6 +38,36 @@
       },
 
       'conditions': [
+        # TODO(jimbankoski): Hack to ensure we pass -msse2 for files containing
+        # SSE intrinsics. See http://crbug/162675
+        ['target_arch=="ia32" or target_arch=="x64"', {
+          'targets' : [
+            {
+              'target_name': 'libvpx_sse2',
+              'type': 'static_library',
+              'include_dirs': [
+                'source/config/<(OS_CATEGORY)/<(target_arch)',
+                'source/libvpx',
+                'source/libvpx/vp8/common',
+                'source/libvpx/vp8/decoder',
+                'source/libvpx/vp8/encoder',
+              ],
+              'sources': [
+                'source/libvpx/vp8/encoder/x86/denoising_sse2.c',
+              ],
+              'conditions': [
+                ['os_posix==1 and OS!="mac"', {
+                  'cflags': [ '-msse2', ],
+                }],
+                ['OS=="mac"', {
+                  'xcode_settings': {
+                    'OTHER_CFLAGS': [ '-msse2', ],
+                  },
+                }],
+              ],
+            },
+          ],
+        }],
         [ 'target_arch != "arm" and target_arch != "mipsel"', {
           'targets': [
             {
@@ -85,11 +115,13 @@
                   'includes': [
                     'libvpx_srcs_x86.gypi',
                   ],
+                  'dependencies': [ 'libvpx_sse2', ],
                 }],
                 [ 'target_arch=="x64"', {
                   'includes': [
                     'libvpx_srcs_x86_64.gypi',
                   ],
+                  'dependencies': [ 'libvpx_sse2', ],
                 }],
                 ['clang == 1', {
                   'xcode_settings': {
