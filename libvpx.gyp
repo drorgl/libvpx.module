@@ -312,11 +312,9 @@
           ],
           'conditions': [
             ['asan==1', {
-              'cflags!': [ '-faddress-sanitizer', '-fsanitize=address', ],
-              'xcode_settings': {
-                'OTHER_CFLAGS!': [ '-faddress-sanitizer','-fsanitize=address' ],
-              },
-              'ldflags!': [ '-faddress-sanitizer', '-fsanitize=address', ],
+              'cflags!': [ '-fsanitize=address' ],
+              'xcode_settings': { 'OTHER_CFLAGS!': [ '-fsanitize=address' ] },
+              'ldflags!': [ '-fsanitize=address' ],
             }],
           ],
           'sources': [
