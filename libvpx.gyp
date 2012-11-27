@@ -280,11 +280,11 @@
           ],
           'conditions': [
             ['asan==1', {
-              'cflags!': [ '-faddress-sanitizer', ],
+              'cflags!': [ '-faddress-sanitizer', '-fsanitize=address', ],
               'xcode_settings': {
-                'OTHER_CFLAGS!': [ '-faddress-sanitizer', ],
+                'OTHER_CFLAGS!': [ '-faddress-sanitizer','-fsanitize=address' ],
               },
-              'ldflags!': [ '-faddress-sanitizer', ],
+              'ldflags!': [ '-faddress-sanitizer', '-fsanitize=address', ],
             }],
           ],
           'sources': [
