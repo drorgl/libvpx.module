@@ -267,9 +267,7 @@
                 ['OS == "android"', {
                   'include_dirs': [
                     '<(android_ndk_include)',
-                  ],
-                  'defines': [
-                    'ANDROID_CPU_ARM_FEATURE_NEON=4',
+                    '<(android_ndk_root)/sources/android/cpufeatures',
                   ],
                 }],
                 [ 'chromeos == 1', {
