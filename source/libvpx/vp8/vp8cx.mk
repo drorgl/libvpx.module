@@ -9,8 +9,6 @@
 ##
 
 
-include $(SRC_PATH_BARE)/$(VP8_PREFIX)vp8_common.mk
-
 VP8_CX_EXPORTS += exports_enc
 
 VP8_CX_SRCS-yes += $(VP8_COMMON_SRCS-yes)
@@ -22,9 +20,16 @@ ifeq ($(ARCH_ARM),yes)
   include $(SRC_PATH_BARE)/$(VP8_PREFIX)vp8cx_arm.mk
 endif
 
-VP8_CX_SRCS-yes += vp8cx.mk
-
 VP8_CX_SRCS-yes += vp8_cx_iface.c
+
+# encoder
+#INCLUDES += algo/vpx_common/vpx_mem/include
+#INCLUDES += common
+#INCLUDES += common
+#INCLUDES += common
+#INCLUDES += algo/vpx_ref/cpu_id/include
+#INCLUDES += common
+#INCLUDES += encoder
 
 VP8_CX_SRCS-yes += encoder/asm_enc_offsets.c
 VP8_CX_SRCS-yes += encoder/defaultcoefcounts.h
@@ -97,6 +102,7 @@ ifeq ($(CONFIG_TEMPORAL_DENOISING),yes)
 VP8_CX_SRCS-$(HAVE_SSE2) += encoder/x86/denoising_sse2.c
 ifeq ($(HAVE_SSE2),yes)
 vp8/encoder/x86/denoising_sse2.c.o: CFLAGS += -msse2
+vp8/encoder/x86/denoising_sse2.c.d: CFLAGS += -msse2
 endif
 endif
 
@@ -115,3 +121,6 @@ endif
 
 
 VP8_CX_SRCS-yes := $(filter-out $(VP8_CX_SRCS_REMOVE-yes),$(VP8_CX_SRCS-yes))
+
+$(eval $(call asm_offsets_template,\
+         vp8_asm_enc_offsets.asm, $(VP8_PREFIX)encoder/asm_enc_offsets.c))

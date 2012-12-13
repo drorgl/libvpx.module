@@ -17,6 +17,12 @@
 
 #if CONFIG_MULTITHREAD
 
+extern int vp8cx_encode_inter_macroblock(VP8_COMP *cpi, MACROBLOCK *x,
+                                         TOKENEXTRA **t,
+                                         int recon_yoffset, int recon_uvoffset,
+                                         int mb_row, int mb_col);
+extern int vp8cx_encode_intra_macroblock(VP8_COMP *cpi, MACROBLOCK *x,
+                                         TOKENEXTRA **t);
 extern void vp8cx_mb_init_quantizer(VP8_COMP *cpi, MACROBLOCK *x, int ok_to_skip);
 
 extern void vp8_loopfilter_frame(VP8_COMP *cpi, VP8_COMMON *cm);
@@ -471,13 +477,6 @@ void vp8cx_init_mbrthread_data(VP8_COMP *cpi,
         mbd->fullpixel_mask = 0xffffffff;
         if(cm->full_pixel)
             mbd->fullpixel_mask = 0xfffffff8;
-
-        vp8_zero(mb->coef_counts);
-        vp8_zero(x->ymode_count);
-        mb->skip_true_count = 0;
-        vp8_zero(mb->MVcount);
-        mb->prediction_error = 0;
-        mb->intra_error = 0;
     }
 }
 

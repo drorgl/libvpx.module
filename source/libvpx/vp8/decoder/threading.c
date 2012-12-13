@@ -10,7 +10,7 @@
 
 
 #include "vpx_config.h"
-#include "vpx_rtcd.h"
+#include "vp8_rtcd.h"
 #if !defined(WIN32) && CONFIG_OS_SUPPORT == 1
 # include <unistd.h>
 #endif
@@ -28,13 +28,6 @@
 #if CONFIG_ERROR_CONCEALMENT
 #include "error_concealment.h"
 #endif
-
-#define CALLOC_ARRAY(p, n) CHECK_MEM_ERROR((p), vpx_calloc(sizeof(*(p)), (n)))
-#define CALLOC_ARRAY_ALIGNED(p, n, algn) do {                      \
-  CHECK_MEM_ERROR((p), vpx_memalign((algn), sizeof(*(p)) * (n)));  \
-  memset((p), 0, (n) * sizeof(*(p)));                              \
-} while (0)
-
 
 extern void vp8_mb_init_dequantizer(VP8D_COMP *pbi, MACROBLOCKD *xd);
 
@@ -675,10 +668,11 @@ void vp8_decoder_create_threads(VP8D_COMP *pbi)
         pbi->b_multithreaded_rd = 1;
         pbi->decoding_thread_count = core_count - 1;
 
-        CALLOC_ARRAY(pbi->h_decoding_thread, pbi->decoding_thread_count);
-        CALLOC_ARRAY(pbi->h_event_start_decoding, pbi->decoding_thread_count);
-        CALLOC_ARRAY_ALIGNED(pbi->mb_row_di, pbi->decoding_thread_count, 32);
-        CALLOC_ARRAY(pbi->de_thread_data, pbi->decoding_thread_count);
+        CHECK_MEM_ERROR(pbi->h_decoding_thread, vpx_malloc(sizeof(pthread_t) * pbi->decoding_thread_count));
+        CHECK_MEM_ERROR(pbi->h_event_start_decoding, vpx_malloc(sizeof(sem_t) * pbi->decoding_thread_count));
+        CHECK_MEM_ERROR(pbi->mb_row_di, vpx_memalign(32, sizeof(MB_ROW_DEC) * pbi->decoding_thread_count));
+        vpx_memset(pbi->mb_row_di, 0, sizeof(MB_ROW_DEC) * pbi->decoding_thread_count);
+        CHECK_MEM_ERROR(pbi->de_thread_data, vpx_malloc(sizeof(DECODETHREAD_DATA) * pbi->decoding_thread_count));
 
         for (ithread = 0; ithread < pbi->decoding_thread_count; ithread++)
         {
@@ -802,32 +796,32 @@ void vp8mt_alloc_temp_buffers(VP8D_COMP *pbi, int width, int prev_mb_rows)
         uv_width = width >>1;
 
         /* Allocate an int for each mb row. */
-        CALLOC_ARRAY(pbi->mt_current_mb_col, pc->mb_rows);
+        CHECK_MEM_ERROR(pbi->mt_current_mb_col, vpx_malloc(sizeof(int) * pc->mb_rows));
 
         /* Allocate memory for above_row buffers. */
-        CALLOC_ARRAY(pbi->mt_yabove_row, pc->mb_rows);
-        for (i = 0; i < pc->mb_rows; i++)
+        CHECK_MEM_ERROR(pbi->mt_yabove_row, vpx_malloc(sizeof(unsigned char *) * pc->mb_rows));
+        for (i=0; i< pc->mb_rows; i++)
             CHECK_MEM_ERROR(pbi->mt_yabove_row[i], vpx_memalign(16,sizeof(unsigned char) * (width + (VP8BORDERINPIXELS<<1))));
 
-        CALLOC_ARRAY(pbi->mt_uabove_row, pc->mb_rows);
-        for (i = 0; i < pc->mb_rows; i++)
+        CHECK_MEM_ERROR(pbi->mt_uabove_row, vpx_malloc(sizeof(unsigned char *) * pc->mb_rows));
+        for (i=0; i< pc->mb_rows; i++)
             CHECK_MEM_ERROR(pbi->mt_uabove_row[i], vpx_memalign(16,sizeof(unsigned char) * (uv_width + VP8BORDERINPIXELS)));
 
-        CALLOC_ARRAY(pbi->mt_vabove_row, pc->mb_rows);
-        for (i = 0; i < pc->mb_rows; i++)
+        CHECK_MEM_ERROR(pbi->mt_vabove_row, vpx_malloc(sizeof(unsigned char *) * pc->mb_rows));
+        for (i=0; i< pc->mb_rows; i++)
             CHECK_MEM_ERROR(pbi->mt_vabove_row[i], vpx_memalign(16,sizeof(unsigned char) * (uv_width + VP8BORDERINPIXELS)));
 
         /* Allocate memory for left_col buffers. */
-        CALLOC_ARRAY(pbi->mt_yleft_col, pc->mb_rows);
-        for (i = 0; i < pc->mb_rows; i++)
+        CHECK_MEM_ERROR(pbi->mt_yleft_col, vpx_malloc(sizeof(unsigned char *) * pc->mb_rows));
+        for (i=0; i< pc->mb_rows; i++)
             CHECK_MEM_ERROR(pbi->mt_yleft_col[i], vpx_calloc(sizeof(unsigned char) * 16, 1));
 
-        CALLOC_ARRAY(pbi->mt_uleft_col, pc->mb_rows);
-        for (i = 0; i < pc->mb_rows; i++)
+        CHECK_MEM_ERROR(pbi->mt_uleft_col, vpx_malloc(sizeof(unsigned char *) * pc->mb_rows));
+        for (i=0; i< pc->mb_rows; i++)
             CHECK_MEM_ERROR(pbi->mt_uleft_col[i], vpx_calloc(sizeof(unsigned char) * 8, 1));
 
-        CALLOC_ARRAY(pbi->mt_vleft_col, pc->mb_rows);
-        for (i = 0; i < pc->mb_rows; i++)
+        CHECK_MEM_ERROR(pbi->mt_vleft_col, vpx_malloc(sizeof(unsigned char *) * pc->mb_rows));
+        for (i=0; i< pc->mb_rows; i++)
             CHECK_MEM_ERROR(pbi->mt_vleft_col[i], vpx_calloc(sizeof(unsigned char) * 8, 1));
     }
 }

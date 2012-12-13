@@ -61,26 +61,26 @@ while (<STDIN>)
     s/:SHR:/ >> /g;
 
     # Convert ELSE to .else
-    s/\bELSE\b/.else/g;
+    s/ELSE/.else/g;
 
     # Convert ENDIF to .endif
-    s/\bENDIF\b/.endif/g;
+    s/ENDIF/.endif/g;
 
     # Convert ELSEIF to .elseif
-    s/\bELSEIF\b/.elseif/g;
+    s/ELSEIF/.elseif/g;
 
     # Convert LTORG to .ltorg
-    s/\bLTORG\b/.ltorg/g;
+    s/LTORG/.ltorg/g;
 
     # Convert endfunc to nothing.
-    s/\bendfunc\b//ig;
+    s/endfunc//ig;
 
     # Convert FUNCTION to nothing.
-    s/\bFUNCTION\b//g;
-    s/\bfunction\b//g;
+    s/FUNCTION//g;
+    s/function//g;
 
-    s/\bENTRY\b//g;
-    s/\bMSARMASM\b/0/g;
+    s/ENTRY//g;
+    s/MSARMASM/0/g;
     s/^\s+end\s+$//g;
 
     # Convert IF :DEF:to .if
@@ -154,10 +154,6 @@ while (<STDIN>)
     # ARM code
     s/\sARM/.arm/g;
 
-    # push/pop
-    s/(push\s+)(r\d+)/stmdb sp\!, \{$2\}/g;
-    s/(pop\s+)(r\d+)/ldmia sp\!, \{$2\}/g;
-
     # NEON code
     s/(vld1.\d+\s+)(q\d+)/$1\{$2\}/g;
     s/(vtbl.\d+\s+[^,]+),([^,]+)/$1,\{$2\}/g;
@@ -193,7 +189,7 @@ while (<STDIN>)
     s/(\S+\s+)EQU(\s+\S+)/.equ $1, $2/;
 
     # Begin macro definition
-    if (/\bMACRO\b/) {
+    if (/MACRO/) {
         $_ = <STDIN>;
         s/^/.macro/;
         s/\$//g;                # remove formal param reference
@@ -202,7 +198,7 @@ while (<STDIN>)
 
     # For macros, use \ to reference formal params
     s/\$/\\/g;                  # End macro definition
-    s/\bMEND\b/.endm/;              # No need to tell it where to stop assembling
+    s/MEND/.endm/;              # No need to tell it where to stop assembling
     next if /^\s*END\s*$/;
     print;
     print "$comment_sub$comment\n" if defined $comment;

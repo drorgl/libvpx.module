@@ -4,16 +4,14 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# This script is used to generate .gypi files needed to build libvpx.
+# This script is used to generate .gypi files and files in the config/platform
+# directories needed to build libvpx.
 # Every time libvpx source code is updated just run this script.
 #
 # For example:
 # $ ./generate_gypi.sh
 #
-# And this will update all the .gypi files needed.
-#
-# Configuration for building on each platform is taken from the
-# corresponding vpx_config.h
+# And this will update all the .gypi and config files needed.
 #
 
 BASE_DIR=`pwd`
@@ -26,10 +24,19 @@ LIBVPX_CONFIG_DIR="source/config"
 function convert_srcs_to_gypi {
   # Do the following here:
   # 1. Filter .c, .h, .s, .S and .asm files.
-  # 2. Exclude *_offsets.c.
-  # 3. Exclude vpx_config.c.
-  # 4. Repelace .asm.s to .asm because gyp will do the conversion.
-  local source_list=`grep -E '(\.c|\.h|\.S|\.s|\.asm)$' $1 | grep -v '_offsets\.c' | grep -v 'vpx_config\.c' | sed s/\.asm\.s$/.asm/`
+  # 2. Exclude certain files. If you want to add more files to exclude from
+  #    the .gypi add a new -v option. I.e. grep -v '_offsets\.c' or grep -v
+  #    'vp9_filter_sse4\.c'
+  # 3. Replace .asm.s to .asm because gyp will do the conversion.
+  local source_list=$(grep -E '(\.c|\.h|\.S|\.s|\.asm)$' $1)
+  source_list=$(echo "$source_list" | grep -v '_offsets\.c')
+  source_list=$(echo "$source_list" | grep -v 'vpx_config\.c')
+  source_list=$(echo "$source_list" | grep -v 'denoising_sse2\.c')
+  source_list=$(echo "$source_list" | grep -v 'vp9_filter_sse2\.c')
+  source_list=$(echo "$source_list" | grep -v 'vp9_loopfilter_x86\.c')
+  source_list=$(echo "$source_list" | grep -v 'vp9_sadmxn_x86\.c')
+  source_list=$(echo "$source_list" | grep -v 'vp9_filter_sse4\.c')
+  source_list=$(echo "$source_list" | sed s/\.asm\.s$/.asm/)
 
   # Build the gypi file.
   echo "# This file is generated. Do not edit." > $2
@@ -84,11 +91,11 @@ function print_config_basic {
   echo "$combined_config" | sort | uniq
 }
 
-# Generate vpx_rtcd.h.
+# Generate *_rtcd.h files.
 # $1 - Header file directory.
 # $2 - Architecture.
 function gen_rtcd_header {
-  echo "Generate $LIBVPX_CONFIG_DIR/$1/vpx_rtcd.h."
+  echo "Generate $LIBVPX_CONFIG_DIR/$1/*_rtcd.h files."
 
   rm -rf $BASE_DIR/$TEMP_DIR/libvpx.config
   if [ "$2" = "mipsel" ]; then
@@ -102,13 +109,69 @@ function gen_rtcd_header {
 
   $BASE_DIR/$LIBVPX_SRC_DIR/build/make/rtcd.sh \
     --arch=$2 \
-    --sym=vpx_rtcd \
+    --sym=vp8_rtcd \
     --config=$BASE_DIR/$TEMP_DIR/libvpx.config \
     $BASE_DIR/$LIBVPX_SRC_DIR/vp8/common/rtcd_defs.sh \
-    > $BASE_DIR/$LIBVPX_CONFIG_DIR/$1/vpx_rtcd.h
+    > $BASE_DIR/$LIBVPX_CONFIG_DIR/$1/vp8_rtcd.h
+
+  $BASE_DIR/$LIBVPX_SRC_DIR/build/make/rtcd.sh \
+    --arch=$2 \
+    --sym=vp9_rtcd \
+    --config=$BASE_DIR/$TEMP_DIR/libvpx.config \
+    $BASE_DIR/$LIBVPX_SRC_DIR/vp9/common/vp9_rtcd_defs.sh \
+    > $BASE_DIR/$LIBVPX_CONFIG_DIR/$1/vp9_rtcd.h
+
+  $BASE_DIR/$LIBVPX_SRC_DIR/build/make/rtcd.sh \
+    --arch=$2 \
+    --sym=vpx_scale_rtcd \
+    --config=$BASE_DIR/$TEMP_DIR/libvpx.config \
+    $BASE_DIR/$LIBVPX_SRC_DIR/vpx_scale/vpx_scale_rtcd.sh \
+    > $BASE_DIR/$LIBVPX_CONFIG_DIR/$1/vpx_scale_rtcd.h
 
   rm -rf $BASE_DIR/$TEMP_DIR/libvpx.config
 }
+
+# Generate Config files. "--enable-external-build" must be set to skip
+# detection of capabilities on specific targets.
+# $1 - Header file directory.
+# $2 - Config command line.
+function gen_config_files {
+  ./configure $2  > /dev/null
+
+  # Generate vpx_config.asm. Do not create one for mips.
+  if [ "$1" -ne "mipsel" ]; then
+    if [[ "$1" == *x64* ]] || [[ "$1" == *ia32* ]]; then
+      egrep "#define [A-Z0-9_]+ [01]" vpx_config.h | awk '{print $2 " equ " $3}' > vpx_config.asm
+    else
+      egrep "#define [A-Z0-9_]+ [01]" vpx_config.h | awk '{print $2 " EQU " $3}' | perl $BASE_DIR/$LIBVPX_SRC_DIR/build/make/ads2gas.pl > vpx_config.asm
+    fi
+  fi
+
+  cp vpx_config.* $BASE_DIR/$LIBVPX_CONFIG_DIR/$1
+  make_clean
+  rm -rf vpx_config.*
+}
+
+echo "Create temporary directory."
+TEMP_DIR="$LIBVPX_SRC_DIR.temp"
+rm -rf $TEMP_DIR
+cp -R $LIBVPX_SRC_DIR $TEMP_DIR
+cd $TEMP_DIR
+
+echo "Generate Config Files"
+all_platforms="--enable-external-build --enable-postproc --disable-install-srcs --enable-multi-res-encoding --enable-temporal-denoising --disable-vp9-encoder --disable-unit-tests --disable-install-docs --disable-examples"
+gen_config_files linux/ia32 "--target=x86-linux-gcc --disable-ccache --enable-pic --enable-realtime-only ${all_platforms}"
+gen_config_files linux/x64 "--target=x86_64-linux-gcc --disable-ccache --enable-pic --enable-realtime-only ${all_platforms}"
+gen_config_files linux/arm "--target=armv6-linux-gcc --enable-pic --enable-realtime-only --disable-install-bins --disable-install-libs ${all_platforms}"
+gen_config_files linux/arm-neon "--target=armv7-linux-gcc --enable-pic --enable-realtime-only ${all_platforms}"
+gen_config_files linux/mipsel "--target=mips32-linux-gcc --disable-fast-unaligned ${all_platforms}"
+gen_config_files win/ia32 "--target=x86-win32-vs7 --enable-realtime-only ${all_platforms}"
+gen_config_files mac/ia32 "--target=x86-darwin9-gcc --enable-pic --enable-realtime-only ${all_platforms}"
+gen_config_files mac/x64 "--target=x86_64-darwin9-gcc --enable-pic --enable-realtime-only ${all_platforms}"
+
+echo "Remove temporary directory."
+cd $BASE_DIR
+rm -rf $TEMP_DIR
 
 echo "Lint libvpx configuration."
 lint_config linux/ia32
@@ -144,6 +207,9 @@ make_clean
 make libvpx_srcs.txt target=libs $config > /dev/null
 convert_srcs_to_gypi libvpx_srcs.txt $BASE_DIR/libvpx_srcs_x86.gypi
 
+# Copy vpx_version.h. The file should be the same for all platforms.
+cp vpx_version.h $BASE_DIR/$LIBVPX_CONFIG_DIR
+
 echo "Generate X86_64 source list."
 config=$(print_config linux/x64)
 make_clean
@@ -171,3 +237,6 @@ convert_srcs_to_gypi libvpx_srcs.txt $BASE_DIR/libvpx_srcs_mips.gypi
 echo "Remove temporary directory."
 cd $BASE_DIR
 rm -rf $TEMP_DIR
+
+# TODO(fgalligan): Is "--disable-fast-unaligned" needed on mipsel?
+# TODO(fgalligan): Can we turn on "--enable-realtime-only" for mipsel?

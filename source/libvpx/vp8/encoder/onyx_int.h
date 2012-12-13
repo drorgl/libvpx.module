@@ -363,7 +363,9 @@ typedef struct VP8_COMP
     CODING_CONTEXT coding_context;
 
     /* Rate targetting variables */
+    int64_t prediction_error;
     int64_t last_prediction_error;
+    int64_t intra_error;
     int64_t last_intra_error;
 
     int this_frame_target;
@@ -450,6 +452,13 @@ typedef struct VP8_COMP
     int drop_frames_allowed; /* Are we permitted to drop frames? */
     int drop_frame;          /* Drop this frame? */
 
+    int ymode_count [VP8_YMODES];        /* intra MB type cts this frame */
+    int uv_mode_count[VP8_UV_MODES];     /* intra MB type cts this frame */
+
+    unsigned int MVcount [2] [MVvals];  /* (row,col) MV cts this frame */
+
+    unsigned int coef_counts [BLOCK_TYPES] [COEF_BANDS] [PREV_COEF_CONTEXTS] [MAX_ENTROPY_TOKENS];  /* for this frame */
+
     vp8_prob frame_coef_probs [BLOCK_TYPES] [COEF_BANDS] [PREV_COEF_CONTEXTS] [ENTROPY_NODES];
     char update_probs [BLOCK_TYPES] [COEF_BANDS] [PREV_COEF_CONTEXTS] [ENTROPY_NODES];
 
@@ -511,6 +520,7 @@ typedef struct VP8_COMP
     int lf_zeromv_pct;
     int gf_bad_count;
     int gf_update_recommended;
+    int skip_true_count;
 
     unsigned char *segmentation_map;
     signed char segment_feature_data[MB_LVL_MAX][MAX_MB_SEGMENTS];
@@ -649,6 +659,7 @@ typedef struct VP8_COMP
     /* Per MB activity measurement */
     unsigned int activity_avg;
     unsigned int * mb_activity_map;
+    int * mb_norm_activity_map;
 
     /* Record of which MBs still refer to last golden frame either
      * directly or through 0,0
@@ -718,7 +729,7 @@ void vp8_pack_bitstream(VP8_COMP *cpi, unsigned char *dest, unsigned char *dest_
 
 int rd_cost_intra_mb(MACROBLOCKD *x);
 
-void vp8_tokenize_mb(VP8_COMP *, MACROBLOCK *, TOKENEXTRA **);
+void vp8_tokenize_mb(VP8_COMP *, MACROBLOCKD *, TOKENEXTRA **);
 
 void vp8_set_speed_features(VP8_COMP *cpi);
 

@@ -43,7 +43,7 @@
         ['target_arch=="ia32" or target_arch=="x64"', {
           'targets' : [
             {
-              'target_name': 'libvpx_sse2',
+              'target_name': 'libvpx_intrinsics',
               'type': 'static_library',
               'include_dirs': [
                 'source/config/<(OS_CATEGORY)/<(target_arch)',
@@ -54,14 +54,18 @@
               ],
               'sources': [
                 'source/libvpx/vp8/encoder/x86/denoising_sse2.c',
+                'source/libvpx/vp9/common/x86/vp9_filter_sse2.c',
+                'source/libvpx/vp9/common/x86/vp9_loopfilter_x86.c',
+                'source/libvpx/vp9/common/x86/vp9_sadmxn_x86.c',
+                'source/libvpx/vp9/common/x86/vp9_filter_sse4.c',
               ],
               'conditions': [
                 ['os_posix==1 and OS!="mac"', {
-                  'cflags': [ '-msse2', ],
+                  'cflags': [ '-msse2', '-msse4', ],
                 }],
                 ['OS=="mac"', {
                   'xcode_settings': {
-                    'OTHER_CFLAGS': [ '-msse2', ],
+                    'OTHER_CFLAGS': [ '-msse2', '-msse4', ],
                   },
                 }],
               ],
@@ -87,7 +91,8 @@
                 ],
               },
               'dependencies': [
-                'gen_asm_offsets',
+                'gen_asm_offsets_vp8',
+                'gen_asm_offsets_vp9',
               ],
               'includes': [
                 '../yasm/yasm_compile.gypi'
@@ -115,13 +120,13 @@
                   'includes': [
                     'libvpx_srcs_x86.gypi',
                   ],
-                  'dependencies': [ 'libvpx_sse2', ],
+                  'dependencies': [ 'libvpx_intrinsics', ],
                 }],
                 [ 'target_arch=="x64"', {
                   'includes': [
                     'libvpx_srcs_x86_64.gypi',
                   ],
-                  'dependencies': [ 'libvpx_sse2', ],
+                  'dependencies': [ 'libvpx_intrinsics', ],
                 }],
                 ['clang == 1', {
                   'xcode_settings': {
@@ -197,7 +202,8 @@
               'target_name': 'libvpx',
               'type': 'static_library',
               'dependencies': [
-                'gen_asm_offsets',
+                'gen_asm_offsets_vp8',
+                'gen_asm_offsets_vp9',
               ],
 
               # Copy the script to the output folder so that we can use it with
@@ -316,10 +322,32 @@
             }],
           ],
           'sources': [
-            '<(shared_generated_dir)/vpx_rtcd.h',
-            'source/libvpx/vp8/common/asm_com_offsets.c',
-            'source/libvpx/vp8/decoder/asm_dec_offsets.c',
             'source/libvpx/vp8/encoder/asm_enc_offsets.c',
+          ],
+        },
+        {
+          # A library that contains assembly offsets needed.
+          # TODO(fgalligan): Merge libvpx_asm_offsets_vp9 into
+          # libvpx_asm_offsets.
+          'target_name': 'libvpx_asm_offsets_vp9',
+          'type': 'static_library',
+          'hard_dependency': 1,
+          'include_dirs': [
+            'source/config/<(OS_CATEGORY)/<(target_arch_full)',
+            'source/config',
+            'source/libvpx',
+          ],
+          'conditions': [
+            ['asan==1', {
+              'cflags!': [ '-faddress-sanitizer', '-fsanitize=address', ],
+              'xcode_settings': {
+                'OTHER_CFLAGS!': [ '-faddress-sanitizer','-fsanitize=address' ],
+              },
+              'ldflags!': [ '-faddress-sanitizer', '-fsanitize=address', ],
+            }],
+          ],
+          'sources': [
+            'source/libvpx/vp9/encoder/vp9_asm_enc_offsets.c',
           ],
         },
         {
@@ -327,7 +355,7 @@
           # corresponding assembly files.
           # This target is a hard dependency because the generated .asm files
           # are needed all assembly optimized files in libvpx.
-          'target_name': 'gen_asm_offsets',
+          'target_name': 'gen_asm_offsets_vp8',
           'type': 'none',
           'hard_dependency': 1,
           'dependencies': [
@@ -352,34 +380,8 @@
                   ],
                   'process_output_as_sources': 1,
                 },
-                {
-                  'action_name': 'copy_dec_offsets_obj',
-                  'inputs': [ 'copy_obj.sh' ],
-                  'outputs': [ '<(INTERMEDIATE_DIR)/asm_dec_offsets.obj' ],
-                  'action': [
-                    '<(DEPTH)/third_party/libvpx/copy_obj.sh',
-                    '-d', '<@(_outputs)',
-                    '-s', '<(PRODUCT_DIR)/obj/libvpx_asm_offsets/asm_dec_offsets.obj',
-                    '-s', '<(ninja_obj_dir)/decoder/libvpx_asm_offsets.asm_dec_offsets.obj',
-                  ],
-                  'process_output_as_sources': 1,
-                },
-                {
-                  'action_name': 'copy_com_offsets_obj',
-                  'inputs': [ 'copy_obj.sh' ],
-                  'outputs': [ '<(INTERMEDIATE_DIR)/asm_com_offsets.obj' ],
-                  'action': [
-                    '<(DEPTH)/third_party/libvpx/copy_obj.sh',
-                    '-d', '<@(_outputs)',
-                    '-s', '<(PRODUCT_DIR)/obj/libvpx_asm_offsets/asm_com_offsets.obj',
-                    '-s', '<(ninja_obj_dir)/common/libvpx_asm_offsets.asm_com_offsets.obj',
-                  ],
-                  'process_output_as_sources': 1,
-                },
               ],
               'sources': [
-                '<(INTERMEDIATE_DIR)/asm_com_offsets.obj',
-                '<(INTERMEDIATE_DIR)/asm_dec_offsets.obj',
                 '<(INTERMEDIATE_DIR)/asm_enc_offsets.obj',
               ],
             }, {
@@ -391,8 +393,6 @@
                     'unpack_lib_posix.sh',
                   ],
                   'outputs': [
-                    '<(INTERMEDIATE_DIR)/asm_com_offsets.o',
-                    '<(INTERMEDIATE_DIR)/asm_dec_offsets.o',
                     '<(INTERMEDIATE_DIR)/asm_enc_offsets.o',
                   ],
                   'action': [
@@ -400,8 +400,6 @@
                     '-d', '<(INTERMEDIATE_DIR)',
                     '-a', '<(LIB_DIR)/libvpx_asm_offsets.a',
                     '-a', '<(LIB_DIR)/third_party/libvpx/libvpx_asm_offsets.a',
-                    '-f', 'asm_com_offsets.o',
-                    '-f', 'asm_dec_offsets.o',
                     '-f', 'asm_enc_offsets.o',
                   ],
                   'process_output_as_sources': 1,
@@ -409,9 +407,100 @@
               ],
               # Need this otherwise gyp won't run the rule on them.
               'sources': [
-                '<(INTERMEDIATE_DIR)/asm_com_offsets.o',
-                '<(INTERMEDIATE_DIR)/asm_dec_offsets.o',
                 '<(INTERMEDIATE_DIR)/asm_enc_offsets.o',
+              ],
+            }],
+          ],
+          'rules': [
+            {
+              # Rule to extract integer values for each symbol from an object file.
+              'rule_name': 'obj_int_extract',
+              'extension': '<(asm_obj_extension)',
+              'inputs': [
+                '<(PRODUCT_DIR)/libvpx_obj_int_extract',
+                'obj_int_extract.sh',
+              ],
+              'outputs': [
+                '<(shared_generated_dir)/<(RULE_INPUT_ROOT).asm',
+              ],
+              'variables': {
+                'conditions': [
+                  ['target_arch=="arm"', {
+                    'asm_format': 'gas',
+                  }, {
+                    'asm_format': 'rvds',
+                  }],
+                ],
+              },
+              'action': [
+                '<(DEPTH)/third_party/libvpx/obj_int_extract.sh',
+                '-e', '<(PRODUCT_DIR)/libvpx_obj_int_extract',
+                '-f', '<(asm_format)',
+                '-b', '<(RULE_INPUT_PATH)',
+                '-o', '<(shared_generated_dir)/vp8_<(RULE_INPUT_ROOT).asm',
+              ],
+              'message': 'Generate assembly offsets <(RULE_INPUT_PATH).',
+            },
+          ],
+        },
+        {
+          # A target that takes assembly offsets library and generate the
+          # corresponding assembly files.
+          # This target is a hard dependency because the generated .asm files
+          # are needed all assembly optimized files in libvpx.
+          'target_name': 'gen_asm_offsets_vp9',
+          'type': 'none',
+          'hard_dependency': 1,
+          'dependencies': [
+            'libvpx_asm_offsets_vp9',
+            'libvpx_obj_int_extract#host',
+          ],
+          'conditions': [
+            ['OS=="win"', {
+              'variables': {
+                'ninja_obj_dir': '<(PRODUCT_DIR)/obj/third_party/libvpx/source/libvpx/vp9',
+              },
+              'actions': [
+                {
+                  'action_name': 'copy_enc_offsets_obj',
+                  'inputs': [ 'copy_obj.sh' ],
+                  'outputs': [ '<(INTERMEDIATE_DIR)/vp9_asm_enc_offsets.obj' ],
+                  'action': [
+                    '<(DEPTH)/third_party/libvpx/copy_obj.sh',
+                    '-d', '<@(_outputs)',
+                    '-s', '<(PRODUCT_DIR)/obj/libvpx_asm_offsets_vp9/vp9_asm_enc_offsets.obj',
+                    '-s', '<(ninja_obj_dir)/encoder/libvpx_asm_offsets_vp9.vp9_asm_enc_offsets.obj',
+                  ],
+                  'process_output_as_sources': 1,
+                },
+              ],
+              'sources': [
+                '<(INTERMEDIATE_DIR)/vp9_asm_enc_offsets.obj',
+              ],
+            }, {
+              'actions': [
+                {
+                  # Take archived .a file and unpack it unto .o files.
+                  'action_name': 'unpack_lib_posix',
+                  'inputs': [
+                    'unpack_lib_posix.sh',
+                  ],
+                  'outputs': [
+                    '<(INTERMEDIATE_DIR)/vp9_asm_enc_offsets.o',
+                  ],
+                  'action': [
+                    '<(DEPTH)/third_party/libvpx/unpack_lib_posix.sh',
+                    '-d', '<(INTERMEDIATE_DIR)',
+                    '-a', '<(LIB_DIR)/libvpx_asm_offsets_vp9.a',
+                    '-a', '<(LIB_DIR)/third_party/libvpx/libvpx_asm_offsets_vp9.a',
+                    '-f', 'vp9_asm_enc_offsets.o',
+                  ],
+                  'process_output_as_sources': 1,
+                },
+              ],
+              # Need this otherwise gyp won't run the rule on them.
+              'sources': [
+                '<(INTERMEDIATE_DIR)/vp9_asm_enc_offsets.o',
               ],
             }],
           ],

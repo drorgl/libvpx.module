@@ -33,7 +33,7 @@
 #endif
 #include "encodeframe.h"
 
-extern void vp8_stuff_mb(VP8_COMP *cpi, MACROBLOCK *x, TOKENEXTRA **t) ;
+extern void vp8_stuff_mb(VP8_COMP *cpi, MACROBLOCKD *x, TOKENEXTRA **t) ;
 extern void vp8_calc_ref_frame_costs(int *ref_frame_cost,
                                      int prob_intra,
                                      int prob_last,
@@ -643,6 +643,8 @@ static void init_encode_frame_mb_context(VP8_COMP *cpi)
     xd->left_context = &cm->left_context;
 
     vp8_zero(cpi->count_mb_ref_frame_usage)
+    vp8_zero(cpi->ymode_count)
+    vp8_zero(cpi->uv_mode_count)
 
     x->mvc = cm->fc.mvc;
 
@@ -672,42 +674,6 @@ static void init_encode_frame_mb_context(VP8_COMP *cpi)
     xd->fullpixel_mask = 0xffffffff;
     if(cm->full_pixel)
         xd->fullpixel_mask = 0xfffffff8;
-
-    vp8_zero(x->coef_counts);
-    vp8_zero(x->ymode_count);
-    vp8_zero(x->uv_mode_count)
-    x->prediction_error = 0;
-    x->intra_error = 0;
-}
-
-static void sum_coef_counts(MACROBLOCK *x, MACROBLOCK *x_thread)
-{
-    int i = 0;
-    do
-    {
-        int j = 0;
-        do
-        {
-            int k = 0;
-            do
-            {
-                /* at every context */
-
-                /* calc probs and branch cts for this frame only */
-                int t = 0;      /* token/prob index */
-
-                do
-                {
-                    x->coef_counts [i][j][k][t] +=
-                        x_thread->coef_counts [i][j][k][t];
-                }
-                while (++t < ENTROPY_NODES);
-            }
-            while (++k < PREV_COEF_CONTEXTS);
-        }
-        while (++j < COEF_BANDS);
-    }
-    while (++i < BLOCK_TYPES);
 }
 
 void vp8_encode_frame(VP8_COMP *cpi)
@@ -751,7 +717,9 @@ void vp8_encode_frame(VP8_COMP *cpi)
         xd->subpixel_predict16x16   = vp8_bilinear_predict16x16;
     }
 
-    cpi->mb.skip_true_count = 0;
+    cpi->prediction_error = 0;
+    cpi->intra_error = 0;
+    cpi->skip_true_count = 0;
     cpi->tok_count = 0;
 
 #if 0
@@ -762,7 +730,9 @@ void vp8_encode_frame(VP8_COMP *cpi)
 
     xd->mode_info_context = cm->mi;
 
-    vp8_zero(cpi->mb.MVcount);
+    vp8_zero(cpi->MVcount);
+
+    vp8_zero(cpi->coef_counts);
 
     vp8cx_frame_init_quantizer(cpi);
 
@@ -867,41 +837,13 @@ void vp8_encode_frame(VP8_COMP *cpi)
 
             for (i = 0; i < cpi->encoding_thread_count; i++)
             {
-                int mode_count;
-                int mv_vals;
                 totalrate += cpi->mb_row_ei[i].totalrate;
-
-                cpi->mb.skip_true_count += cpi->mb_row_ei[i].mb.skip_true_count;
-
-                for(mode_count = 0; mode_count < VP8_YMODES; mode_count++)
-                    cpi->mb.ymode_count[mode_count] +=
-                        cpi->mb_row_ei[i].mb.ymode_count[mode_count];
-
-                for(mode_count = 0; mode_count < VP8_UV_MODES; mode_count++)
-                    cpi->mb.uv_mode_count[mode_count] +=
-                        cpi->mb_row_ei[i].mb.uv_mode_count[mode_count];
-
-                for(mv_vals = 0; mv_vals < MVvals; mv_vals++)
-                {
-                    cpi->mb.MVcount[0][mv_vals] +=
-                        cpi->mb_row_ei[i].mb.MVcount[0][mv_vals];
-                    cpi->mb.MVcount[1][mv_vals] +=
-                        cpi->mb_row_ei[i].mb.MVcount[1][mv_vals];
-                }
-
-                cpi->mb.prediction_error +=
-                    cpi->mb_row_ei[i].mb.prediction_error;
-                cpi->mb.intra_error += cpi->mb_row_ei[i].mb.intra_error;
-
-                /* add up counts for each thread */
-                sum_coef_counts(x, &cpi->mb_row_ei[i].mb);
             }
 
         }
         else
 #endif
         {
-
             /* for each macroblock row in image */
             for (mb_row = 0; mb_row < cm->mb_rows; mb_row++)
             {
@@ -1123,8 +1065,8 @@ static void sum_intra_stats(VP8_COMP *cpi, MACROBLOCK *x)
 
 #endif
 
-    ++x->ymode_count[m];
-    ++x->uv_mode_count[uvm];
+    ++cpi->ymode_count[m];
+    ++cpi->uv_mode_count[uvm];
 
 }
 
@@ -1151,16 +1093,15 @@ static void adjust_act_zbin( VP8_COMP *cpi, MACROBLOCK *x )
 #endif
 }
 
-int vp8cx_encode_intra_macroblock(VP8_COMP *cpi, MACROBLOCK *x,
-                                  TOKENEXTRA **t)
+int vp8cx_encode_intra_macroblock(VP8_COMP *cpi, MACROBLOCK *x, TOKENEXTRA **t)
 {
     MACROBLOCKD *xd = &x->e_mbd;
     int rate;
 
     if (cpi->sf.RD && cpi->compressor_speed != 2)
-        vp8_rd_pick_intra_mode(x, &rate);
+        vp8_rd_pick_intra_mode(cpi, x, &rate);
     else
-        vp8_pick_intra_mode(x, &rate);
+        vp8_pick_intra_mode(cpi, x, &rate);
 
     if(cpi->oxcf.tuning == VP8_TUNE_SSIM)
     {
@@ -1177,7 +1118,7 @@ int vp8cx_encode_intra_macroblock(VP8_COMP *cpi, MACROBLOCK *x,
 
     sum_intra_stats(cpi, x);
 
-    vp8_tokenize_mb(cpi, x, t);
+    vp8_tokenize_mb(cpi, &x->e_mbd, t);
 
     if (xd->mode_info_context->mbmi.mode != B_PRED)
         vp8_inverse_transform_mby(xd);
@@ -1256,8 +1197,8 @@ int vp8cx_encode_inter_macroblock
                             &distortion, &intra_error, mb_row, mb_col);
     }
 
-    x->prediction_error += distortion;
-    x->intra_error += intra_error;
+    cpi->prediction_error += distortion;
+    cpi->intra_error += intra_error;
 
     if(cpi->oxcf.tuning == VP8_TUNE_SSIM)
     {
@@ -1363,7 +1304,7 @@ int vp8cx_encode_inter_macroblock
 
     if (!x->skip)
     {
-        vp8_tokenize_mb(cpi, x, t);
+        vp8_tokenize_mb(cpi, xd, t);
 
         if (xd->mode_info_context->mbmi.mode != B_PRED)
             vp8_inverse_transform_mby(xd);
@@ -1380,12 +1321,12 @@ int vp8cx_encode_inter_macroblock
 
         if (cpi->common.mb_no_coeff_skip)
         {
-            x->skip_true_count ++;
+            cpi->skip_true_count ++;
             vp8_fix_contexts(xd);
         }
         else
         {
-            vp8_stuff_mb(cpi, x, t);
+            vp8_stuff_mb(cpi, xd, t);
         }
     }
 
