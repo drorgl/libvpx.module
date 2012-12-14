@@ -93,7 +93,6 @@
               'dependencies': [
                 'gen_asm_offsets_vp8',
                 'gen_asm_offsets_vp9',
-                'gen_asm_offsets_vpx_scale',
               ],
               'includes': [
                 '../yasm/yasm_compile.gypi'

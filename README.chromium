@@ -5,9 +5,9 @@ License: BSD
 License File: source/libvpx/LICENSE
 Security Critical: yes
 
-Date: Tuesday December 12 2012
+Date: Friday December 14 2012
 Branch: vp9-preview
-Commit: b192d99f7367871908551ca940e06b7cb94e760b
+Commit: 6247b239bca25cadb5fb16b1bc6f4c77e764c4ff
 
 Description:
 Contains the sources used to compile libvpx binaries used by Google Chrome and
@@ -20,7 +20,8 @@ Notes on updating libvpx source code.
 
 Please follow these steps to update libvpx source code:
 
-1. Update libvpx source tree.
+1. Update libvpx source tree. Look for current commit hash:<hash> output to
+   update README.chromium.
 
    ./update_libvpx.sh [branch name]
 
@@ -28,7 +29,8 @@ Please follow these steps to update libvpx source code:
 
    ./generate_gypi.sh
 
-3. Update this README with any Version, Date, Branch, and Commit changes.
+3. Update this README with any Version, Date, Branch, and Commit changes. The
+   version is in the file source/config/vpx_version.h
 
 4. Commit the changes in root (I.e README & .gypi files), source/libvpx, and
    source/config directories.

@@ -55,6 +55,10 @@ tr -s '\t' ' ' | cut -f6 -d\ )"
 # Switch the content to the latest git repo.
 git checkout -b tot origin/$GIT_BRANCH
 
+# Output the current commit hash.
+hash=$(git log -1 --format="%H")
+echo "Currnet commit hash:$hash"
+
 # Git is useless now, remove the local git repo.
 rm -rf .git
 
