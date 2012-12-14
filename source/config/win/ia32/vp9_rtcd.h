@@ -367,7 +367,7 @@ void vp9_short_idct16x16_c(short *input, short *output, int pitch);
 void vp9_short_idct10_16x16_c(short *input, short *output, int pitch);
 #define vp9_short_idct10_16x16 vp9_short_idct10_16x16_c
 
-void vp9_ihtllm_c(const short *input, short *output, int pitch, int tx_type, int tx_dim);
+void vp9_ihtllm_c(const short *input, short *output, int pitch, int tx_type, int tx_dim, short eobs);
 #define vp9_ihtllm vp9_ihtllm_c
 
 void vp9_short_inv_walsh4x4_1_c(short *in, short *out);

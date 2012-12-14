@@ -139,7 +139,7 @@ function gen_config_files {
   ./configure $2  > /dev/null
 
   # Generate vpx_config.asm. Do not create one for mips.
-  if [ "$1" -ne "mipsel" ]; then
+  if [ "$1" != "mipsel" ]; then
     if [[ "$1" == *x64* ]] || [[ "$1" == *ia32* ]]; then
       egrep "#define [A-Z0-9_]+ [01]" vpx_config.h | awk '{print $2 " equ " $3}' > vpx_config.asm
     else
