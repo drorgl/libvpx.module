@@ -43,8 +43,7 @@ void vp9_filter_block2d_16x16_8_ssse3(const unsigned char *src_ptr, const unsign
 RTCD_EXTERN void (*vp9_filter_block2d_16x16_8)(const unsigned char *src_ptr, const unsigned int src_stride, const short *HFilter_aligned16, const short *VFilter_aligned16, unsigned char *dst_ptr, unsigned int dst_stride);
 
 void vp9_dequantize_b_c(struct blockd *x);
-void vp9_dequantize_b_mmx(struct blockd *x);
-#define vp9_dequantize_b vp9_dequantize_b_mmx
+#define vp9_dequantize_b vp9_dequantize_b_c
 
 void vp9_dequantize_b_2x2_c(struct blockd *x);
 #define vp9_dequantize_b_2x2 vp9_dequantize_b_2x2_c
@@ -71,16 +70,13 @@ void vp9_dequant_dc_idct_add_c(short *input, const short *dq, unsigned char *pre
 #define vp9_dequant_dc_idct_add vp9_dequant_dc_idct_add_c
 
 void vp9_dequant_dc_idct_add_y_block_c(short *q, const short *dq, unsigned char *pre, unsigned char *dst, int stride, unsigned short *eobs, const short *dc);
-void vp9_dequant_dc_idct_add_y_block_mmx(short *q, const short *dq, unsigned char *pre, unsigned char *dst, int stride, unsigned short *eobs, const short *dc);
-#define vp9_dequant_dc_idct_add_y_block vp9_dequant_dc_idct_add_y_block_mmx
+#define vp9_dequant_dc_idct_add_y_block vp9_dequant_dc_idct_add_y_block_c
 
 void vp9_dequant_idct_add_y_block_c(short *q, const short *dq, unsigned char *pre, unsigned char *dst, int stride, unsigned short *eobs);
-void vp9_dequant_idct_add_y_block_mmx(short *q, const short *dq, unsigned char *pre, unsigned char *dst, int stride, unsigned short *eobs);
-#define vp9_dequant_idct_add_y_block vp9_dequant_idct_add_y_block_mmx
+#define vp9_dequant_idct_add_y_block vp9_dequant_idct_add_y_block_c
 
 void vp9_dequant_idct_add_uv_block_c(short *q, const short *dq, unsigned char *pre, unsigned char *dstu, unsigned char *dstv, int stride, unsigned short *eobs);
-void vp9_dequant_idct_add_uv_block_mmx(short *q, const short *dq, unsigned char *pre, unsigned char *dstu, unsigned char *dstv, int stride, unsigned short *eobs);
-#define vp9_dequant_idct_add_uv_block vp9_dequant_idct_add_uv_block_mmx
+#define vp9_dequant_idct_add_uv_block vp9_dequant_idct_add_uv_block_c
 
 void vp9_copy_mem16x16_c(unsigned char *src, int src_pitch, unsigned char *dst, int dst_pitch);
 void vp9_copy_mem16x16_mmx(unsigned char *src, int src_pitch, unsigned char *dst, int dst_pitch);
@@ -347,12 +343,10 @@ void vp9_bilinear_predict_avg4x4_c(unsigned char *src_ptr, int  src_pixels_per_l
 #define vp9_bilinear_predict_avg4x4 vp9_bilinear_predict_avg4x4_c
 
 void vp9_short_idct4x4llm_1_c(short *input, short *output, int pitch);
-void vp9_short_idct4x4llm_1_mmx(short *input, short *output, int pitch);
-#define vp9_short_idct4x4llm_1 vp9_short_idct4x4llm_1_mmx
+#define vp9_short_idct4x4llm_1 vp9_short_idct4x4llm_1_c
 
 void vp9_short_idct4x4llm_c(short *input, short *output, int pitch);
-void vp9_short_idct4x4llm_mmx(short *input, short *output, int pitch);
-#define vp9_short_idct4x4llm vp9_short_idct4x4llm_mmx
+#define vp9_short_idct4x4llm vp9_short_idct4x4llm_c
 
 void vp9_short_idct8x8_c(short *input, short *output, int pitch);
 #define vp9_short_idct8x8 vp9_short_idct8x8_c
