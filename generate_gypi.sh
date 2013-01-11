@@ -48,7 +48,7 @@ function convert_srcs_to_gypi {
   echo "  'sources': [" >> $2
   for f in $source_list
   do
-    echo "    '$LIBVPX_SRC_DIR/$f'," >> $2
+    echo "    '<(libvpx_source)/$f'," >> $2
   done
   echo "  ]," >> $2
   echo "}" >> $2
