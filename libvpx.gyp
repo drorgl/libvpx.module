@@ -425,7 +425,7 @@
                   'action': [
                     '<(DEPTH)/third_party/libvpx/unpack_lib_posix.sh',
                     '-d', '<(INTERMEDIATE_DIR)',
-                    '-a', '<(LIB_DIR)/libvpx_asm_offsets.a',
+                    '-a', '<(PRODUCT_DIR)/libvpx_asm_offsets.a',
                     '-a', '<(LIB_DIR)/third_party/libvpx/libvpx_asm_offsets.a',
                     '-f', 'asm_enc_offsets.o',
                   ],
@@ -518,7 +518,7 @@
                   'action': [
                     '<(DEPTH)/third_party/libvpx/unpack_lib_posix.sh',
                     '-d', '<(INTERMEDIATE_DIR)',
-                    '-a', '<(LIB_DIR)/libvpx_asm_offsets_vp9.a',
+                    '-a', '<(PRODUCT_DIR)/libvpx_asm_offsets_vp9.a',
                     '-a', '<(LIB_DIR)/third_party/libvpx/libvpx_asm_offsets_vp9.a',
                     '-f', 'vp9_asm_enc_offsets.o',
                   ],
@@ -611,7 +611,7 @@
                   'action': [
                     '<(DEPTH)/third_party/libvpx/unpack_lib_posix.sh',
                     '-d', '<(INTERMEDIATE_DIR)',
-                    '-a', '<(LIB_DIR)/libvpx_asm_offsets_vpx_scale.a',
+                    '-a', '<(PRODUCT_DIR)/libvpx_asm_offsets_vpx_scale.a',
                     '-a', '<(LIB_DIR)/third_party/libvpx/libvpx_asm_offsets_vpx_scale.a',
                     '-f', 'vpx_scale_asm_offsets.o',
                   ],
