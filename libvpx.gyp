@@ -448,7 +448,7 @@
                 'obj_int_extract.sh',
               ],
               'outputs': [
-                '<(shared_generated_dir)/<(RULE_INPUT_ROOT).asm',
+                '<(shared_generated_dir)/vp8_<(RULE_INPUT_ROOT).asm',
               ],
               'variables': {
                 'conditions': [
