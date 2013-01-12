@@ -406,6 +406,7 @@
                     '-s', '<(ninja_obj_dir)/encoder/libvpx_asm_offsets.asm_enc_offsets.obj',
                   ],
                   'process_output_as_sources': 1,
+                  'msvs_cygwin_shell': 1,
                 },
               ],
               'sources': [
@@ -430,6 +431,7 @@
                     '-f', 'asm_enc_offsets.o',
                   ],
                   'process_output_as_sources': 1,
+                  'msvs_cygwin_shell': 1,
                 },
               ],
               # Need this otherwise gyp won't run the rule on them.
@@ -467,6 +469,7 @@
                 '-o', '<(shared_generated_dir)/vp8_<(RULE_INPUT_ROOT).asm',
               ],
               'message': 'Generate assembly offsets <(RULE_INPUT_PATH).',
+              'msvs_cygwin_shell': 1,
             },
           ],
         },
@@ -499,6 +502,7 @@
                     '-s', '<(ninja_obj_dir)/encoder/libvpx_asm_offsets_vp9.vp9_asm_enc_offsets.obj',
                   ],
                   'process_output_as_sources': 1,
+                  'msvs_cygwin_shell': 1,
                 },
               ],
               'sources': [
@@ -560,6 +564,7 @@
                 '-o', '<(shared_generated_dir)/<(RULE_INPUT_ROOT).asm',
               ],
               'message': 'Generate assembly offsets <(RULE_INPUT_PATH).',
+              'msvs_cygwin_shell': 1,
             },
           ],
         },
@@ -592,6 +597,7 @@
                     '-s', '<(ninja_obj_dir)/encoder/libvpx_asm_offsets_vpx_scale.vpx_scale_asm_offsets.obj',
                   ],
                   'process_output_as_sources': 1,
+                  'msvs_cygwin_shell': 1,
                 },
               ],
               'sources': [
@@ -653,6 +659,7 @@
                 '-o', '<(shared_generated_dir)/<(RULE_INPUT_ROOT).asm',
               ],
               'message': 'Generate assembly offsets <(RULE_INPUT_PATH).',
+              'msvs_cygwin_shell': 1,
             },
           ],
         },
