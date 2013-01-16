@@ -436,10 +436,10 @@ RTCD_OPTIONS = ${RTCD_OPTIONS}
 EOF
 
     if enabled rvct; then cat >> $1 << EOF
-fmt_deps = sed -e 's;^__image.axf;\$\${@:.d=.o} \$\$@;' #hide
+fmt_deps = sed -e 's;^__image.axf;\${@:.d=.o} \$@;' #hide
 EOF
     else cat >> $1 << EOF
-fmt_deps = sed -e 's;^\([a-zA-Z0-9_]*\)\.o;\$\${@:.d=.o} \$\$@;'
+fmt_deps = sed -e 's;^\([a-zA-Z0-9_]*\)\.o;\${@:.d=.o} \$@;'
 EOF
     fi
 
@@ -597,8 +597,13 @@ process_common_toolchain() {
             armv6*)
                 tgt_isa=armv6
                 ;;
+            armv7*-hardfloat*)
+                tgt_isa=armv7
+                float_abi=hard
+                ;;
             armv7*)
                 tgt_isa=armv7
+                float_abi=softfp
                 ;;
             armv5te*)
                 tgt_isa=armv5te
@@ -641,6 +646,9 @@ process_common_toolchain() {
             *darwin12*)
                 tgt_isa=x86_64
                 tgt_os=darwin12
+                ;;
+            x86_64*mingw32*)
+                tgt_os=win64
                 ;;
             *mingw32*|*cygwin*)
                 [ -z "$tgt_isa" ] && tgt_isa=x86
@@ -768,6 +776,7 @@ process_common_toolchain() {
             ;;
         armv5te)
             soft_enable edsp
+            disable fast_unaligned
             ;;
         esac
 
@@ -783,8 +792,9 @@ process_common_toolchain() {
             check_add_asflags --defsym ARCHITECTURE=${arch_int}
             tune_cflags="-mtune="
             if [ ${tgt_isa} == "armv7" ]; then
-                check_add_cflags  -march=armv7-a -mfloat-abi=softfp
-                check_add_asflags -march=armv7-a -mfloat-abi=softfp
+                [ -z "${float_abi}" ] && float_abi=softfp
+                check_add_cflags  -march=armv7-a -mfloat-abi=${float_abi}
+                check_add_asflags -march=armv7-a -mfloat-abi=${float_abi}
 
                 if enabled neon
                 then
@@ -1001,7 +1011,11 @@ EOF
         soft_enable sse2
         soft_enable sse3
         soft_enable ssse3
-        soft_enable sse4_1
+        if enabled gcc && ! disabled sse4_1 && ! check_cflags -msse4; then
+            RTCD_OPTIONS="${RTCD_OPTIONS}--disable-sse4_1 "
+        else
+            soft_enable sse4_1
+        fi
 
         case  ${tgt_os} in
             win*)
@@ -1075,7 +1089,7 @@ EOF
                 add_asflags -f x64
                 enabled debug && add_asflags -g cv8
             ;;
-            linux*|solaris*)
+            linux*|solaris*|android*)
                 add_asflags -f elf${bits}
                 enabled debug && [ "${AS}" = yasm ] && add_asflags -g dwarf2
                 enabled debug && [ "${AS}" = nasm ] && add_asflags -g
