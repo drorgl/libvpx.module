@@ -5,7 +5,6 @@
 
 {
   'sources': [
-    '<(libvpx_source)/third_party/x86inc/x86inc.asm',
     '<(libvpx_source)/vp8/common/alloccommon.c',
     '<(libvpx_source)/vp8/common/alloccommon.h',
     '<(libvpx_source)/vp8/common/blockd.c',
