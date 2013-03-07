@@ -4,7 +4,15 @@
 {
   'variables': {
     'use_system_libvpx%': 0,
+    'libvpx_build_vp9%': 1,
     'libvpx_source%': 'source/libvpx',
+  },
+  'target_defaults': {
+    'target_conditions': [
+      ['<(libvpx_build_vp9)==0', {
+        'sources/': [ ['exclude', '(^|/)vp9/'], ],
+      }],
+    ],
   },
   'conditions': [
     ['use_system_libvpx==0', {
@@ -93,7 +101,6 @@
               },
               'dependencies': [
                 'gen_asm_offsets_vp8',
-                'gen_asm_offsets_vp9',
               ],
               'includes': [
                 '../yasm/yasm_compile.gypi'
@@ -117,13 +124,13 @@
               # avoid this problem.
               'msvs_2010_disable_uldi_when_referenced': 1,
               'conditions': [
-                [ 'target_arch=="ia32"', {
+                ['target_arch=="ia32"', {
                   'includes': [
                     'libvpx_srcs_x86.gypi',
                   ],
                   'dependencies': [ 'libvpx_intrinsics', ],
                 }],
-                [ 'target_arch=="x64"', {
+                ['target_arch=="x64"', {
                   'includes': [
                     'libvpx_srcs_x86_64.gypi',
                   ],
@@ -143,13 +150,16 @@
                     '-Wno-parentheses-equality',
                   ],
                 }],
-                [ 'chromeos == 1', {
+                ['chromeos == 1', {
                   # ChromeOS needs these files for animated WebM avatars.
                   'sources': [
                     '<(libvpx_source)/libmkv/EbmlIDs.h',
                     '<(libvpx_source)/libmkv/EbmlWriter.c',
                     '<(libvpx_source)/libmkv/EbmlWriter.h',
                   ],
+                }],
+                ['libvpx_build_vp9==1', {
+                  'dependencies': ['gen_asm_offsets_vp9',],
                 }],
               ],
             },
@@ -204,7 +214,6 @@
               'type': 'static_library',
               'dependencies': [
                 'gen_asm_offsets_vp8',
-                'gen_asm_offsets_vp9',
                 'gen_asm_offsets_vpx_scale',
               ],
 
@@ -278,13 +287,16 @@
                     '<(android_ndk_root)/sources/android/cpufeatures',
                   ],
                 }],
-                [ 'chromeos == 1', {
+                ['chromeos == 1', {
                   # ChromeOS needs these files for animated WebM avatars.
                   'sources': [
                     '<(libvpx_source)/libmkv/EbmlIDs.h',
                     '<(libvpx_source)/libmkv/EbmlWriter.c',
                     '<(libvpx_source)/libmkv/EbmlWriter.h',
                   ],
+                }],
+                ['libvpx_build_vp9==1', {
+                  'dependencies': ['gen_asm_offsets_vp9',],
                 }],
               ],
             },
@@ -787,9 +799,3 @@
     }],
   ],
 }
-
-# Local Variables:
-# tab-width:2
-# indent-tabs-mode:nil
-# End:
-# vim: set expandtab tabstop=2 shiftwidth=2:
