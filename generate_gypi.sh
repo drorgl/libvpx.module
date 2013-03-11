@@ -13,6 +13,7 @@
 #
 # And this will update all the .gypi and config files needed.
 #
+# !!! It's highly recommended to install yasm before running this script.
 
 BASE_DIR=`pwd`
 LIBVPX_SRC_DIR="source/libvpx"
@@ -164,6 +165,7 @@ gen_config_files linux/ia32 "--target=x86-linux-gcc --disable-ccache --enable-pi
 gen_config_files linux/x64 "--target=x86_64-linux-gcc --disable-ccache --enable-pic --enable-realtime-only ${all_platforms}"
 gen_config_files linux/arm "--target=armv6-linux-gcc --enable-pic --enable-realtime-only --disable-install-bins --disable-install-libs ${all_platforms}"
 gen_config_files linux/arm-neon "--target=armv7-linux-gcc --enable-pic --enable-realtime-only ${all_platforms}"
+gen_config_files linux/arm-neon-cpu-detect "--target=armv7-linux-gcc --enable-pic --enable-realtime-only --enable-runtime-cpu-detect ${all_platforms}"
 gen_config_files linux/mipsel "--target=mips32-linux-gcc --disable-fast-unaligned ${all_platforms}"
 gen_config_files win/ia32 "--target=x86-win32-vs7 --enable-realtime-only ${all_platforms}"
 gen_config_files win/x64 "--target=x86_64-win64-vs9 --enable-realtime-only ${all_platforms}"
@@ -179,6 +181,7 @@ lint_config linux/ia32
 lint_config linux/x64
 lint_config linux/arm
 lint_config linux/arm-neon
+lint_config linux/arm-neon-cpu-detect
 lint_config win/ia32
 lint_config win/x64
 lint_config mac/ia32
@@ -194,6 +197,7 @@ gen_rtcd_header linux/ia32 x86
 gen_rtcd_header linux/x64 x86_64
 gen_rtcd_header linux/arm armv6
 gen_rtcd_header linux/arm-neon armv7
+gen_rtcd_header linux/arm-neon-cpu-detect armv7
 gen_rtcd_header linux/mipsel mipsel
 gen_rtcd_header win/ia32 x86
 gen_rtcd_header win/x64 x86_64
@@ -230,6 +234,12 @@ config=$(print_config linux/arm-neon)
 make_clean
 make libvpx_srcs.txt target=libs $config > /dev/null
 convert_srcs_to_gypi libvpx_srcs.txt $BASE_DIR/libvpx_srcs_arm_neon.gypi
+
+echo "Generate ARM NEON CPU DETECT source list."
+config=$(print_config linux/arm-neon-cpu-detect)
+make_clean
+make libvpx_srcs.txt target=libs $config > /dev/null
+convert_srcs_to_gypi libvpx_srcs.txt $BASE_DIR/libvpx_srcs_arm_neon_cpu_detect.gypi
 
 echo "Generate MIPS source list."
 config=$(print_config_basic linux/mipsel)

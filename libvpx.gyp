@@ -28,7 +28,13 @@
           ['target_arch=="arm" and arm_neon==1', {
             'target_arch_full': 'arm-neon',
           }, {
-            'target_arch_full': '<(target_arch)',
+            'conditions': [
+              ['OS=="android"', {
+                'target_arch_full': 'arm-neon-cpu-detect',
+              }, {
+               'target_arch_full': '<(target_arch)',
+              }],
+            ],
           }],
 
           ['os_posix == 1 and OS != "mac"', {
@@ -271,8 +277,19 @@
               'conditions': [
                 # Libvpx optimizations for ARMv6 or ARMv7 without NEON.
                 ['arm_neon==0', {
-                  'includes': [
-                    'libvpx_srcs_arm.gypi',
+                  'conditions': [
+                    ['OS=="android"', {
+                      'includes': [
+                        'libvpx_srcs_arm_neon_cpu_detect.gypi',
+                      ],
+                      'cflags': [
+                        '-Wa,-mfpu=neon',
+                      ],
+                    }, {
+                      'includes': [
+                        'libvpx_srcs_arm.gypi',
+                      ],
+                    }],
                   ],
                 }],
                 # Libvpx optimizations for ARMv7 with NEON.
