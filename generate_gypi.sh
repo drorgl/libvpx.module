@@ -19,40 +19,75 @@ BASE_DIR=`pwd`
 LIBVPX_SRC_DIR="source/libvpx"
 LIBVPX_CONFIG_DIR="source/config"
 
+# Generate a gypi with a list of source files.
+# $1 - Array name for file list. This is processed with 'declare' below to
+#      regenerate the array locally.
+# $2 - Output file
+function write_file_list {
+  # Convert the first argument back in to an array.
+  declare -a file_list=("${!1}")
+
+  echo "# This file is generated. Do not edit." > $2.gypi
+  echo "# Copyright (c) 2013 The Chromium Authors. All rights reserved." >> $2.gypi
+  echo "# Use of this source code is governed by a BSD-style license that can be" >> $2.gypi
+  echo "# found in the LICENSE file." >> $2.gypi
+  echo "" >> $2.gypi
+  echo "{" >> $2.gypi
+  echo "  'sources': [" >> $2.gypi
+  for f in $file_list
+  do
+    echo "    '<(libvpx_source)/$f'," >> $2.gypi
+  done
+  echo "  ]," >> $2.gypi
+  echo "}" >> $2.gypi
+}
+
 # Convert a list of source files into gypi file.
 # $1 - Input file.
-# $2 - Output gypi file.
+# $2 - Output gypi file base. Will generate additional .gypi files when
+#      different compilation flags are required.
 function convert_srcs_to_gypi {
   # Do the following here:
   # 1. Filter .c, .h, .s, .S and .asm files.
-  # 2. Exclude certain files. If you want to add more files to exclude from
-  #    the .gypi add a new -v option. I.e. grep -v '_offsets\.c' or grep -v
-  #    'vp9_filter_sse4\.c'
+  # 2. Move certain files to a separate include to allow applying different
+  #    compiler options.
   # 3. Replace .asm.s to .asm because gyp will do the conversion.
+
   local source_list=$(grep -E '(\.c|\.h|\.S|\.s|\.asm)$' $1)
+
+  # _offsets are used in pre-processing to generate files for assembly. They are
+  # not part of the compiled library.
   source_list=$(echo "$source_list" | grep -v '_offsets\.c')
+
+  # Not sure why vpx_config is not included.
   source_list=$(echo "$source_list" | grep -v 'vpx_config\.c')
-  source_list=$(echo "$source_list" | grep -v 'denoising_sse2\.c')
-  source_list=$(echo "$source_list" | grep -v 'vp9_filter_sse2\.c')
-  source_list=$(echo "$source_list" | grep -v 'vp9_loopfilter_x86\.c')
-  source_list=$(echo "$source_list" | grep -v 'vp9_sadmxn_x86\.c')
-  source_list=$(echo "$source_list" | grep -v 'vp9_filter_sse4\.c')
+
+  # The actual ARM files end in .asm. We have rules to translate them to .S
   source_list=$(echo "$source_list" | sed s/\.asm\.s$/.asm/)
 
-  # Build the gypi file.
-  echo "# This file is generated. Do not edit." > $2
-  echo "# Copyright (c) 2012 The Chromium Authors. All rights reserved." >> $2
-  echo "# Use of this source code is governed by a BSD-style license that can be" >> $2
-  echo "# found in the LICENSE file." >> $2
-  echo "" >> $2
-  echo "{" >> $2
-  echo "  'sources': [" >> $2
-  for f in $source_list
-  do
-    echo "    '<(libvpx_source)/$f'," >> $2
-  done
-  echo "  ]," >> $2
-  echo "}" >> $2
+  # These files require a different set of options during compilation. The x86
+  # intrinsics files need -msse2 and -msse4.1
+
+  # Select all x86 files ending with .c
+  local x86_intrinsic_list=$(echo "$source_list" | \
+    egrep 'vp[89]/(encoder|decoder|common)/x86/'  | \
+    grep -e '.c$')
+
+  # Remove these files from the main list.
+  source_list=$(comm -23 <(echo "$source_list") <(echo "$x86_intrinsic_list"))
+
+  write_file_list source_list $BASE_DIR/$2
+
+  # Currently we apply -msse4.1 to allow the files to build. Name the file as
+  # such so that if issues come up we can split the file and target the options
+  # more carefully.
+
+  # All the files are in a single "element." Check if the first element has
+  # length 0.
+  if [ 0 -ne ${#x86_intrinsic_list} ]; then
+    write_file_list x86_intrinsic_list[@] $BASE_DIR/$2_sse4_1
+  fi
+
 }
 
 # Clean files from previous make.
@@ -212,7 +247,7 @@ echo "Generate X86 source list."
 config=$(print_config linux/ia32)
 make_clean
 make libvpx_srcs.txt target=libs $config > /dev/null
-convert_srcs_to_gypi libvpx_srcs.txt $BASE_DIR/libvpx_srcs_x86.gypi
+convert_srcs_to_gypi libvpx_srcs.txt libvpx_srcs_x86
 
 # Copy vpx_version.h. The file should be the same for all platforms.
 cp vpx_version.h $BASE_DIR/$LIBVPX_CONFIG_DIR
@@ -221,31 +256,31 @@ echo "Generate X86_64 source list."
 config=$(print_config linux/x64)
 make_clean
 make libvpx_srcs.txt target=libs $config > /dev/null
-convert_srcs_to_gypi libvpx_srcs.txt $BASE_DIR/libvpx_srcs_x86_64.gypi
+convert_srcs_to_gypi libvpx_srcs.txt libvpx_srcs_x86_64
 
 echo "Generate ARM source list."
 config=$(print_config linux/arm)
 make_clean
 make libvpx_srcs.txt target=libs $config > /dev/null
-convert_srcs_to_gypi libvpx_srcs.txt $BASE_DIR/libvpx_srcs_arm.gypi
+convert_srcs_to_gypi libvpx_srcs.txt libvpx_srcs_arm
 
 echo "Generate ARM NEON source list."
 config=$(print_config linux/arm-neon)
 make_clean
 make libvpx_srcs.txt target=libs $config > /dev/null
-convert_srcs_to_gypi libvpx_srcs.txt $BASE_DIR/libvpx_srcs_arm_neon.gypi
+convert_srcs_to_gypi libvpx_srcs.txt libvpx_srcs_arm_neon
 
 echo "Generate ARM NEON CPU DETECT source list."
 config=$(print_config linux/arm-neon-cpu-detect)
 make_clean
 make libvpx_srcs.txt target=libs $config > /dev/null
-convert_srcs_to_gypi libvpx_srcs.txt $BASE_DIR/libvpx_srcs_arm_neon_cpu_detect.gypi
+convert_srcs_to_gypi libvpx_srcs.txt libvpx_srcs_arm_neon_cpu_detect
 
 echo "Generate MIPS source list."
 config=$(print_config_basic linux/mipsel)
 make_clean
 make libvpx_srcs.txt target=libs $config > /dev/null
-convert_srcs_to_gypi libvpx_srcs.txt $BASE_DIR/libvpx_srcs_mips.gypi
+convert_srcs_to_gypi libvpx_srcs.txt libvpx_srcs_mips
 
 echo "Remove temporary directory."
 cd $BASE_DIR

@@ -67,14 +67,13 @@
                 '<(libvpx_source)/vp8/decoder',
                 '<(libvpx_source)/vp8/encoder',
               ],
-              'sources': [
-                '<(libvpx_source)/vp8/encoder/x86/denoising_sse2.c',
-                '<(libvpx_source)/vp9/common/x86/vp9_filter_sse2.c',
-                '<(libvpx_source)/vp9/common/x86/vp9_loopfilter_x86.c',
-                '<(libvpx_source)/vp9/common/x86/vp9_sadmxn_x86.c',
-                '<(libvpx_source)/vp9/common/x86/vp9_filter_sse4.c',
-              ],
               'conditions': [
+                ['target_arch=="x64"', {
+                  'includes': ['libvpx_srcs_x86_64_sse4_1.gypi', ],
+                }],
+                ['target_arch=="ia32"', {
+                  'includes': ['libvpx_srcs_x86_sse4_1.gypi', ],
+                }],
                 ['os_posix==1 and OS!="mac"', {
                   'cflags': [ '-msse2', '-msse4', ],
                 }],
