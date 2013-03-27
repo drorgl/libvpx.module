@@ -1,5 +1,5 @@
-#ifndef VP__RTCD_
-#define VP__RTCD_
+#ifndef VP8_RTCD_H_
+#define VP8_RTCD_H_
 
 #ifdef RTCD_C
 #define RTCD_EXTERN

@@ -1,5 +1,5 @@
-#ifndef VP__RTCD_
-#define VP__RTCD_
+#ifndef VP9_RTCD_H_
+#define VP9_RTCD_H_
 
 #ifdef RTCD_C
 #define RTCD_EXTERN
@@ -21,7 +21,7 @@ struct loop_filter_info;
 /* Encoder forward decls */
 struct block;
 struct macroblock;
-struct variance_vtable;
+struct vp9_variance_vtable;
 
 #define DEC_MVCOSTS int *mvjcost, int *mvcost[2]
 union int_mv;

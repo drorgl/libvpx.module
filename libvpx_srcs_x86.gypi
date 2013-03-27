@@ -156,7 +156,6 @@
     '<(libvpx_source)/vp8/encoder/x86/encodeopt.asm',
     '<(libvpx_source)/vp8/encoder/x86/fwalsh_sse2.asm',
     '<(libvpx_source)/vp8/encoder/x86/quantize_mmx.asm',
-    '<(libvpx_source)/vp8/encoder/x86/quantize_sse2.asm',
     '<(libvpx_source)/vp8/encoder/x86/quantize_sse4.asm',
     '<(libvpx_source)/vp8/encoder/x86/quantize_ssse3.asm',
     '<(libvpx_source)/vp8/encoder/x86/subtract_mmx.asm',

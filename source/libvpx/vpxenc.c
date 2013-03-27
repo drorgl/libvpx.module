@@ -10,7 +10,7 @@
 
 #include "vpx_config.h"
 
-#if defined(_WIN32) || !CONFIG_OS_SUPPORT
+#if defined(_WIN32) || defined(__OS2__) || !CONFIG_OS_SUPPORT
 #define USE_POSIX_MMAP 0
 #else
 #define USE_POSIX_MMAP 1
@@ -47,6 +47,7 @@
 #include "y4minput.h"
 #include "libmkv/EbmlWriter.h"
 #include "libmkv/EbmlIDs.h"
+#include "third_party/libyuv/include/libyuv/scale.h"
 
 /* Need special handling of these functions on Windows */
 #if defined(_MSC_VER)
@@ -139,10 +140,8 @@ void warn(const char *fmt, ...) {
 }
 
 
-static void ctx_exit_on_error(vpx_codec_ctx_t *ctx, const char *s, ...) {
-  va_list ap;
-
-  va_start(ap, s);
+static void warn_or_exit_on_errorv(vpx_codec_ctx_t *ctx, int fatal,
+                                   const char *s, va_list ap) {
   if (ctx->err) {
     const char *detail = vpx_codec_error_detail(ctx);
 
@@ -152,8 +151,26 @@ static void ctx_exit_on_error(vpx_codec_ctx_t *ctx, const char *s, ...) {
     if (detail)
       fprintf(stderr, "    %s\n", detail);
 
-    exit(EXIT_FAILURE);
+    if (fatal)
+      exit(EXIT_FAILURE);
   }
+}
+
+static void ctx_exit_on_error(vpx_codec_ctx_t *ctx, const char *s, ...) {
+  va_list ap;
+
+  va_start(ap, s);
+  warn_or_exit_on_errorv(ctx, 1, s, ap);
+  va_end(ap);
+}
+
+static void warn_or_exit_on_error(vpx_codec_ctx_t *ctx, int fatal,
+                                  const char *s, ...) {
+  va_list ap;
+
+  va_start(ap, s);
+  warn_or_exit_on_errorv(ctx, fatal, s, ap);
+  va_end(ap);
 }
 
 /* This structure is used to abstract the different ways of handling
@@ -301,6 +318,7 @@ struct detect_buffer {
 struct input_state {
   char                 *fn;
   FILE                 *file;
+  off_t                 length;
   y4m_input             y4m;
   struct detect_buffer  detect;
   enum video_file_type  file_type;
@@ -949,8 +967,20 @@ static const arg_def_t verbosearg       = ARG_DEF("v", "verbose", 0,
                                                   "Show encoder parameters");
 static const arg_def_t psnrarg          = ARG_DEF(NULL, "psnr", 0,
                                                   "Show PSNR in status line");
-static const arg_def_t recontest        = ARG_DEF(NULL, "test-decode", 0,
-                                                  "Test encode/decode mismatch");
+enum TestDecodeFatality {
+  TEST_DECODE_OFF,
+  TEST_DECODE_FATAL,
+  TEST_DECODE_WARN,
+};
+static const struct arg_enum_list test_decode_enum[] = {
+  {"off",   TEST_DECODE_OFF},
+  {"fatal", TEST_DECODE_FATAL},
+  {"warn",  TEST_DECODE_WARN},
+  {NULL, 0}
+};
+static const arg_def_t recontest = ARG_DEF_ENUM(NULL, "test-decode", 1,
+                                                "Test encode/decode mismatch",
+                                                test_decode_enum);
 static const arg_def_t framerate        = ARG_DEF(NULL, "fps", 1,
                                                   "Stream frame rate (rate/scale)");
 static const arg_def_t use_ivf          = ARG_DEF(NULL, "ivf", 0,
@@ -1565,7 +1595,7 @@ struct global_config {
   int                       limit;
   int                       skip_frames;
   int                       show_psnr;
-  int                       test_decode;
+  enum TestDecodeFatality   test_decode;
   int                       have_framerate;
   struct vpx_rational       framerate;
   int                       out_part;
@@ -1606,6 +1636,7 @@ struct stream_state {
   uint64_t                  cx_time;
   size_t                    nbytes;
   stats_io_t                stats;
+  struct vpx_image         *img;
   vpx_codec_ctx_t           decoder;
   vpx_ref_frame_t           ref_enc;
   vpx_ref_frame_t           ref_dec;
@@ -1690,7 +1721,7 @@ static void parse_global_config(struct global_config *global, char **argv) {
     else if (arg_match(&arg, &psnrarg, argi))
       global->show_psnr = 1;
     else if (arg_match(&arg, &recontest, argi))
-      global->test_decode = 1;
+      global->test_decode = arg_parse_enum_or_int(&arg);
     else if (arg_match(&arg, &framerate, argi)) {
       global->framerate = arg_parse_rational(&arg);
       validate_positive_rational(arg.name, &global->framerate);
@@ -1729,6 +1760,14 @@ void open_input_file(struct input_state *input) {
 
   if (!input->file)
     fatal("Failed to open input file");
+
+  if (!fseeko(input->file, 0, SEEK_END)) {
+    /* Input file is seekable. Figure out how long it is, so we can get
+     * progress info.
+     */
+    input->length = ftello(input->file);
+    rewind(input->file);
+  }
 
   /* For RAW input sources, these bytes will applied on the first frame
    *  in read_frame().
@@ -2013,11 +2052,15 @@ static void validate_stream_config(struct stream_state *stream) {
 static void set_stream_dimensions(struct stream_state *stream,
                                   unsigned int w,
                                   unsigned int h) {
-  if ((stream->config.cfg.g_w && stream->config.cfg.g_w != w)
-      || (stream->config.cfg.g_h && stream->config.cfg.g_h != h))
-    fatal("Stream %d: Resizing not yet supported", stream->index);
-  stream->config.cfg.g_w = w;
-  stream->config.cfg.g_h = h;
+  if (!stream->config.cfg.g_w) {
+    if (!stream->config.cfg.g_h)
+      stream->config.cfg.g_w = w;
+    else
+      stream->config.cfg.g_w = w * stream->config.cfg.g_h / h;
+  }
+  if (!stream->config.cfg.g_h) {
+    stream->config.cfg.g_h = h * stream->config.cfg.g_w / w;
+  }
 }
 
 
@@ -2177,7 +2220,7 @@ static void initialize_encoder(struct stream_state  *stream,
   }
 
 #if CONFIG_DECODERS
-  if (global->test_decode) {
+  if (global->test_decode != TEST_DECODE_OFF) {
     int width, height;
 
     vpx_codec_dec_init(&stream->decoder, global->codec->dx_iface(), NULL, 0);
@@ -2207,6 +2250,28 @@ static void encode_frame(struct stream_state  *stream,
   next_frame_start = (cfg->g_timebase.den * (int64_t)(frames_in)
                       * global->framerate.den)
                      / cfg->g_timebase.num / global->framerate.num;
+
+  /* Scale if necessary */
+  if (img && (img->d_w != cfg->g_w || img->d_h != cfg->g_h)) {
+    if (!stream->img)
+      stream->img = vpx_img_alloc(NULL, VPX_IMG_FMT_I420,
+                                  cfg->g_w, cfg->g_h, 16);
+    I420Scale(img->planes[VPX_PLANE_Y], img->stride[VPX_PLANE_Y],
+              img->planes[VPX_PLANE_U], img->stride[VPX_PLANE_U],
+              img->planes[VPX_PLANE_V], img->stride[VPX_PLANE_V],
+              img->d_w, img->d_h,
+              stream->img->planes[VPX_PLANE_Y],
+              stream->img->stride[VPX_PLANE_Y],
+              stream->img->planes[VPX_PLANE_U],
+              stream->img->stride[VPX_PLANE_U],
+              stream->img->planes[VPX_PLANE_V],
+              stream->img->stride[VPX_PLANE_V],
+              stream->img->d_w, stream->img->d_h,
+              kFilterBox);
+
+    img = stream->img;
+  }
+
   vpx_usec_timer_start(&timer);
   vpx_codec_encode(&stream->encoder, img, frame_start,
                    (unsigned long)(next_frame_start - frame_start),
@@ -2246,9 +2311,6 @@ static void get_cx_data(struct stream_state  *stream,
         if (!(pkt->data.frame.flags & VPX_FRAME_IS_FRAGMENT)) {
           stream->frames_out++;
         }
-        if (!global->quiet)
-          fprintf(stderr, " %6luF",
-                  (unsigned long)pkt->data.frame.sz);
 
         update_rate_histogram(&stream->rate_hist, cfg, pkt);
         if (stream->config.write_webm) {
@@ -2283,18 +2345,21 @@ static void get_cx_data(struct stream_state  *stream,
 
         *got_data = 1;
 #if CONFIG_DECODERS
-        if (global->test_decode) {
+        if (global->test_decode != TEST_DECODE_OFF && !stream->mismatch_seen) {
           vpx_codec_decode(&stream->decoder, pkt->data.frame.buf,
                            pkt->data.frame.sz, NULL, 0);
-          ctx_exit_on_error(&stream->decoder, "Failed to decode frame");
+          if (stream->decoder.err) {
+            warn_or_exit_on_error(&stream->decoder,
+                                  global->test_decode == TEST_DECODE_FATAL,
+                                  "Failed to decode frame %d in stream %d",
+                                  stream->frames_out + 1, stream->index);
+            stream->mismatch_seen = stream->frames_out + 1;
+          }
         }
 #endif
         break;
       case VPX_CODEC_STATS_PKT:
         stream->frames_out++;
-        if (!global->quiet)
-          fprintf(stderr, " %6luS",
-                  (unsigned long)pkt->data.twopass_stats.sz);
         stats_write(&stream->stats,
                     pkt->data.twopass_stats.buf,
                     pkt->data.twopass_stats.sz);
@@ -2308,8 +2373,6 @@ static void get_cx_data(struct stream_state  *stream,
           stream->psnr_sse_total += pkt->data.psnr.sse[0];
           stream->psnr_samples_total += pkt->data.psnr.samples[0];
           for (i = 0; i < 4; i++) {
-            if (!global->quiet)
-              fprintf(stderr, "%.3f ", pkt->data.psnr.psnr[i]);
             stream->psnr_totals[i] += pkt->data.psnr.psnr[i];
           }
           stream->psnr_count++;
@@ -2342,28 +2405,49 @@ static void show_psnr(struct stream_state  *stream) {
 }
 
 
-float usec_to_fps(uint64_t usec, unsigned int frames) {
+static float usec_to_fps(uint64_t usec, unsigned int frames) {
   return (float)(usec > 0 ? frames * 1000000.0 / (float)usec : 0);
 }
 
 
-static void test_decode(struct stream_state  *stream) {
+static void test_decode(struct stream_state  *stream,
+                        enum TestDecodeFatality fatal) {
+  if (stream->mismatch_seen)
+    return;
+
   vpx_codec_control(&stream->encoder, VP8_COPY_REFERENCE, &stream->ref_enc);
   ctx_exit_on_error(&stream->encoder, "Failed to get encoder reference frame");
   vpx_codec_control(&stream->decoder, VP8_COPY_REFERENCE, &stream->ref_dec);
   ctx_exit_on_error(&stream->decoder, "Failed to get decoder reference frame");
 
-  if (!stream->mismatch_seen
-      && !compare_img(&stream->ref_enc.img, &stream->ref_dec.img)) {
-    /* TODO(jkoleszar): make fatal. */
+  if (!compare_img(&stream->ref_enc.img, &stream->ref_dec.img)) {
     int y[2], u[2], v[2];
     find_mismatch(&stream->ref_enc.img, &stream->ref_dec.img,
                   y, u, v);
-    warn("Stream %d: Encode/decode mismatch on frame %d"
-         " at Y[%d, %d], U[%d, %d], V[%d, %d]",
-         stream->index, stream->frames_out,
-         y[0], y[1], u[0], u[1], v[0], v[1]);
+    warn_or_exit_on_error(&stream->decoder, fatal == TEST_DECODE_FATAL,
+                          "Stream %d: Encode/decode mismatch on frame %d"
+                          " at Y[%d, %d], U[%d, %d], V[%d, %d]",
+                          stream->index, stream->frames_out,
+                          y[0], y[1], u[0], u[1], v[0], v[1]);
     stream->mismatch_seen = stream->frames_out;
+  }
+}
+
+
+static void print_time(const char *label, int64_t etl) {
+  int hours, mins, secs;
+
+  if (etl >= 0) {
+    hours = etl / 3600;
+    etl -= hours * 3600;
+    mins = etl / 60;
+    etl -= mins * 60;
+    secs = etl;
+
+    fprintf(stderr, "[%3s %2d:%02d:%02d] ",
+            label, hours, mins, secs);
+  } else {
+    fprintf(stderr, "[%3s  unknown] ", label);
   }
 }
 
@@ -2376,8 +2460,9 @@ int main(int argc, const char **argv_) {
   struct global_config     global;
   struct stream_state     *streams = NULL;
   char                   **argv, **argi;
-  unsigned long            cx_time = 0;
+  uint64_t                 cx_time = 0;
   int                      stream_cnt = 0;
+  int                      res = 0;
 
   exec_name = argv_[0];
 
@@ -2423,7 +2508,10 @@ int main(int argc, const char **argv_) {
     usage_exit();
 
   for (pass = global.pass ? global.pass - 1 : 0; pass < global.passes; pass++) {
-    int frames_in = 0;
+    int frames_in = 0, seen_frames = 0;
+    int64_t estimated_time_left = -1;
+    int64_t average_rate = -1;
+    off_t lagged_count = 0;
 
     open_input_file(&input);
 
@@ -2440,6 +2528,9 @@ int main(int argc, const char **argv_) {
     });
 
     /* Update stream configurations from the input file's parameters */
+    if (!input.w || !input.h)
+      fatal("Specify stream dimensions with --width (-w) "
+            " and --height (-h)");
     FOREACH_STREAM(set_stream_dimensions(stream, input.w, input.h));
     FOREACH_STREAM(validate_stream_config(stream));
 
@@ -2498,20 +2589,27 @@ int main(int argc, const char **argv_) {
 
         if (frame_avail)
           frames_in++;
+        seen_frames = frames_in > global.skip_frames ?
+                          frames_in - global.skip_frames : 0;
 
         if (!global.quiet) {
+          float fps = usec_to_fps(cx_time, seen_frames);
+          fprintf(stderr, "\rPass %d/%d ", pass + 1, global.passes);
+
           if (stream_cnt == 1)
             fprintf(stderr,
-                    "\rPass %d/%d frame %4d/%-4d %7"PRId64"B \033[K",
-                    pass + 1, global.passes, frames_in,
-                    streams->frames_out, (int64_t)streams->nbytes);
+                    "frame %4d/%-4d %7"PRId64"B ",
+                    frames_in, streams->frames_out, (int64_t)streams->nbytes);
           else
-            fprintf(stderr,
-                    "\rPass %d/%d frame %4d %7lu %s (%.2f fps)\033[K",
-                    pass + 1, global.passes, frames_in,
-                    cx_time > 9999999 ? cx_time / 1000 : cx_time,
-                    cx_time > 9999999 ? "ms" : "us",
-                    usec_to_fps(cx_time, frames_in));
+            fprintf(stderr, "frame %4d ", frames_in);
+
+          fprintf(stderr, "%7"PRId64" %s %.2f %s ",
+                  cx_time > 9999999 ? cx_time / 1000 : cx_time,
+                  cx_time > 9999999 ? "ms" : "us",
+                  fps >= 1.0 ? fps : 1000.0 / fps,
+                  fps >= 1.0 ? "fps" : "ms/f");
+          print_time("ETA", estimated_time_left);
+          fprintf(stderr, "\033[K");
         }
 
       } else
@@ -2523,15 +2621,42 @@ int main(int argc, const char **argv_) {
                                     frame_avail ? &raw : NULL,
                                     frames_in));
         vpx_usec_timer_mark(&timer);
-        cx_time += (unsigned long)vpx_usec_timer_elapsed(&timer);
+        cx_time += vpx_usec_timer_elapsed(&timer);
 
         FOREACH_STREAM(update_quantizer_histogram(stream));
 
         got_data = 0;
         FOREACH_STREAM(get_cx_data(stream, &global, &got_data));
 
-        if (got_data && global.test_decode)
-          FOREACH_STREAM(test_decode(stream));
+        if (!got_data && input.length && !streams->frames_out) {
+          lagged_count = global.limit ? seen_frames : ftello(input.file);
+        } else if (input.length) {
+          int64_t remaining;
+          int64_t rate;
+
+          if (global.limit) {
+            int frame_in_lagged = (seen_frames - lagged_count) * 1000;
+
+            rate = cx_time ? frame_in_lagged * (int64_t)1000000 / cx_time : 0;
+            remaining = 1000 * (global.limit - global.skip_frames
+                                - seen_frames + lagged_count);
+          } else {
+            off_t input_pos = ftello(input.file);
+            off_t input_pos_lagged = input_pos - lagged_count;
+            int64_t limit = input.length;
+
+            rate = cx_time ? input_pos_lagged * (int64_t)1000000 / cx_time : 0;
+            remaining = limit - input_pos + lagged_count;
+          }
+
+          average_rate = (average_rate <= 0)
+              ? rate
+              : (average_rate * 7 + rate) / 8;
+          estimated_time_left = average_rate ? remaining / average_rate : -1;
+        }
+
+        if (got_data && global.test_decode != TEST_DECODE_OFF)
+          FOREACH_STREAM(test_decode(stream, global.test_decode));
       }
 
       fflush(stdout);
@@ -2546,14 +2671,14 @@ int main(int argc, const char **argv_) {
                        "\rPass %d/%d frame %4d/%-4d %7"PRId64"B %7lub/f %7"PRId64"b/s"
                        " %7"PRId64" %s (%.2f fps)\033[K\n", pass + 1,
                        global.passes, frames_in, stream->frames_out, (int64_t)stream->nbytes,
-                       frames_in ? (unsigned long)(stream->nbytes * 8 / frames_in) : 0,
-                       frames_in ? (int64_t)stream->nbytes * 8
+                       seen_frames ? (unsigned long)(stream->nbytes * 8 / seen_frames) : 0,
+                       seen_frames ? (int64_t)stream->nbytes * 8
                        * (int64_t)global.framerate.num / global.framerate.den
-                       / frames_in
+                       / seen_frames
                        : 0,
                        stream->cx_time > 9999999 ? stream->cx_time / 1000 : stream->cx_time,
                        stream->cx_time > 9999999 ? "ms" : "us",
-                       usec_to_fps(stream->cx_time, frames_in));
+                       usec_to_fps(stream->cx_time, seen_frames));
                     );
 
     if (global.show_psnr)
@@ -2561,7 +2686,7 @@ int main(int argc, const char **argv_) {
 
     FOREACH_STREAM(vpx_codec_destroy(&stream->encoder));
 
-    if (global.test_decode) {
+    if (global.test_decode != TEST_DECODE_OFF) {
       FOREACH_STREAM(vpx_codec_destroy(&stream->decoder));
       FOREACH_STREAM(vpx_img_free(&stream->ref_enc.img));
       FOREACH_STREAM(vpx_img_free(&stream->ref_dec.img));
@@ -2569,6 +2694,9 @@ int main(int argc, const char **argv_) {
 
     close_input_file(&input);
 
+    if (global.test_decode == TEST_DECODE_FATAL) {
+      FOREACH_STREAM(res |= stream->mismatch_seen);
+    }
     FOREACH_STREAM(close_output_file(stream, global.codec->fourcc));
 
     FOREACH_STREAM(stats_close(&stream->stats, global.passes - 1));
@@ -2606,5 +2734,5 @@ int main(int argc, const char **argv_) {
   vpx_img_free(&raw);
   free(argv);
   free(streams);
-  return EXIT_SUCCESS;
+  return res ? EXIT_FAILURE : EXIT_SUCCESS;
 }

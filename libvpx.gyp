@@ -352,7 +352,7 @@
             }],
           ],
           'sources': [
-            '<(libvpx_source)/vp8/encoder/asm_enc_offsets.c',
+            '<(libvpx_source)/vp8/encoder/vp8_asm_enc_offsets.c',
           ],
         },
         {
