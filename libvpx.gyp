@@ -336,7 +336,7 @@
         },
         {
           # A library that contains assembly offsets needed.
-          'target_name': 'libvpx_asm_offsets',
+          'target_name': 'libvpx_asm_offsets_vp8',
           'type': 'static_library',
           'hard_dependency': 1,
           'include_dirs': [
@@ -414,7 +414,7 @@
           'type': 'none',
           'hard_dependency': 1,
           'dependencies': [
-            'libvpx_asm_offsets',
+            'libvpx_asm_offsets_vp8',
             'libvpx_obj_int_extract#host',
           ],
           'conditions': [
@@ -426,20 +426,20 @@
                 {
                   'action_name': 'copy_enc_offsets_obj',
                   'inputs': [ 'copy_obj.sh' ],
-                  'outputs': [ '<(INTERMEDIATE_DIR)/asm_enc_offsets.obj' ],
+                  'outputs': [ '<(INTERMEDIATE_DIR)/vp8_asm_enc_offsets.obj' ],
                   'action': [
                     '<(DEPTH)/third_party/libvpx/copy_obj.sh',
                     '-d', '<@(_outputs)',
-                    '-s', '<(PRODUCT_DIR)/obj/libvpx_asm_offsets/asm_enc_offsets.obj',
-                    '-s', '<(ninja_obj_dir)/encoder/libvpx_asm_offsets.asm_enc_offsets.obj',
-                    '-s', '<(PRODUCT_DIR)/obj/Source/WebKit/chromium/third_party/libvpx/<(libvpx_source)/vp8/encoder/libvpx_asm_offsets.asm_enc_offsets.obj',
+                    '-s', '<(PRODUCT_DIR)/obj/libvpx_asm_offsets_vp8/vp8_asm_enc_offsets.obj',
+                    '-s', '<(ninja_obj_dir)/encoder/libvpx_asm_offsets_vp8.vp8_asm_enc_offsets.obj',
+                    '-s', '<(PRODUCT_DIR)/obj/Source/WebKit/chromium/third_party/libvpx/<(libvpx_source)/vp8/encoder/libvpx_asm_offsets_vp8.vp8_asm_enc_offsets.obj',
                   ],
                   'process_output_as_sources': 1,
                   'msvs_cygwin_shell': 1,
                 },
               ],
               'sources': [
-                '<(INTERMEDIATE_DIR)/asm_enc_offsets.obj',
+                '<(INTERMEDIATE_DIR)/vp8_asm_enc_offsets.obj',
               ],
             }, {
               'actions': [
@@ -450,15 +450,15 @@
                     'unpack_lib_posix.sh',
                   ],
                   'outputs': [
-                    '<(INTERMEDIATE_DIR)/asm_enc_offsets.o',
+                    '<(INTERMEDIATE_DIR)/vp8_asm_enc_offsets.o',
                   ],
                   'action': [
                     '<(DEPTH)/third_party/libvpx/unpack_lib_posix.sh',
                     '-d', '<(INTERMEDIATE_DIR)',
-                    '-a', '<(PRODUCT_DIR)/libvpx_asm_offsets.a',
-                    '-a', '<(LIB_DIR)/third_party/libvpx/libvpx_asm_offsets.a',
-                    '-a', '<(LIB_DIR)/Source/WebKit/chromium/third_party/libvpx/libvpx_asm_offsets.a',
-                    '-f', 'asm_enc_offsets.o',
+                    '-a', '<(PRODUCT_DIR)/libvpx_asm_offsets_vp8.a',
+                    '-a', '<(LIB_DIR)/third_party/libvpx/libvpx_asm_offsets_vp8.a',
+                    '-a', '<(LIB_DIR)/Source/WebKit/chromium/third_party/libvpx/libvpx_asm_offsets_vp8.a',
+                    '-f', 'vp8_asm_enc_offsets.o',
                   ],
                   'process_output_as_sources': 1,
                   'msvs_cygwin_shell': 1,
@@ -466,7 +466,7 @@
               ],
               # Need this otherwise gyp won't run the rule on them.
               'sources': [
-                '<(INTERMEDIATE_DIR)/asm_enc_offsets.o',
+                '<(INTERMEDIATE_DIR)/vp8_asm_enc_offsets.o',
               ],
             }],
           ],
@@ -480,7 +480,7 @@
                 'obj_int_extract.sh',
               ],
               'outputs': [
-                '<(shared_generated_dir)/vp8_<(RULE_INPUT_ROOT).asm',
+                '<(shared_generated_dir)/<(RULE_INPUT_ROOT).asm',
               ],
               'variables': {
                 'conditions': [
@@ -496,7 +496,7 @@
                 '-e', '<(PRODUCT_DIR)/libvpx_obj_int_extract',
                 '-f', '<(asm_format)',
                 '-b', '<(RULE_INPUT_PATH)',
-                '-o', '<(shared_generated_dir)/vp8_<(RULE_INPUT_ROOT).asm',
+                '-o', '<(shared_generated_dir)/<(RULE_INPUT_ROOT).asm',
               ],
               'message': 'Generate assembly offsets <(RULE_INPUT_PATH).',
               'msvs_cygwin_shell': 1,
