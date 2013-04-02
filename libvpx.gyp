@@ -112,7 +112,6 @@
                     'libvpx_intrinsics_sse3',
                     'libvpx_intrinsics_ssse3',
                     'libvpx_intrinsics_sse4_1',
-                    'libvpx_intrinsics_extra',
                   ],
                 }],
                 ['target_arch=="x64"', {
@@ -125,7 +124,6 @@
                     'libvpx_intrinsics_sse3',
                     'libvpx_intrinsics_ssse3',
                     'libvpx_intrinsics_sse4_1',
-                    'libvpx_intrinsics_extra',
                   ],
                 }],
                 ['clang == 1', {

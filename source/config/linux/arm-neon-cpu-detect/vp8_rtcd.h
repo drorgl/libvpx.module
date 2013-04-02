@@ -22,6 +22,9 @@ struct variance_vtable;
 union int_mv;
 struct yv12_buffer_config;
 
+void vp8_clear_system_state_c();
+#define vp8_clear_system_state vp8_clear_system_state_c
+
 void vp8_dequantize_b_c(struct blockd*, short *dqc);
 void vp8_dequantize_b_v6(struct blockd*, short *dqc);
 void vp8_dequantize_b_neon(struct blockd*, short *dqc);
@@ -423,6 +426,7 @@ static void setup_rtcd_internal(void)
     int flags = arm_cpu_caps();
 
     (void)flags;
+
 
     vp8_dequantize_b = vp8_dequantize_b_c;
     if (flags & HAS_MEDIA) vp8_dequantize_b = vp8_dequantize_b_v6;

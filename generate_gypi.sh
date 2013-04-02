@@ -104,12 +104,6 @@ function write_special_flags {
   local ssse3_sources=$(echo "$file_list" | grep '_ssse3\.c$')
   local sse4_1_sources=$(echo "$file_list" | grep '_sse4\.c$')
 
-  local extra_sources=$(comm -23 <(echo "$file_list") <(echo "$mmx_sources"))
-  extra_sources=$(comm -23 <(echo "$extra_sources") <(echo "$sse2_sources"))
-  extra_sources=$(comm -23 <(echo "$extra_sources") <(echo "$sse3_sources"))
-  extra_sources=$(comm -23 <(echo "$extra_sources") <(echo "$ssse3_sources"))
-  extra_sources=$(comm -23 <(echo "$extra_sources") <(echo "$sse4_1_sources"))
-
   write_gypi_header $2
 
   echo "  'targets': [" >> $2
@@ -119,10 +113,6 @@ function write_special_flags {
   write_target_definition sse3_sources[@] $2 libvpx_intrinsics_sse3 sse3
   write_target_definition ssse3_sources[@] $2 libvpx_intrinsics_ssse3 ssse3
   write_target_definition sse4_1_sources[@] $2 libvpx_intrinsics_sse4_1 sse4.1
-#CATCHALL
-# Apply the highest level of optimization. These files need to be fixed
-# upstream by having the different opt targets broken out.
-  write_target_definition extra_sources[@] $2 libvpx_intrinsics_extra sse4.1
 
   echo "  ]," >> $2
 
@@ -155,7 +145,7 @@ function convert_srcs_to_gypi {
   # Select all x86 files ending with .c
   local x86_intrinsic_list=$(echo "$source_list" | \
     egrep 'vp[89]/(encoder|decoder|common)/x86/'  | \
-    grep -e '.c$')
+    egrep '(mmx|sse2|sse3|ssse3|sse4).c$')
 
   # Remove these files from the main list.
   source_list=$(comm -23 <(echo "$source_list") <(echo "$x86_intrinsic_list"))
