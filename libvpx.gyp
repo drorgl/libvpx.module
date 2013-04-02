@@ -53,38 +53,11 @@
       },
 
       'conditions': [
-        # TODO(jimbankoski): Hack to ensure we pass -msse2 for files containing
-        # SSE intrinsics. See http://crbug/162675
-        ['target_arch=="ia32" or target_arch=="x64"', {
-          'targets' : [
-            {
-              'target_name': 'libvpx_intrinsics',
-              'type': 'static_library',
-              'include_dirs': [
-                'source/config/<(OS_CATEGORY)/<(target_arch)',
-                '<(libvpx_source)',
-                '<(libvpx_source)/vp8/common',
-                '<(libvpx_source)/vp8/decoder',
-                '<(libvpx_source)/vp8/encoder',
-              ],
-              'conditions': [
-                ['target_arch=="x64"', {
-                  'includes': ['libvpx_srcs_x86_64_sse4_1.gypi', ],
-                }],
-                ['target_arch=="ia32"', {
-                  'includes': ['libvpx_srcs_x86_sse4_1.gypi', ],
-                }],
-                ['os_posix==1 and OS!="mac"', {
-                  'cflags': [ '-msse2', '-msse4', ],
-                }],
-                ['OS=="mac"', {
-                  'xcode_settings': {
-                    'OTHER_CFLAGS': [ '-msse2', '-msse4', ],
-                  },
-                }],
-              ],
-            },
-          ],
+        ['target_arch=="ia32"', {
+          'includes': ['libvpx_srcs_x86_intrinsics.gypi', ],
+        }],
+        ['target_arch=="x64"', {
+          'includes': ['libvpx_srcs_x86_64_intrinsics.gypi', ],
         }],
         [ 'target_arch != "arm" and target_arch != "mipsel"', {
           'targets': [
@@ -133,13 +106,27 @@
                   'includes': [
                     'libvpx_srcs_x86.gypi',
                   ],
-                  'dependencies': [ 'libvpx_intrinsics', ],
+                  'dependencies': [
+                    'libvpx_intrinsics_mmx',
+                    'libvpx_intrinsics_sse2',
+                    'libvpx_intrinsics_sse3',
+                    'libvpx_intrinsics_ssse3',
+                    'libvpx_intrinsics_sse4_1',
+                    'libvpx_intrinsics_extra',
+                  ],
                 }],
                 ['target_arch=="x64"', {
                   'includes': [
                     'libvpx_srcs_x86_64.gypi',
                   ],
-                  'dependencies': [ 'libvpx_intrinsics', ],
+                  'dependencies': [
+                    'libvpx_intrinsics_mmx',
+                    'libvpx_intrinsics_sse2',
+                    'libvpx_intrinsics_sse3',
+                    'libvpx_intrinsics_ssse3',
+                    'libvpx_intrinsics_sse4_1',
+                    'libvpx_intrinsics_extra',
+                  ],
                 }],
                 ['clang == 1', {
                   'xcode_settings': {

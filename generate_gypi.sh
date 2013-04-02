@@ -19,6 +19,23 @@ BASE_DIR=`pwd`
 LIBVPX_SRC_DIR="source/libvpx"
 LIBVPX_CONFIG_DIR="source/config"
 
+# Print gypi boilerplate header
+# $1 - Output base name
+function write_gypi_header {
+  echo "# This file is generated. Do not edit." > $1
+  echo "# Copyright (c) 2013 The Chromium Authors. All rights reserved." >> $1
+  echo "# Use of this source code is governed by a BSD-style license that can be" >> $1
+  echo "# found in the LICENSE file." >> $1
+  echo "" >> $1
+  echo "{" >> $1
+}
+
+# Print gypi boilerplate footer
+# $1 - Output base name
+function write_gypi_footer {
+  echo "}" >> $1
+}
+
 # Generate a gypi with a list of source files.
 # $1 - Array name for file list. This is processed with 'declare' below to
 #      regenerate the array locally.
@@ -27,19 +44,89 @@ function write_file_list {
   # Convert the first argument back in to an array.
   declare -a file_list=("${!1}")
 
-  echo "# This file is generated. Do not edit." > $2.gypi
-  echo "# Copyright (c) 2013 The Chromium Authors. All rights reserved." >> $2.gypi
-  echo "# Use of this source code is governed by a BSD-style license that can be" >> $2.gypi
-  echo "# found in the LICENSE file." >> $2.gypi
-  echo "" >> $2.gypi
-  echo "{" >> $2.gypi
-  echo "  'sources': [" >> $2.gypi
+  write_gypi_header $2
+
+  echo "  'sources': [" >> $2
   for f in $file_list
   do
-    echo "    '<(libvpx_source)/$f'," >> $2.gypi
+    echo "    '<(libvpx_source)/$f'," >> $2
   done
-  echo "  ]," >> $2.gypi
-  echo "}" >> $2.gypi
+  echo "  ]," >> $2
+
+  write_gypi_footer $2
+}
+
+# Target template function
+# $1 - Array name for file list.
+# $2 - Output file
+# $3 - Target name
+# $4 - Compiler flag
+function write_target_definition {
+  declare -a sources_list=("${!1}")
+
+  echo "    {" >> $2
+  echo "      'target_name': '$3'," >> $2
+  echo "      'type': 'static_library'," >> $2
+  echo "      'include_dirs': [" >> $2
+  echo "        'source/config/<(OS_CATEGORY)/<(target_arch)'," >> $2
+  echo "        '<(libvpx_source)'," >> $2
+  echo "      ]," >> $2
+  echo "      'sources': [" >> $2
+  for f in $sources_list
+  do
+    echo "        '<(libvpx_source)/$f'," >> $2
+  done
+  echo "      ]," >> $2
+  echo "      'conditions': [" >> $2
+  echo "        ['os_posix==1 and OS!=\"mac\"', {" >> $2
+  echo "          'cflags': [ '-m$4', ]," >> $2
+  echo "        }]," >> $2
+  echo "        ['OS==\"mac\"', {" >> $2
+  echo "          'xcode_settings': {" >> $2
+  echo "            'OTHER_CFLAGS': [ '-m$4', ]," >> $2
+  echo "          }," >> $2
+  echo "        }]," >> $2
+  echo "      ]," >> $2
+  echo "    }," >> $2
+}
+
+
+# Generate a gypi which applies additional compiler flags based on the file
+# name.
+# $1 - Array name for file list.
+# $2 - Output file
+function write_special_flags {
+  declare -a file_list=("${!1}")
+
+  local mmx_sources=$(echo "$file_list" | grep '_mmx\.c$')
+  local sse2_sources=$(echo "$file_list" | grep '_sse2\.c$')
+  local sse3_sources=$(echo "$file_list" | grep '_sse3\.c$')
+  local ssse3_sources=$(echo "$file_list" | grep '_ssse3\.c$')
+  local sse4_1_sources=$(echo "$file_list" | grep '_sse4\.c$')
+
+  local extra_sources=$(comm -23 <(echo "$file_list") <(echo "$mmx_sources"))
+  extra_sources=$(comm -23 <(echo "$extra_sources") <(echo "$sse2_sources"))
+  extra_sources=$(comm -23 <(echo "$extra_sources") <(echo "$sse3_sources"))
+  extra_sources=$(comm -23 <(echo "$extra_sources") <(echo "$ssse3_sources"))
+  extra_sources=$(comm -23 <(echo "$extra_sources") <(echo "$sse4_1_sources"))
+
+  write_gypi_header $2
+
+  echo "  'targets': [" >> $2
+
+  write_target_definition mmx_sources[@] $2 libvpx_intrinsics_mmx mmx
+  write_target_definition sse2_sources[@] $2 libvpx_intrinsics_sse2 sse2
+  write_target_definition sse3_sources[@] $2 libvpx_intrinsics_sse3 sse3
+  write_target_definition ssse3_sources[@] $2 libvpx_intrinsics_ssse3 ssse3
+  write_target_definition sse4_1_sources[@] $2 libvpx_intrinsics_sse4_1 sse4.1
+#CATCHALL
+# Apply the highest level of optimization. These files need to be fixed
+# upstream by having the different opt targets broken out.
+  write_target_definition extra_sources[@] $2 libvpx_intrinsics_extra sse4.1
+
+  echo "  ]," >> $2
+
+  write_gypi_footer $2
 }
 
 # Convert a list of source files into gypi file.
@@ -65,9 +152,6 @@ function convert_srcs_to_gypi {
   # The actual ARM files end in .asm. We have rules to translate them to .S
   source_list=$(echo "$source_list" | sed s/\.asm\.s$/.asm/)
 
-  # These files require a different set of options during compilation. The x86
-  # intrinsics files need -msse2 and -msse4.1
-
   # Select all x86 files ending with .c
   local x86_intrinsic_list=$(echo "$source_list" | \
     egrep 'vp[89]/(encoder|decoder|common)/x86/'  | \
@@ -76,16 +160,12 @@ function convert_srcs_to_gypi {
   # Remove these files from the main list.
   source_list=$(comm -23 <(echo "$source_list") <(echo "$x86_intrinsic_list"))
 
-  write_file_list source_list $BASE_DIR/$2
-
-  # Currently we apply -msse4.1 to allow the files to build. Name the file as
-  # such so that if issues come up we can split the file and target the options
-  # more carefully.
+  write_file_list source_list $BASE_DIR/$2.gypi
 
   # All the files are in a single "element." Check if the first element has
   # length 0.
   if [ 0 -ne ${#x86_intrinsic_list} ]; then
-    write_file_list x86_intrinsic_list[@] $BASE_DIR/$2_sse4_1
+    write_special_flags x86_intrinsic_list[@] $BASE_DIR/$2_intrinsics.gypi
   fi
 
 }
