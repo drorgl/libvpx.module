@@ -62,26 +62,6 @@
       ],
     },
     {
-      'target_name': 'libvpx_intrinsics_sse3',
-      'type': 'static_library',
-      'include_dirs': [
-        'source/config/<(OS_CATEGORY)/<(target_arch)',
-        '<(libvpx_source)',
-      ],
-      'sources': [
-      ],
-      'conditions': [
-        ['os_posix==1 and OS!="mac"', {
-          'cflags': [ '-msse3', ],
-        }],
-        ['OS=="mac"', {
-          'xcode_settings': {
-            'OTHER_CFLAGS': [ '-msse3', ],
-          },
-        }],
-      ],
-    },
-    {
       'target_name': 'libvpx_intrinsics_ssse3',
       'type': 'static_library',
       'include_dirs': [

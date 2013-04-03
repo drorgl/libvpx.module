@@ -109,7 +109,8 @@
                   'dependencies': [
                     'libvpx_intrinsics_mmx',
                     'libvpx_intrinsics_sse2',
-                    'libvpx_intrinsics_sse3',
+                    # Currently no sse3 intrinsic functions
+                    #'libvpx_intrinsics_sse3',
                     'libvpx_intrinsics_ssse3',
                     'libvpx_intrinsics_sse4_1',
                   ],
@@ -121,7 +122,8 @@
                   'dependencies': [
                     'libvpx_intrinsics_mmx',
                     'libvpx_intrinsics_sse2',
-                    'libvpx_intrinsics_sse3',
+                    # Currently no sse3 intrinsic functions
+                    #'libvpx_intrinsics_sse3',
                     'libvpx_intrinsics_ssse3',
                     'libvpx_intrinsics_sse4_1',
                   ],
