@@ -126,7 +126,8 @@
                     # Currently no sse3 intrinsic functions
                     #'libvpx_intrinsics_sse3',
                     'libvpx_intrinsics_ssse3',
-                    'libvpx_intrinsics_sse4_1',
+                    # Currently no sse4_1 intrinsic functions
+                    #'libvpx_intrinsics_sse4_1',
                   ],
                 }],
                 ['clang == 1', {
