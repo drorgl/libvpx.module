@@ -41,9 +41,7 @@
         '<(libvpx_source)/vp8/common/x86/recon_wrapper_sse2.c',
         '<(libvpx_source)/vp8/common/x86/variance_sse2.c',
         '<(libvpx_source)/vp8/encoder/x86/denoising_sse2.c',
-        '<(libvpx_source)/vp8/encoder/x86/quantize_sse2.c',
         '<(libvpx_source)/vp8/encoder/x86/vp8_enc_stubs_sse2.c',
-        '<(libvpx_source)/vp9/common/x86/vp9_filter_sse2.c',
         '<(libvpx_source)/vp9/common/x86/vp9_loopfilter_intrin_sse2.c',
         '<(libvpx_source)/vp9/common/x86/vp9_recon_wrapper_sse2.c',
         '<(libvpx_source)/vp9/common/x86/vp9_sadmxn_sse2.c',
@@ -90,7 +88,6 @@
         '<(libvpx_source)',
       ],
       'sources': [
-        '<(libvpx_source)/vp9/common/x86/vp9_filter_sse4.c',
       ],
       'conditions': [
         ['os_posix==1 and OS!="mac"', {
