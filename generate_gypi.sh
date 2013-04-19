@@ -104,10 +104,31 @@ function write_special_flags {
   local ssse3_sources=$(echo "$file_list" | grep '_ssse3\.c$')
   local sse4_1_sources=$(echo "$file_list" | grep '_sse4\.c$')
 
-  # Currently no sse3 intrinsic functions. Throw an error if any are located
-  # so we know to update libvpx.gyp
+  # Intrinsic functions and files are in flux. We can selectively generate them
+  # but we can not selectively include them in libvpx.gyp. Throw some warnings
+  # when the expected output changes.
+
+  # Expect output for these:
+  if [ 0 -eq ${#mmx_sources} ]; then
+    echo "WARNING: Comment mmx sections in libvpx.gyp"
+    exit 1
+  fi
+  if [ 0 -eq ${#sse2_sources} ]; then
+    echo "WARNING: Comment sse2 sections in libvpx.gyp"
+    exit 1
+  fi
+  if [ 0 -eq ${#ssse3_sources} ]; then
+    echo "WARNING: Comment ssse3 sections in libvpx.gyp"
+    exit 1
+  fi
+
+  # Do not expect output for these:
   if [ 0 -ne ${#sse3_sources} ]; then
-    echo "Uncomment sse3 sections in libvpx.gyp"
+    echo "WARNING: Uncomment sse3 sections in libvpx.gyp"
+    exit 1
+  fi
+  if [ 0 -ne ${#sse4_1_sources} ]; then
+    echo "WARNING: Uncomment sse4_1 sections in libvpx.gyp"
     exit 1
   fi
 
@@ -119,7 +140,7 @@ function write_special_flags {
   write_target_definition sse2_sources[@] $2 libvpx_intrinsics_sse2 sse2
   #write_target_definition sse3_sources[@] $2 libvpx_intrinsics_sse3 sse3
   write_target_definition ssse3_sources[@] $2 libvpx_intrinsics_ssse3 ssse3
-  write_target_definition sse4_1_sources[@] $2 libvpx_intrinsics_sse4_1 sse4.1
+  #write_target_definition sse4_1_sources[@] $2 libvpx_intrinsics_sse4_1 sse4.1
 
   echo "  ]," >> $2
 

@@ -80,25 +80,5 @@
         }],
       ],
     },
-    {
-      'target_name': 'libvpx_intrinsics_sse4_1',
-      'type': 'static_library',
-      'include_dirs': [
-        'source/config/<(OS_CATEGORY)/<(target_arch)',
-        '<(libvpx_source)',
-      ],
-      'sources': [
-      ],
-      'conditions': [
-        ['os_posix==1 and OS!="mac"', {
-          'cflags': [ '-msse4.1', ],
-        }],
-        ['OS=="mac"', {
-          'xcode_settings': {
-            'OTHER_CFLAGS': [ '-msse4.1', ],
-          },
-        }],
-      ],
-    },
   ],
 }
