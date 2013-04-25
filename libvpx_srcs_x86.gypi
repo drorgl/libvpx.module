@@ -237,8 +237,6 @@
     '<(libvpx_source)/vp9/common/vp9_treecoder.h',
     '<(libvpx_source)/vp9/common/x86/vp9_asm_stubs.c',
     '<(libvpx_source)/vp9/common/x86/vp9_idct_sse2.asm',
-    '<(libvpx_source)/vp9/common/x86/vp9_idct_x86.c',
-    '<(libvpx_source)/vp9/common/x86/vp9_idct_x86.h',
     '<(libvpx_source)/vp9/common/x86/vp9_iwalsh_mmx.asm',
     '<(libvpx_source)/vp9/common/x86/vp9_iwalsh_sse2.asm',
     '<(libvpx_source)/vp9/common/x86/vp9_loopfilter_mmx.asm',

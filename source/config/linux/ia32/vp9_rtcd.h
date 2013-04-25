@@ -257,9 +257,9 @@ unsigned int vp9_sad3x16_c(const uint8_t *src_ptr, int  src_stride, const uint8_
 unsigned int vp9_sad3x16_sse2(const uint8_t *src_ptr, int  src_stride, const uint8_t *ref_ptr, int ref_stride);
 RTCD_EXTERN unsigned int (*vp9_sad3x16)(const uint8_t *src_ptr, int  src_stride, const uint8_t *ref_ptr, int ref_stride);
 
-unsigned int vp9_sub_pixel_variance16x2_c(const uint8_t *src_ptr, const int source_stride, const int xoffset, const int  yoffset, const uint8_t *ref_ptr, const int ref_stride, unsigned int *sse);
-unsigned int vp9_sub_pixel_variance16x2_sse2(const uint8_t *src_ptr, const int source_stride, const int xoffset, const int  yoffset, const uint8_t *ref_ptr, const int ref_stride, unsigned int *sse);
-RTCD_EXTERN unsigned int (*vp9_sub_pixel_variance16x2)(const uint8_t *src_ptr, const int source_stride, const int xoffset, const int  yoffset, const uint8_t *ref_ptr, const int ref_stride, unsigned int *sse);
+unsigned int vp9_sub_pixel_variance16x2_c(const uint8_t *src_ptr, int source_stride, int xoffset, int yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
+unsigned int vp9_sub_pixel_variance16x2_sse2(const uint8_t *src_ptr, int source_stride, int xoffset, int yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
+RTCD_EXTERN unsigned int (*vp9_sub_pixel_variance16x2)(const uint8_t *src_ptr, int source_stride, int xoffset, int yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 
 void vp9_convolve8_c(const uint8_t *src, int src_stride, uint8_t *dst, int dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h);
 void vp9_convolve8_ssse3(const uint8_t *src, int src_stride, uint8_t *dst, int dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h);
