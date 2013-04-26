@@ -264,7 +264,6 @@
     '<(libvpx_source)/vp9/decoder/vp9_onyxd_if.c',
     '<(libvpx_source)/vp9/decoder/vp9_onyxd_int.h',
     '<(libvpx_source)/vp9/decoder/vp9_treereader.h',
-    '<(libvpx_source)/vp9/decoder/x86/vp9_dequantize_x86.c',
     '<(libvpx_source)/vp9/vp9_dx_iface.c',
     '<(libvpx_source)/vp9/vp9_iface_common.h',
     '<(libvpx_source)/vpx/internal/vpx_codec_internal.h',

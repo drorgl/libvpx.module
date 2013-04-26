@@ -48,6 +48,7 @@
         '<(libvpx_source)/vp9/common/x86/vp9_recon_wrapper_sse2.c',
         '<(libvpx_source)/vp9/common/x86/vp9_sadmxn_sse2.c',
         '<(libvpx_source)/vp9/common/x86/vp9_subpixel_variance_sse2.c',
+        '<(libvpx_source)/vp9/decoder/x86/vp9_dequantize_sse2.c',
         '<(libvpx_source)/vp9/decoder/x86/vp9_idct_blk_sse2.c',
       ],
       'conditions': [
