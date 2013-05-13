@@ -34,10 +34,6 @@
 
     # Location of the intermediate output.
     'shared_generated_dir': '<(SHARED_INTERMEDIATE_DIR)/third_party/libvpx',
-
-    # Override temporarily until we get a warning-free libvpx on Windows.
-    # See http://crbug.com/140121
-    'win_third_party_warn_as_error': 'false',
   },
   'target_defaults': {
     'target_conditions': [
