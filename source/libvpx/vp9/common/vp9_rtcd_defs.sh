@@ -25,8 +25,6 @@ forward_decls vp9_common_forward_decls
 #
 # Dequant
 #
-prototype void vp9_idct_add_y_block_8x8 "int16_t *q, uint8_t *dst, int stride, struct macroblockd *xd"
-specialize vp9_idct_add_y_block_8x8
 
 prototype void vp9_idct_add_16x16 "int16_t *input, uint8_t *dest, int stride, int eob"
 specialize vp9_idct_add_16x16
@@ -37,11 +35,7 @@ specialize vp9_idct_add_8x8
 prototype void vp9_idct_add "int16_t *input, uint8_t *dest, int stride, int eob"
 specialize vp9_idct_add
 
-prototype void vp9_idct_add_y_block "int16_t *q, uint8_t *dst, int stride, struct macroblockd *xd"
-specialize vp9_idct_add_y_block
 
-prototype void vp9_idct_add_uv_block "int16_t *q, uint8_t *dst, int stride, uint16_t *eobs"
-specialize vp9_idct_add_uv_block
 
 prototype void vp9_idct_add_32x32 "int16_t *q, uint8_t *dst, int stride, int eob"
 specialize vp9_idct_add_32x32
@@ -93,7 +87,7 @@ prototype void vp9_mbloop_filter_vertical_edge "uint8_t *s, int pitch, const uin
 specialize vp9_mbloop_filter_vertical_edge
 
 prototype void vp9_loop_filter_vertical_edge "uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count"
-specialize vp9_loop_filter_vertical_edge
+specialize vp9_loop_filter_vertical_edge mmx
 
 prototype void vp9_mb_lpf_horizontal_edge_w "uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count"
 specialize vp9_mb_lpf_horizontal_edge_w
@@ -102,7 +96,7 @@ prototype void vp9_mbloop_filter_horizontal_edge "uint8_t *s, int pitch, const u
 specialize vp9_mbloop_filter_horizontal_edge
 
 prototype void vp9_loop_filter_horizontal_edge "uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count"
-specialize vp9_loop_filter_horizontal_edge
+specialize vp9_loop_filter_horizontal_edge mmx
 
 #
 # post proc

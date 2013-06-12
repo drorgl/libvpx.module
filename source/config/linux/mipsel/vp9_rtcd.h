@@ -26,9 +26,6 @@ struct vp9_variance_vtable;
 union int_mv;
 struct yv12_buffer_config;
 
-void vp9_idct_add_y_block_8x8_c(int16_t *q, uint8_t *dst, int stride, struct macroblockd *xd);
-#define vp9_idct_add_y_block_8x8 vp9_idct_add_y_block_8x8_c
-
 void vp9_idct_add_16x16_c(int16_t *input, uint8_t *dest, int stride, int eob);
 #define vp9_idct_add_16x16 vp9_idct_add_16x16_c
 
@@ -37,12 +34,6 @@ void vp9_idct_add_8x8_c(int16_t *input, uint8_t *dest, int stride, int eob);
 
 void vp9_idct_add_c(int16_t *input, uint8_t *dest, int stride, int eob);
 #define vp9_idct_add vp9_idct_add_c
-
-void vp9_idct_add_y_block_c(int16_t *q, uint8_t *dst, int stride, struct macroblockd *xd);
-#define vp9_idct_add_y_block vp9_idct_add_y_block_c
-
-void vp9_idct_add_uv_block_c(int16_t *q, uint8_t *dst, int stride, uint16_t *eobs);
-#define vp9_idct_add_uv_block vp9_idct_add_uv_block_c
 
 void vp9_idct_add_32x32_c(int16_t *q, uint8_t *dst, int stride, int eob);
 #define vp9_idct_add_32x32 vp9_idct_add_32x32_c

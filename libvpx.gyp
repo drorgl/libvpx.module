@@ -212,7 +212,10 @@
             {
               'rule_name': 'convert_asm',
               'extension': 'asm',
-              'inputs': [ '<(shared_generated_dir)/<(ads2gas_script)', ],
+              'inputs': [
+                '<(shared_generated_dir)/<(ads2gas_script)',
+                '<(shared_generated_dir)/thumb.pm',
+              ],
               'outputs': [
                 '<(shared_generated_dir)/<(RULE_INPUT_ROOT).S',
               ],

@@ -26,9 +26,6 @@ struct vp9_variance_vtable;
 union int_mv;
 struct yv12_buffer_config;
 
-void vp9_idct_add_y_block_8x8_c(int16_t *q, uint8_t *dst, int stride, struct macroblockd *xd);
-#define vp9_idct_add_y_block_8x8 vp9_idct_add_y_block_8x8_c
-
 void vp9_idct_add_16x16_c(int16_t *input, uint8_t *dest, int stride, int eob);
 #define vp9_idct_add_16x16 vp9_idct_add_16x16_c
 
@@ -37,12 +34,6 @@ void vp9_idct_add_8x8_c(int16_t *input, uint8_t *dest, int stride, int eob);
 
 void vp9_idct_add_c(int16_t *input, uint8_t *dest, int stride, int eob);
 #define vp9_idct_add vp9_idct_add_c
-
-void vp9_idct_add_y_block_c(int16_t *q, uint8_t *dst, int stride, struct macroblockd *xd);
-#define vp9_idct_add_y_block vp9_idct_add_y_block_c
-
-void vp9_idct_add_uv_block_c(int16_t *q, uint8_t *dst, int stride, uint16_t *eobs);
-#define vp9_idct_add_uv_block vp9_idct_add_uv_block_c
 
 void vp9_idct_add_32x32_c(int16_t *q, uint8_t *dst, int stride, int eob);
 #define vp9_idct_add_32x32 vp9_idct_add_32x32_c
@@ -91,7 +82,8 @@ void vp9_mbloop_filter_vertical_edge_c(uint8_t *s, int pitch, const uint8_t *bli
 #define vp9_mbloop_filter_vertical_edge vp9_mbloop_filter_vertical_edge_c
 
 void vp9_loop_filter_vertical_edge_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
-#define vp9_loop_filter_vertical_edge vp9_loop_filter_vertical_edge_c
+void vp9_loop_filter_vertical_edge_mmx(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
+#define vp9_loop_filter_vertical_edge vp9_loop_filter_vertical_edge_mmx
 
 void vp9_mb_lpf_horizontal_edge_w_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
 #define vp9_mb_lpf_horizontal_edge_w vp9_mb_lpf_horizontal_edge_w_c
@@ -100,7 +92,8 @@ void vp9_mbloop_filter_horizontal_edge_c(uint8_t *s, int pitch, const uint8_t *b
 #define vp9_mbloop_filter_horizontal_edge vp9_mbloop_filter_horizontal_edge_c
 
 void vp9_loop_filter_horizontal_edge_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
-#define vp9_loop_filter_horizontal_edge vp9_loop_filter_horizontal_edge_c
+void vp9_loop_filter_horizontal_edge_mmx(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
+#define vp9_loop_filter_horizontal_edge vp9_loop_filter_horizontal_edge_mmx
 
 void vp9_mbpost_proc_down_c(uint8_t *dst, int pitch, int rows, int cols, int flimit);
 void vp9_mbpost_proc_down_mmx(uint8_t *dst, int pitch, int rows, int cols, int flimit);
@@ -231,9 +224,6 @@ static void setup_rtcd_internal(void)
     int flags = x86_simd_caps();
 
     (void)flags;
-
-
-
 
 
 
