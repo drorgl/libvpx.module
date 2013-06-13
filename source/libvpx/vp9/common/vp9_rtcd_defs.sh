@@ -80,20 +80,20 @@ fi
 #
 # Loopfilter
 #
-prototype void vp9_mb_lpf_vertical_edge_w "uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count"
-specialize vp9_mb_lpf_vertical_edge_w
+prototype void vp9_mb_lpf_vertical_edge_w "uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh"
+specialize vp9_mb_lpf_vertical_edge_w sse2
 
 prototype void vp9_mbloop_filter_vertical_edge "uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count"
-specialize vp9_mbloop_filter_vertical_edge
+specialize vp9_mbloop_filter_vertical_edge sse2
 
 prototype void vp9_loop_filter_vertical_edge "uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count"
 specialize vp9_loop_filter_vertical_edge mmx
 
-prototype void vp9_mb_lpf_horizontal_edge_w "uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count"
-specialize vp9_mb_lpf_horizontal_edge_w
+prototype void vp9_mb_lpf_horizontal_edge_w "uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh"
+specialize vp9_mb_lpf_horizontal_edge_w sse2
 
 prototype void vp9_mbloop_filter_horizontal_edge "uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count"
-specialize vp9_mbloop_filter_horizontal_edge
+specialize vp9_mbloop_filter_horizontal_edge sse2
 
 prototype void vp9_loop_filter_horizontal_edge "uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count"
 specialize vp9_loop_filter_horizontal_edge mmx
@@ -499,13 +499,14 @@ specialize vp9_sad8x8x4d sse2
 
 # TODO(jingning): need to convert these 4x8/8x4 functions into sse2 form
 prototype void vp9_sad8x4x4d "const uint8_t *src_ptr, int src_stride, const uint8_t* const ref_ptr[], int ref_stride, unsigned int *sad_array"
-specialize vp9_sad8x4x4d
+specialize vp9_sad8x4x4d sse2
 
 prototype void vp9_sad4x8x4d "const uint8_t *src_ptr, int src_stride, const uint8_t* const ref_ptr[], int ref_stride, unsigned int *sad_array"
-specialize vp9_sad4x8x4d
+specialize vp9_sad4x8x4d sse
 
 prototype void vp9_sad4x4x4d "const uint8_t *src_ptr, int  src_stride, const uint8_t* const ref_ptr[], int  ref_stride, unsigned int *sad_array"
 specialize vp9_sad4x4x4d sse
+
 prototype unsigned int vp9_sub_pixel_mse16x16 "const uint8_t *src_ptr, int  src_pixels_per_line, int  xoffset, int  yoffset, const uint8_t *dst_ptr, int dst_pixels_per_line, unsigned int *sse"
 specialize vp9_sub_pixel_mse16x16 sse2 mmx
 

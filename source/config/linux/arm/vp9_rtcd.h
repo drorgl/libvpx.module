@@ -68,7 +68,7 @@ void vp9_add_constant_residual_16x16_c(const int16_t diff, uint8_t *dest, int st
 void vp9_add_constant_residual_32x32_c(const int16_t diff, uint8_t *dest, int stride);
 #define vp9_add_constant_residual_32x32 vp9_add_constant_residual_32x32_c
 
-void vp9_mb_lpf_vertical_edge_w_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
+void vp9_mb_lpf_vertical_edge_w_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
 #define vp9_mb_lpf_vertical_edge_w vp9_mb_lpf_vertical_edge_w_c
 
 void vp9_mbloop_filter_vertical_edge_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
@@ -77,7 +77,7 @@ void vp9_mbloop_filter_vertical_edge_c(uint8_t *s, int pitch, const uint8_t *bli
 void vp9_loop_filter_vertical_edge_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
 #define vp9_loop_filter_vertical_edge vp9_loop_filter_vertical_edge_c
 
-void vp9_mb_lpf_horizontal_edge_w_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
+void vp9_mb_lpf_horizontal_edge_w_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
 #define vp9_mb_lpf_horizontal_edge_w vp9_mb_lpf_horizontal_edge_w_c
 
 void vp9_mbloop_filter_horizontal_edge_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);

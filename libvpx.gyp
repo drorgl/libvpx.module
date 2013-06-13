@@ -204,6 +204,7 @@
             'destination': '<(shared_generated_dir)',
             'files': [
               '<(ads2gas_script_path)',
+              '<(ads2gas_script_include)',
             ],
           }],
 
@@ -233,6 +234,7 @@
             # Location of the assembly conversion script.
             'ads2gas_script': 'ads2gas.pl',
             'ads2gas_script_path': '<(libvpx_source)/build/make/<(ads2gas_script)',
+            'ads2gas_script_include': '<(libvpx_source)/build/make/thumb.pm',
           },
           'cflags': [
             # We need to explicitly tell the GCC assembler to look for
