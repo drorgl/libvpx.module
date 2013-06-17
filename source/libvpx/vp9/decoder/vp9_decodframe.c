@@ -270,6 +270,10 @@ static void decode_block_intra(int plane, int block, BLOCK_SIZE_TYPE bsize,
   vp9_predict_intra_block(xd, tx_ib, plane_b_size, tx_size,
                           b_mode, dst, xd->plane[plane].dst.stride);
 
+  // Early exit if there are no coefficients
+  if (xd->mode_info_context->mbmi.mb_skip_coeff)
+    return;
+
   switch (ss_txfrm_size / 2) {
     case TX_4X4:
       tx_type = plane == 0 ? get_tx_type_4x4(xd, raster_block) : DCT_DCT;
@@ -318,8 +322,9 @@ static void decode_atom(VP9D_COMP *pbi, MACROBLOCKD *xd,
     if (!vp9_reader_has_error(r)) {
       vp9_decode_tokens(pbi, xd, r, bsize);
     }
+
+    foreach_transformed_block(xd, bsize, decode_block, xd);
   }
-  foreach_transformed_block(xd, bsize, decode_block, xd);
 }
 
 static void decode_sb_intra(VP9D_COMP *pbi, MACROBLOCKD *xd,
@@ -575,7 +580,7 @@ static void read_coef_probs_common(FRAME_CONTEXT *fc, TX_SIZE tx_size,
             for (m = mstart; m < entropy_nodes_update; m++) {
               vp9_prob *const p = coef_probs[i][j][k][l] + m;
 
-              if (vp9_read(r, vp9_coef_update_prob[m])) {
+              if (vp9_read(r, VP9_COEF_UPDATE_PROB)) {
                 *p = vp9_read_prob_diff_update(r, *p);
               }
             }

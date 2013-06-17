@@ -171,7 +171,6 @@
     '<(libvpx_source)/vp9/common/vp9_alloccommon.c',
     '<(libvpx_source)/vp9/common/vp9_alloccommon.h',
     '<(libvpx_source)/vp9/common/vp9_blockd.h',
-    '<(libvpx_source)/vp9/common/vp9_coefupdateprobs.h',
     '<(libvpx_source)/vp9/common/vp9_common.h',
     '<(libvpx_source)/vp9/common/vp9_convolve.c',
     '<(libvpx_source)/vp9/common/vp9_convolve.h',
