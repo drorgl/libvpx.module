@@ -13,7 +13,6 @@
 #include "vp9/common/vp9_reconinter.h"
 #include "vp9/encoder/vp9_quantize.h"
 #include "vp9/encoder/vp9_tokenize.h"
-#include "vp9/common/vp9_invtrans.h"
 #include "vp9/common/vp9_reconintra.h"
 #include "vpx_mem/vpx_mem.h"
 #include "vp9/encoder/vp9_rdopt.h"
@@ -37,6 +36,15 @@ void vp9_subtract_block(int rows, int cols,
     pred_ptr += pred_stride;
     src_ptr  += src_stride;
   }
+}
+
+static void inverse_transform_b_4x4_add(MACROBLOCKD *xd, int eob,
+                                        int16_t *dqcoeff, uint8_t *dest,
+                                        int stride) {
+  if (eob <= 1)
+    xd->inv_txm4x4_1_add(dqcoeff, dest, stride);
+  else
+    xd->inv_txm4x4_add(dqcoeff, dest, stride);
 }
 
 
@@ -454,7 +462,10 @@ static void xform_quant(int plane, int block, BLOCK_SIZE_TYPE bsize,
 
   switch (ss_txfrm_size / 2) {
     case TX_32X32:
-      vp9_short_fdct32x32(src_diff, coeff, bw * 2);
+      if (x->rd_search)
+        vp9_short_fdct32x32_rd(src_diff, coeff, bw * 2);
+      else
+        vp9_short_fdct32x32(src_diff, coeff, bw * 2);
       break;
     case TX_16X16:
       tx_type = plane == 0 ? get_tx_type_16x16(xd, raster_block) : DCT_DCT;
@@ -527,8 +538,8 @@ static void encode_block(int plane, int block, BLOCK_SIZE_TYPE bsize,
         // this is like vp9_short_idct4x4 but has a special case around eob<=1
         // which is significant (not just an optimization) for the lossless
         // case.
-        vp9_inverse_transform_b_4x4_add(xd, pd->eobs[block], dqcoeff,
-                                        dst, pd->dst.stride);
+        inverse_transform_b_4x4_add(xd, pd->eobs[block], dqcoeff,
+                                    dst, pd->dst.stride);
       else
         vp9_short_iht4x4_add(dqcoeff, dst, pd->dst.stride, tx_type);
       break;
@@ -667,8 +678,8 @@ static void encode_block_intra(int plane, int block, BLOCK_SIZE_TYPE bsize,
         // this is like vp9_short_idct4x4 but has a special case around eob<=1
         // which is significant (not just an optimization) for the lossless
         // case.
-        vp9_inverse_transform_b_4x4_add(xd, pd->eobs[block], dqcoeff,
-                                        dst, pd->dst.stride);
+        inverse_transform_b_4x4_add(xd, pd->eobs[block], dqcoeff,
+                                    dst, pd->dst.stride);
       else
         vp9_short_iht4x4_add(dqcoeff, dst, pd->dst.stride, tx_type);
       break;

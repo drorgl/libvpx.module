@@ -191,8 +191,6 @@
     '<(libvpx_source)/vp9/common/vp9_findnearmv.h',
     '<(libvpx_source)/vp9/common/vp9_idct.c',
     '<(libvpx_source)/vp9/common/vp9_idct.h',
-    '<(libvpx_source)/vp9/common/vp9_invtrans.c',
-    '<(libvpx_source)/vp9/common/vp9_invtrans.h',
     '<(libvpx_source)/vp9/common/vp9_loopfilter.c',
     '<(libvpx_source)/vp9/common/vp9_loopfilter_filters.c',
     '<(libvpx_source)/vp9/common/vp9_loopfilter.h',
