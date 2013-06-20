@@ -216,6 +216,19 @@ typedef struct {
   int static_segmentation;
   int comp_inter_joint_search_thresh;
   int adpative_rd_thresh;
+  int use_lastframe_partitioning;
+  int use_largest_txform;
+  int use_8tap_always;
+  int use_avoid_tested_higherror;
+  int skip_lots_of_modes;
+  int adjust_thresholds_by_speed;
+  int partition_by_variance;
+  int use_one_partition_size_always;
+  BLOCK_SIZE_TYPE always_this_block_size;
+  int use_partitions_greater_than;
+  BLOCK_SIZE_TYPE greater_than_block_size;
+  int use_partitions_less_than;
+  BLOCK_SIZE_TYPE less_than_block_size;
 } SPEED_FEATURES;
 
 enum BlockSize {
