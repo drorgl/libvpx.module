@@ -38,7 +38,7 @@ int log_msg(const char *fmt, ...) {
 #include <mach-o/loader.h>
 #include <mach-o/nlist.h>
 
-int parse_macho(uint8_t *base_buf, size_t sz) {
+int parse_macho(uint8_t *base_buf, size_t sz, output_fmt_t mode) {
   int i, j;
   struct mach_header header;
   uint8_t *buf = base_buf;
@@ -156,8 +156,19 @@ int parse_macho(uint8_t *base_buf, size_t sz) {
 
             memcpy(&val, base_buf + base_data_section + nl.n_value,
                    sizeof(val));
-            printf("%-40s EQU %5d\n",
-                   str_buf + nl.n_un.n_strx + 1, val);
+            switch (mode) {
+              case OUTPUT_FMT_RVDS:
+                printf("%-40s EQU %5d\n",
+                       str_buf + nl.n_un.n_strx + 1, val);
+                break;
+              case OUTPUT_FMT_GAS:
+                printf(".set %-40s, %5d\n",
+                       str_buf + nl.n_un.n_strx + 1, val);
+                break;
+              default:
+                printf("%s = %d\n",
+                       str_buf + nl.n_un.n_strx + 1, val);
+            }
           } else { /* if (bits == 64) */
             struct nlist_64 nl;
             int val;
@@ -167,8 +178,19 @@ int parse_macho(uint8_t *base_buf, size_t sz) {
 
             memcpy(&val, base_buf + base_data_section + nl.n_value,
                    sizeof(val));
-            printf("%-40s EQU %5d\n",
-                   str_buf + nl.n_un.n_strx + 1, val);
+            switch (mode) {
+              case OUTPUT_FMT_RVDS:
+                printf("%-40s EQU %5d\n",
+                       str_buf + nl.n_un.n_strx + 1, val);
+                break;
+              case OUTPUT_FMT_GAS:
+                printf(".set %-40s, %5d\n",
+                       str_buf + nl.n_un.n_strx + 1, val);
+                break;
+              default:
+                printf("%s = %d\n",
+                       str_buf + nl.n_un.n_strx + 1, val);
+            }
           }
         }
       }
@@ -796,7 +818,7 @@ int main(int argc, char **argv) {
 
 #if defined(__GNUC__) && __GNUC__
 #if defined(__MACH__)
-  res = parse_macho(file_buf, file_size);
+  res = parse_macho(file_buf, file_size, mode);
 #elif defined(__ELF__)
   res = parse_elf(file_buf, file_size, mode);
 #endif
