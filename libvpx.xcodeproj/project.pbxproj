@@ -2517,7 +2517,6 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"\"DISABLE_NACL\"",
 					"\"CHROMIUM_BUILD\"",
-					"\"USE_LIBJPEG_TURBO=1\"",
 					"\"ENABLE_INPUT_SPEECH\"",
 					"\"ENABLE_EGLIMAGE=1\"",
 					"\"DISABLE_FTP_SUPPORT=1\"",
@@ -2541,6 +2540,7 @@
 				PRODUCT_NAME = vpx_asm_offsets_vpx_scale;
 				RUN_CLANG_STATIC_ANALYZER = NO;
 				USE_HEADERMAP = NO;
+				VALID_ARCHS = armv7;
 				WARNING_CFLAGS = (
 					"-Wendif-labels",
 					"-Wno-unused-parameter",
@@ -2587,7 +2587,6 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"\"DISABLE_NACL\"",
 					"\"CHROMIUM_BUILD\"",
-					"\"USE_LIBJPEG_TURBO=1\"",
 					"\"ENABLE_INPUT_SPEECH\"",
 					"\"ENABLE_EGLIMAGE=1\"",
 					"\"DISABLE_FTP_SUPPORT=1\"",
@@ -2646,7 +2645,6 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"\"DISABLE_NACL\"",
 					"\"CHROMIUM_BUILD\"",
-					"\"USE_LIBJPEG_TURBO=1\"",
 					"\"ENABLE_INPUT_SPEECH\"",
 					"\"ENABLE_EGLIMAGE=1\"",
 					"\"DISABLE_FTP_SUPPORT=1\"",
@@ -2668,6 +2666,7 @@
 				PRODUCT_NAME = vpx_asm_offsets_vpx_scale;
 				RUN_CLANG_STATIC_ANALYZER = NO;
 				USE_HEADERMAP = NO;
+				VALID_ARCHS = armv7;
 				WARNING_CFLAGS = (
 					"-Wendif-labels",
 					"-Wno-unused-parameter",
@@ -2705,7 +2704,6 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"\"DISABLE_NACL\"",
 					"\"CHROMIUM_BUILD\"",
-					"\"USE_LIBJPEG_TURBO=1\"",
 					"\"ENABLE_INPUT_SPEECH\"",
 					"\"ENABLE_EGLIMAGE=1\"",
 					"\"DISABLE_FTP_SUPPORT=1\"",
@@ -2757,7 +2755,7 @@
 				SHARED_INTERMEDIATE_DIR = "$(SYMROOT)/DerivedSources/$(CONFIGURATION)";
 				SYMROOT = ../../xcodebuild;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				VALID_ARCHS = "armv7 i386";
+				VALID_ARCHS = "armv7 armv7s";
 			};
 			name = Release;
 		};
@@ -2792,7 +2790,6 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"\"DISABLE_NACL\"",
 					"\"CHROMIUM_BUILD\"",
-					"\"USE_LIBJPEG_TURBO=1\"",
 					"\"ENABLE_INPUT_SPEECH\"",
 					"\"ENABLE_EGLIMAGE=1\"",
 					"\"DISABLE_FTP_SUPPORT=1\"",
@@ -2853,7 +2850,6 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"\"DISABLE_NACL\"",
 					"\"CHROMIUM_BUILD\"",
-					"\"USE_LIBJPEG_TURBO=1\"",
 					"\"ENABLE_INPUT_SPEECH\"",
 					"\"ENABLE_EGLIMAGE=1\"",
 					"\"DISABLE_FTP_SUPPORT=1\"",
@@ -2911,7 +2907,6 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"\"DISABLE_NACL\"",
 					"\"CHROMIUM_BUILD\"",
-					"\"USE_LIBJPEG_TURBO=1\"",
 					"\"ENABLE_INPUT_SPEECH\"",
 					"\"ENABLE_EGLIMAGE=1\"",
 					"\"DISABLE_FTP_SUPPORT=1\"",
@@ -2980,7 +2975,6 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"\"DISABLE_NACL\"",
 					"\"CHROMIUM_BUILD\"",
-					"\"USE_LIBJPEG_TURBO=1\"",
 					"\"ENABLE_INPUT_SPEECH\"",
 					"\"ENABLE_EGLIMAGE=1\"",
 					"\"DISABLE_FTP_SUPPORT=1\"",
@@ -3035,7 +3029,6 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"\"DISABLE_NACL\"",
 					"\"CHROMIUM_BUILD\"",
-					"\"USE_LIBJPEG_TURBO=1\"",
 					"\"ENABLE_INPUT_SPEECH\"",
 					"\"ENABLE_EGLIMAGE=1\"",
 					"\"DISABLE_FTP_SUPPORT=1\"",
@@ -3098,7 +3091,6 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"\"DISABLE_NACL\"",
 					"\"CHROMIUM_BUILD\"",
-					"\"USE_LIBJPEG_TURBO=1\"",
 					"\"ENABLE_INPUT_SPEECH\"",
 					"\"ENABLE_EGLIMAGE=1\"",
 					"\"DISABLE_FTP_SUPPORT=1\"",
@@ -3156,7 +3148,6 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"\"DISABLE_NACL\"",
 					"\"CHROMIUM_BUILD\"",
-					"\"USE_LIBJPEG_TURBO=1\"",
 					"\"ENABLE_INPUT_SPEECH\"",
 					"\"ENABLE_EGLIMAGE=1\"",
 					"\"DISABLE_FTP_SUPPORT=1\"",
@@ -3222,7 +3213,6 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"\"DISABLE_NACL\"",
 					"\"CHROMIUM_BUILD\"",
-					"\"USE_LIBJPEG_TURBO=1\"",
 					"\"ENABLE_INPUT_SPEECH\"",
 					"\"ENABLE_EGLIMAGE=1\"",
 					"\"DISABLE_FTP_SUPPORT=1\"",
@@ -3244,6 +3234,7 @@
 				PRODUCT_NAME = vpx_asm_offsets_vp8;
 				RUN_CLANG_STATIC_ANALYZER = NO;
 				USE_HEADERMAP = NO;
+				VALID_ARCHS = armv7;
 				WARNING_CFLAGS = (
 					"-Wendif-labels",
 					"-Wno-unused-parameter",
@@ -3283,7 +3274,6 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"\"DISABLE_NACL\"",
 					"\"CHROMIUM_BUILD\"",
-					"\"USE_LIBJPEG_TURBO=1\"",
 					"\"ENABLE_INPUT_SPEECH\"",
 					"\"ENABLE_EGLIMAGE=1\"",
 					"\"DISABLE_FTP_SUPPORT=1\"",
@@ -3348,7 +3338,6 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"\"DISABLE_NACL\"",
 					"\"CHROMIUM_BUILD\"",
-					"\"USE_LIBJPEG_TURBO=1\"",
 					"\"ENABLE_INPUT_SPEECH\"",
 					"\"ENABLE_EGLIMAGE=1\"",
 					"\"DISABLE_FTP_SUPPORT=1\"",
@@ -3405,7 +3394,6 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"\"DISABLE_NACL\"",
 					"\"CHROMIUM_BUILD\"",
-					"\"USE_LIBJPEG_TURBO=1\"",
 					"\"ENABLE_INPUT_SPEECH\"",
 					"\"ENABLE_EGLIMAGE=1\"",
 					"\"DISABLE_FTP_SUPPORT=1\"",
@@ -3429,6 +3417,7 @@
 				PRODUCT_NAME = vpx_asm_offsets_vp8;
 				RUN_CLANG_STATIC_ANALYZER = NO;
 				USE_HEADERMAP = NO;
+				VALID_ARCHS = armv7;
 				WARNING_CFLAGS = (
 					"-Wendif-labels",
 					"-Wno-unused-parameter",
@@ -3453,7 +3442,7 @@
 				SHARED_INTERMEDIATE_DIR = "$(SYMROOT)/DerivedSources/$(CONFIGURATION)";
 				SYMROOT = ../../xcodebuild;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				VALID_ARCHS = "armv7 i386";
+				VALID_ARCHS = "armv7 armv7s";
 			};
 			name = Debug;
 		};
@@ -3488,7 +3477,6 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"\"DISABLE_NACL\"",
 					"\"CHROMIUM_BUILD\"",
-					"\"USE_LIBJPEG_TURBO=1\"",
 					"\"ENABLE_INPUT_SPEECH\"",
 					"\"ENABLE_EGLIMAGE=1\"",
 					"\"DISABLE_FTP_SUPPORT=1\"",
