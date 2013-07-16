@@ -45,6 +45,9 @@ RTCD_EXTERN void (*vp8_yv12_copy_y)(struct yv12_buffer_config *src_ybc, struct y
 void vp9_extend_frame_borders_c(struct yv12_buffer_config *ybf, int subsampling_x, int subsampling_y);
 #define vp9_extend_frame_borders vp9_extend_frame_borders_c
 
+void vp9_extend_frame_inner_borders_c(struct yv12_buffer_config *ybf, int subsampling_x, int subsampling_y);
+#define vp9_extend_frame_inner_borders vp9_extend_frame_inner_borders_c
+
 void vpx_scale_rtcd(void);
 #include "vpx_config.h"
 
