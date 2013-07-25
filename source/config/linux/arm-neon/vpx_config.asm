@@ -78,5 +78,4 @@
 .equ CONFIG_MULTIPLE_ARF ,  0
 .equ CONFIG_NON420 ,  0
 .equ CONFIG_ALPHA ,  0
-.equ CONFIG_BALANCED_COEFTREE ,  0
 	.section	.note.GNU-stack,"",%progbits

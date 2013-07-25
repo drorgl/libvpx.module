@@ -22,24 +22,6 @@ extern "C" {
 #define VP9BORDERINPIXELS      160
 #define VP9_INTERP_EXTEND        4
 
-  /*************************************
-   For INT_YUV:
-
-   Y = (R+G*2+B)/4;
-   U = (R-B)/2;
-   V =  (G*2 - R - B)/4;
-  And
-   R = Y+U-V;
-   G = Y+V;
-   B = Y-U-V;
-  ************************************/
-  typedef enum
-  {
-    REG_YUV = 0,    /* Regular yuv */
-    INT_YUV = 1     /* The type of yuv that can be tranfer to and from RGB through integer transform */
-  }
-            YUV_TYPE;
-
   typedef struct yv12_buffer_config {
     int   y_width;
     int   y_height;
@@ -50,6 +32,8 @@ extern "C" {
 
     int   uv_width;
     int   uv_height;
+    int   uv_crop_width;
+    int   uv_crop_height;
     int   uv_stride;
     /*    int   uvinternal_width; */
 
@@ -66,7 +50,6 @@ extern "C" {
     int buffer_alloc_sz;
     int border;
     int frame_size;
-    YUV_TYPE clrtype;
 
     int corrupted;
     int flags;
