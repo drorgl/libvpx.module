@@ -78,8 +78,6 @@
 				BCC462F0D63CCA43CA39BB09 /* PBXTargetDependency */,
 				ED3B5DA5A12350A474E6BC81 /* PBXTargetDependency */,
 				BE42D22CB616943BD4D610B0 /* PBXTargetDependency */,
-				402381CAF67DFB34AF214C6F /* PBXTargetDependency */,
-				3902E7C96AE228BA35D9F3E6 /* PBXTargetDependency */,
 				F0504AFE6AE4129B7D7161E0 /* PBXTargetDependency */,
 			);
 			name = All;
@@ -409,13 +407,6 @@
 			remoteGlobalIDString = A8203494AA68E9A2A00827F9;
 			remoteInfo = libvpx_asm_offsets_vpx_scale;
 		};
-		7ACCF144E0A51C76B11E7A13 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 4D7DC56C90D08AA35E9DCBB1 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 9685AAF5645CAF835D7175B1;
-			remoteInfo = simple_decoder;
-		};
 		7CF6A3ECA74BEDB8055F70D7 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 4D7DC56C90D08AA35E9DCBB1 /* Project object */;
@@ -443,13 +434,6 @@
 			proxyType = 1;
 			remoteGlobalIDString = 4C4087667062357B0DBB9779;
 			remoteInfo = libvpx;
-		};
-		9C8CFEAFD1E29452383C3865 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 4D7DC56C90D08AA35E9DCBB1 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 8CE4819B19FA02067606039D;
-			remoteInfo = simple_encoder;
 		};
 		A009A76E7546BDBE80597940 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -1923,7 +1907,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 			};
-			buildConfigurationList = 027BA68C4AD9A284C64C97E9 /* Build configuration list for PBXProject "libvpx" */;
+			buildConfigurationList = 027BA68C4AD9A284C64C97E9 /* Build configuration list for PBXProject "libvpx_ios" */;
 			compatibilityVersion = "Xcode 3.2";
 			developmentRegion = English;
 			hasScannedForEncodings = 1;
@@ -2351,16 +2335,6 @@
 			isa = PBXTargetDependency;
 			target = A8203494AA68E9A2A00827F9 /* libvpx_asm_offsets_vpx_scale */;
 			targetProxy = 18321E36A7EEB93219EA5E8D /* PBXContainerItemProxy */;
-		};
-		3902E7C96AE228BA35D9F3E6 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 9685AAF5645CAF835D7175B1 /* simple_decoder */;
-			targetProxy = 7ACCF144E0A51C76B11E7A13 /* PBXContainerItemProxy */;
-		};
-		402381CAF67DFB34AF214C6F /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 8CE4819B19FA02067606039D /* simple_encoder */;
-			targetProxy = 9C8CFEAFD1E29452383C3865 /* PBXContainerItemProxy */;
 		};
 		46B82177AE921B5C793A2760 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -3533,7 +3507,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		027BA68C4AD9A284C64C97E9 /* Build configuration list for PBXProject "libvpx" */ = {
+		027BA68C4AD9A284C64C97E9 /* Build configuration list for PBXProject "libvpx_ios" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				BAA3C55892CC8E4D27F0761A /* Debug */,
