@@ -15,7 +15,7 @@
 #include "vp9/common/vp9_onyxc_int.h"
 
 int vp9_get_segment_id(VP9_COMMON *cm, const uint8_t *segment_ids,
-                       BLOCK_SIZE_TYPE bsize, int mi_row, int mi_col);
+                       BLOCK_SIZE bsize, int mi_row, int mi_col);
 
 
 static INLINE int vp9_get_pred_context_seg_id(const MACROBLOCKD *xd) {
@@ -27,11 +27,12 @@ static INLINE int vp9_get_pred_context_seg_id(const MACROBLOCKD *xd) {
              (xd->left_available ? left_mbmi->seg_id_predicted : 0);
 }
 
-static INLINE vp9_prob vp9_get_pred_prob_seg_id(const MACROBLOCKD *xd) {
-  return xd->seg.pred_probs[vp9_get_pred_context_seg_id(xd)];
+static INLINE vp9_prob vp9_get_pred_prob_seg_id(struct segmentation *seg,
+                                                const MACROBLOCKD *xd) {
+  return seg->pred_probs[vp9_get_pred_context_seg_id(xd)];
 }
 
-void vp9_set_pred_flag_seg_id(VP9_COMMON *cm, BLOCK_SIZE_TYPE bsize,
+void vp9_set_pred_flag_seg_id(VP9_COMMON *cm, BLOCK_SIZE bsize,
                               int mi_row, int mi_col, uint8_t pred_flag);
 
 static INLINE int vp9_get_pred_context_mbskip(const MACROBLOCKD *xd) {
@@ -39,8 +40,8 @@ static INLINE int vp9_get_pred_context_mbskip(const MACROBLOCKD *xd) {
   const MB_MODE_INFO *const above_mbmi = &mi[-xd->mode_info_stride].mbmi;
   const MB_MODE_INFO *const left_mbmi = &mi[-1].mbmi;
 
-  return above_mbmi->mb_skip_coeff +
-             (xd->left_available ? left_mbmi->mb_skip_coeff : 0);
+  return above_mbmi->skip_coeff +
+             (xd->left_available ? left_mbmi->skip_coeff : 0);
 }
 
 static INLINE vp9_prob vp9_get_pred_prob_mbskip(const VP9_COMMON *cm,
@@ -49,19 +50,13 @@ static INLINE vp9_prob vp9_get_pred_prob_mbskip(const VP9_COMMON *cm,
 }
 
 static INLINE unsigned char vp9_get_pred_flag_mbskip(const MACROBLOCKD *xd) {
-  return xd->mode_info_context->mbmi.mb_skip_coeff;
+  return xd->mode_info_context->mbmi.skip_coeff;
 }
 
-void vp9_set_pred_flag_mbskip(VP9_COMMON *cm, BLOCK_SIZE_TYPE bsize,
+void vp9_set_pred_flag_mbskip(VP9_COMMON *cm, BLOCK_SIZE bsize,
                               int mi_row, int mi_col, uint8_t pred_flag);
 
 unsigned char vp9_get_pred_context_switchable_interp(const MACROBLOCKD *xd);
-
-static INLINE const vp9_prob *vp9_get_pred_probs_switchable_interp(
-    const VP9_COMMON *cm, const MACROBLOCKD *xd) {
-  const int pred_context = vp9_get_pred_context_switchable_interp(xd);
-  return &cm->fc.switchable_interp_prob[pred_context][0];
-}
 
 unsigned char vp9_get_pred_context_intra_inter(const MACROBLOCKD *xd);
 
@@ -108,11 +103,11 @@ static INLINE vp9_prob vp9_get_pred_prob_single_ref_p2(const VP9_COMMON *cm,
 
 unsigned char vp9_get_pred_context_tx_size(const MACROBLOCKD *xd);
 
-static const vp9_prob *get_tx_probs(BLOCK_SIZE_TYPE bsize, uint8_t context,
+static const vp9_prob *get_tx_probs(BLOCK_SIZE bsize, uint8_t context,
                                     const struct tx_probs *tx_probs) {
-  if (bsize < BLOCK_SIZE_MB16X16)
+  if (bsize < BLOCK_16X16)
     return tx_probs->p8x8[context];
-  else if (bsize < BLOCK_SIZE_SB32X32)
+  else if (bsize < BLOCK_32X32)
     return tx_probs->p16x16[context];
   else
     return tx_probs->p32x32[context];
@@ -120,16 +115,16 @@ static const vp9_prob *get_tx_probs(BLOCK_SIZE_TYPE bsize, uint8_t context,
 
 static const vp9_prob *get_tx_probs2(const MACROBLOCKD *xd,
                                      const struct tx_probs *tx_probs) {
-  const BLOCK_SIZE_TYPE bsize = xd->mode_info_context->mbmi.sb_type;
+  const BLOCK_SIZE bsize = xd->mode_info_context->mbmi.sb_type;
   const int context = vp9_get_pred_context_tx_size(xd);
   return get_tx_probs(bsize, context, tx_probs);
 }
 
-static void update_tx_counts(BLOCK_SIZE_TYPE bsize, uint8_t context,
+static void update_tx_counts(BLOCK_SIZE bsize, uint8_t context,
                              TX_SIZE tx_size, struct tx_counts *tx_counts) {
-  if (bsize >= BLOCK_SIZE_SB32X32)
+  if (bsize >= BLOCK_32X32)
     tx_counts->p32x32[context][tx_size]++;
-  else if (bsize >= BLOCK_SIZE_MB16X16)
+  else if (bsize >= BLOCK_16X16)
     tx_counts->p16x16[context][tx_size]++;
   else
     tx_counts->p8x8[context][tx_size]++;

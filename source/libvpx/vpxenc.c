@@ -1688,8 +1688,10 @@ static void parse_global_config(struct global_config *global, char **argv) {
   /* Initialize default parameters */
   memset(global, 0, sizeof(*global));
   global->codec = codecs;
-  global->passes = 1;
+  global->passes = 0;
   global->use_i420 = 1;
+  /* Assign default deadline to good quality */
+  global->deadline = VPX_DL_GOOD_QUALITY;
 
   for (argi = argj = argv; (*argj = *argi); argi += arg.argv_step) {
     arg.argv_step = 1;
@@ -1761,6 +1763,11 @@ static void parse_global_config(struct global_config *global, char **argv) {
   }
 
   /* Validate global config */
+  if (global->passes == 0) {
+    // Make default VP9 passes = 2 until there is a better quality 1-pass
+    // encoder
+    global->passes = (global->codec->iface == vpx_codec_vp9_cx ? 2 : 1);
+  }
 
   if (global->pass) {
     /* DWIM: Assume the user meant passes=2 if pass=2 is specified */
@@ -2631,8 +2638,8 @@ int main(int argc, const char **argv_) {
                                          &global.framerate));
     }
 
-    FOREACH_STREAM(open_output_file(stream, &global));
     FOREACH_STREAM(setup_pass(stream, &global, pass));
+    FOREACH_STREAM(open_output_file(stream, &global));
     FOREACH_STREAM(initialize_encoder(stream, &global));
 
     frame_avail = 1;

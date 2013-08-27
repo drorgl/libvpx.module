@@ -16,13 +16,19 @@
 
 #include "vp9/common/vp9_seg_common.h"
 
+struct loop_filter_info {
+  const uint8_t *mblim;
+  const uint8_t *lim;
+  const uint8_t *hev_thr;
+};
+
 static void lf_init_lut(loop_filter_info_n *lfi) {
   lfi->mode_lf_lut[DC_PRED] = 0;
   lfi->mode_lf_lut[D45_PRED] = 0;
   lfi->mode_lf_lut[D135_PRED] = 0;
   lfi->mode_lf_lut[D117_PRED] = 0;
   lfi->mode_lf_lut[D153_PRED] = 0;
-  lfi->mode_lf_lut[D27_PRED] = 0;
+  lfi->mode_lf_lut[D207_PRED] = 0;
   lfi->mode_lf_lut[D63_PRED] = 0;
   lfi->mode_lf_lut[V_PRED] = 0;
   lfi->mode_lf_lut[H_PRED] = 0;
@@ -55,8 +61,9 @@ static void update_sharpness(loop_filter_info_n *const lfi, int sharpness_lvl) {
   }
 }
 
-void vp9_loop_filter_init(VP9_COMMON *cm, struct loopfilter *lf) {
+void vp9_loop_filter_init(VP9_COMMON *cm) {
   loop_filter_info_n *lfi = &cm->lf_info;
+  struct loopfilter *lf = &cm->lf;
   int i;
 
   // init limits for given sharpness
@@ -71,15 +78,15 @@ void vp9_loop_filter_init(VP9_COMMON *cm, struct loopfilter *lf) {
     vpx_memset(lfi->hev_thr[i], i, SIMD_WIDTH);
 }
 
-void vp9_loop_filter_frame_init(VP9_COMMON *const cm, MACROBLOCKD *const xd,
-                                int default_filt_lvl) {
-  int seg;
+void vp9_loop_filter_frame_init(VP9_COMMON *const cm, int default_filt_lvl) {
+  int seg_id;
   // n_shift is the a multiplier for lf_deltas
   // the multiplier is 1 for when filter_lvl is between 0 and 31;
   // 2 when filter_lvl is between 32 and 63
   const int n_shift = default_filt_lvl >> 5;
   loop_filter_info_n *const lfi = &cm->lf_info;
-  struct loopfilter *lf = &xd->lf;
+  struct loopfilter *const lf = &cm->lf;
+  struct segmentation *const seg = &cm->seg;
 
   // update limits if sharpness has changed
   if (lf->last_sharpness_level != lf->sharpness_level) {
@@ -87,13 +94,13 @@ void vp9_loop_filter_frame_init(VP9_COMMON *const cm, MACROBLOCKD *const xd,
     lf->last_sharpness_level = lf->sharpness_level;
   }
 
-  for (seg = 0; seg < MAX_SEGMENTS; seg++) {
+  for (seg_id = 0; seg_id < MAX_SEGMENTS; seg_id++) {
     int lvl_seg = default_filt_lvl, ref, mode, intra_lvl;
 
     // Set the baseline filter values for each segment
-    if (vp9_segfeature_active(&xd->seg, seg, SEG_LVL_ALT_LF)) {
-      const int data = vp9_get_segdata(&xd->seg, seg, SEG_LVL_ALT_LF);
-      lvl_seg = xd->seg.abs_delta == SEGMENT_ABSDATA
+    if (vp9_segfeature_active(seg, seg_id, SEG_LVL_ALT_LF)) {
+      const int data = vp9_get_segdata(seg, seg_id, SEG_LVL_ALT_LF);
+      lvl_seg = seg->abs_delta == SEGMENT_ABSDATA
                   ? data
                   : clamp(default_filt_lvl + data, 0, MAX_LOOP_FILTER);
     }
@@ -101,18 +108,18 @@ void vp9_loop_filter_frame_init(VP9_COMMON *const cm, MACROBLOCKD *const xd,
     if (!lf->mode_ref_delta_enabled) {
       // we could get rid of this if we assume that deltas are set to
       // zero when not in use; encoder always uses deltas
-      vpx_memset(lfi->lvl[seg][0], lvl_seg, 4 * 4);
+      vpx_memset(lfi->lvl[seg_id], lvl_seg, sizeof(lfi->lvl[seg_id]));
       continue;
     }
 
     intra_lvl = lvl_seg + (lf->ref_deltas[INTRA_FRAME] << n_shift);
-    lfi->lvl[seg][INTRA_FRAME][0] = clamp(intra_lvl, 0, MAX_LOOP_FILTER);
+    lfi->lvl[seg_id][INTRA_FRAME][0] = clamp(intra_lvl, 0, MAX_LOOP_FILTER);
 
     for (ref = LAST_FRAME; ref < MAX_REF_FRAMES; ++ref)
       for (mode = 0; mode < MAX_MODE_LF_DELTAS; ++mode) {
         const int inter_lvl = lvl_seg + (lf->ref_deltas[ref] << n_shift)
                                       + (lf->mode_deltas[mode] << n_shift);
-        lfi->lvl[seg][ref][mode] = clamp(inter_lvl, 0, MAX_LOOP_FILTER);
+        lfi->lvl[seg_id][ref][mode] = clamp(inter_lvl, 0, MAX_LOOP_FILTER);
       }
   }
 }
@@ -255,8 +262,8 @@ static void filter_block_plane(VP9_COMMON *const cm,
 
     // Determine the vertical edges that need filtering
     for (c = 0; c < MI_BLOCK_SIZE && mi_col + c < cm->mi_cols; c += col_step) {
-      const int skip_this = mi[c].mbmi.mb_skip_coeff
-                            && mi[c].mbmi.ref_frame[0] != INTRA_FRAME;
+      const int skip_this = mi[c].mbmi.skip_coeff
+                            && is_inter_block(&mi[c].mbmi);
       // left edge of current unit is block/partition edge -> no skip
       const int block_edge_left = b_width_log2(mi[c].mbmi.sb_type) ?
           !(c & ((1 << (b_width_log2(mi[c].mbmi.sb_type)-1)) - 1)) : 1;
@@ -370,9 +377,29 @@ void vp9_loop_filter_rows(const YV12_BUFFER_CONFIG *frame_buffer,
 }
 
 void vp9_loop_filter_frame(VP9_COMMON *cm, MACROBLOCKD *xd,
-                           int frame_filter_level, int y_only) {
+                           int frame_filter_level,
+                           int y_only, int partial) {
+  int start_mi_row, end_mi_row, mi_rows_to_filter;
   if (!frame_filter_level) return;
-  vp9_loop_filter_frame_init(cm, xd, frame_filter_level);
+
+  start_mi_row = 0;
+  mi_rows_to_filter = cm->mi_rows;
+  if (partial && cm->mi_rows > 8) {
+    start_mi_row = cm->mi_rows >> 1;
+    start_mi_row &= 0xfffffff8;
+    mi_rows_to_filter = MAX(cm->mi_rows / 8, 8);
+  }
+  end_mi_row = start_mi_row + mi_rows_to_filter;
+  vp9_loop_filter_frame_init(cm, frame_filter_level);
   vp9_loop_filter_rows(cm->frame_to_show, cm, xd,
-                       0, cm->mi_rows, y_only);
+                       start_mi_row, end_mi_row,
+                       y_only);
+}
+
+int vp9_loop_filter_worker(void *arg1, void *arg2) {
+  LFWorkerData *const lf_data = (LFWorkerData*)arg1;
+  (void)arg2;
+  vp9_loop_filter_rows(lf_data->frame_buffer, lf_data->cm, &lf_data->xd,
+                       lf_data->start, lf_data->stop, lf_data->y_only);
+  return 1;
 }

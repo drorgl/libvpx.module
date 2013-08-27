@@ -28,30 +28,22 @@ struct optimize_ctx {
 };
 
 struct encode_b_args {
-  VP9_COMMON *cm;
   MACROBLOCK *x;
   struct optimize_ctx *ctx;
 };
 
-void vp9_optimize_init(MACROBLOCKD *xd, BLOCK_SIZE_TYPE bsize,
-                       struct optimize_ctx *ctx);
-void vp9_optimize_b(int plane, int block, BLOCK_SIZE_TYPE bsize,
-                    int ss_txfrm_size, VP9_COMMON *cm, MACROBLOCK *x,
-                    struct optimize_ctx *ctx);
-void vp9_optimize_sby(VP9_COMMON *cm, MACROBLOCK *x, BLOCK_SIZE_TYPE bsize);
-void vp9_optimize_sbuv(VP9_COMMON *cm, MACROBLOCK *x, BLOCK_SIZE_TYPE bsize);
+void vp9_encode_sb(MACROBLOCK *x, BLOCK_SIZE bsize);
+void vp9_encode_sby(MACROBLOCK *x, BLOCK_SIZE bsize);
 
-void vp9_encode_sb(VP9_COMMON *cm, MACROBLOCK *x, BLOCK_SIZE_TYPE bsize);
-void vp9_encode_sby(VP9_COMMON *cm, MACROBLOCK *x, BLOCK_SIZE_TYPE bsize);
-void vp9_encode_sbuv(VP9_COMMON *cm, MACROBLOCK *x, BLOCK_SIZE_TYPE bsize);
+void vp9_xform_quant(int plane, int block, BLOCK_SIZE plane_bsize,
+                     TX_SIZE tx_size, void *arg);
 
-void xform_quant(int plane, int block, BLOCK_SIZE_TYPE bsize,
-                 int ss_txfrm_size, void *arg);
-void vp9_xform_quant_sby(VP9_COMMON *cm, MACROBLOCK *x, BLOCK_SIZE_TYPE bsize);
-void vp9_xform_quant_sbuv(VP9_COMMON *cm, MACROBLOCK *x, BLOCK_SIZE_TYPE bsize);
+void vp9_subtract_sby(MACROBLOCK *x, BLOCK_SIZE bsize);
+void vp9_subtract_sbuv(MACROBLOCK *x, BLOCK_SIZE bsize);
+void vp9_subtract_sb(MACROBLOCK *x, BLOCK_SIZE bsize);
 
-void vp9_subtract_sby(MACROBLOCK *x, BLOCK_SIZE_TYPE bsize);
-void vp9_subtract_sbuv(MACROBLOCK *x, BLOCK_SIZE_TYPE bsize);
-void vp9_subtract_sb(MACROBLOCK *xd, BLOCK_SIZE_TYPE bsize);
+void vp9_encode_intra_block_y(MACROBLOCK *x, BLOCK_SIZE bsize);
+void vp9_encode_intra_block_uv(MACROBLOCK *x, BLOCK_SIZE bsize);
+
 
 #endif  // VP9_ENCODER_VP9_ENCODEMB_H_

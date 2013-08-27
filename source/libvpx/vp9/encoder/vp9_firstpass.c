@@ -347,17 +347,17 @@ static void zz_motion_search(VP9_COMP *cpi, MACROBLOCK *x, YV12_BUFFER_CONFIG *r
   xd->plane[0].pre[0].buf = recon_buffer->y_buffer + recon_yoffset;
 
   switch (xd->mode_info_context->mbmi.sb_type) {
-    case BLOCK_SIZE_SB8X8:
+    case BLOCK_8X8:
       vp9_mse8x8(x->plane[0].src.buf, x->plane[0].src.stride,
                  xd->plane[0].pre[0].buf, xd->plane[0].pre[0].stride,
                  (unsigned int *)(best_motion_err));
       break;
-    case BLOCK_SIZE_SB16X8:
+    case BLOCK_16X8:
       vp9_mse16x8(x->plane[0].src.buf, x->plane[0].src.stride,
                   xd->plane[0].pre[0].buf, xd->plane[0].pre[0].stride,
                   (unsigned int *)(best_motion_err));
       break;
-    case BLOCK_SIZE_SB8X16:
+    case BLOCK_8X16:
       vp9_mse8x16(x->plane[0].src.buf, x->plane[0].src.stride,
                   xd->plane[0].pre[0].buf, xd->plane[0].pre[0].stride,
                   (unsigned int *)(best_motion_err));
@@ -403,13 +403,13 @@ static void first_pass_motion_search(VP9_COMP *cpi, MACROBLOCK *x,
 
   // override the default variance function to use MSE
   switch (xd->mode_info_context->mbmi.sb_type) {
-    case BLOCK_SIZE_SB8X8:
+    case BLOCK_8X8:
       v_fn_ptr.vf = vp9_mse8x8;
       break;
-    case BLOCK_SIZE_SB16X8:
+    case BLOCK_16X8:
       v_fn_ptr.vf = vp9_mse16x8;
       break;
-    case BLOCK_SIZE_SB8X16:
+    case BLOCK_8X16:
       v_fn_ptr.vf = vp9_mse8x16;
       break;
     default:
@@ -549,15 +549,15 @@ void vp9_first_pass(VP9_COMP *cpi) {
 
       if (mb_col * 2 + 1 < cm->mi_cols) {
         if (mb_row * 2 + 1 < cm->mi_rows) {
-          xd->mode_info_context->mbmi.sb_type = BLOCK_SIZE_MB16X16;
+          xd->mode_info_context->mbmi.sb_type = BLOCK_16X16;
         } else {
-          xd->mode_info_context->mbmi.sb_type = BLOCK_SIZE_SB16X8;
+          xd->mode_info_context->mbmi.sb_type = BLOCK_16X8;
         }
       } else {
         if (mb_row * 2 + 1 < cm->mi_rows) {
-          xd->mode_info_context->mbmi.sb_type = BLOCK_SIZE_SB8X16;
+          xd->mode_info_context->mbmi.sb_type = BLOCK_8X16;
         } else {
-          xd->mode_info_context->mbmi.sb_type = BLOCK_SIZE_SB8X8;
+          xd->mode_info_context->mbmi.sb_type = BLOCK_8X8;
         }
       }
       xd->mode_info_context->mbmi.ref_frame[0] = INTRA_FRAME;
@@ -568,7 +568,7 @@ void vp9_first_pass(VP9_COMP *cpi) {
                      1 << mi_height_log2(xd->mode_info_context->mbmi.sb_type));
 
       // do intra 16x16 prediction
-      this_error = vp9_encode_intra(cpi, x, use_dc_pred);
+      this_error = vp9_encode_intra(x, use_dc_pred);
 
       // "intrapenalty" below deals with situations where the intra and inter error scores are very low (eg a plain black frame)
       // We do not have special cases in first pass for 0,0 and nearest etc so all inter modes carry an overhead cost estimate fot the mv.
@@ -667,7 +667,7 @@ void vp9_first_pass(VP9_COMP *cpi) {
           vp9_build_inter_predictors_sby(xd, mb_row << 1,
                                          mb_col << 1,
                                          xd->mode_info_context->mbmi.sb_type);
-          vp9_encode_sby(cm, x, xd->mode_info_context->mbmi.sb_type);
+          vp9_encode_sby(x, xd->mode_info_context->mbmi.sb_type);
           sum_mvr += mv.as_mv.row;
           sum_mvr_abs += abs(mv.as_mv.row);
           sum_mvc += mv.as_mv.col;
@@ -1282,7 +1282,6 @@ static int detect_flash(VP9_COMP *cpi, int offset) {
 
 // Update the motion related elements to the GF arf boost calculation
 static void accumulate_frame_motion_stats(
-  VP9_COMP *cpi,
   FIRSTPASS_STATS *this_frame,
   double *this_frame_mv_in_out,
   double *mv_in_out_accumulator,
@@ -1377,7 +1376,7 @@ static int calc_arf_boost(VP9_COMP *cpi, int offset,
       break;
 
     // Update the motion related elements to the boost calculation
-    accumulate_frame_motion_stats(cpi, &this_frame,
+    accumulate_frame_motion_stats(&this_frame,
                                   &this_frame_mv_in_out, &mv_in_out_accumulator,
                                   &abs_mv_in_out_accumulator, &mv_ratio_accumulator);
 
@@ -1413,7 +1412,7 @@ static int calc_arf_boost(VP9_COMP *cpi, int offset,
       break;
 
     // Update the motion related elements to the boost calculation
-    accumulate_frame_motion_stats(cpi, &this_frame,
+    accumulate_frame_motion_stats(&this_frame,
                                   &this_frame_mv_in_out, &mv_in_out_accumulator,
                                   &abs_mv_in_out_accumulator, &mv_ratio_accumulator);
 
@@ -1581,7 +1580,7 @@ void define_fixed_arf_period(VP9_COMP *cpi) {
 
 // Analyse and define a gf/arf group.
 static void define_gf_group(VP9_COMP *cpi, FIRSTPASS_STATS *this_frame) {
-  FIRSTPASS_STATS next_frame;
+  FIRSTPASS_STATS next_frame = { 0 };
   FIRSTPASS_STATS *start_pos;
   int i;
   double boost_score = 0.0;
@@ -1616,8 +1615,6 @@ static void define_gf_group(VP9_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   vp9_clear_system_state();  // __asm emms;
 
   start_pos = cpi->twopass.stats_in;
-
-  vpx_memset(&next_frame, 0, sizeof(next_frame)); // assure clean
 
   // Load stats for the current frame.
   mod_frame_err = calculate_modified_err(cpi, this_frame);
@@ -1665,7 +1662,7 @@ static void define_gf_group(VP9_COMP *cpi, FIRSTPASS_STATS *this_frame) {
     flash_detected = detect_flash(cpi, 0);
 
     // Update the motion related elements to the boost calculation
-    accumulate_frame_motion_stats(cpi, &next_frame,
+    accumulate_frame_motion_stats(&next_frame,
                                   &this_frame_mv_in_out, &mv_in_out_accumulator,
                                   &abs_mv_in_out_accumulator, &mv_ratio_accumulator);
 
@@ -2139,8 +2136,7 @@ void vp9_second_pass(VP9_COMP *cpi) {
       adjust_active_maxq(cpi->active_worst_quality, tmp_q);
   }
 #endif
-
-  vpx_memset(&this_frame, 0, sizeof(FIRSTPASS_STATS));
+  vp9_zero(this_frame);
   if (EOF == input_stats(cpi, &this_frame))
     return;
 
@@ -2318,7 +2314,7 @@ static void find_next_key_frame(VP9_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   double kf_group_coded_err = 0.0;
   double recent_loop_decay[8] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 
-  vpx_memset(&next_frame, 0, sizeof(next_frame)); // assure clean
+  vp9_zero(next_frame);
 
   vp9_clear_system_state();  // __asm emms;
   start_position = cpi->twopass.stats_in;

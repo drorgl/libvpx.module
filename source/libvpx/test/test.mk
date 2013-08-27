@@ -89,6 +89,7 @@ LIBVPX_TEST_SRCS-yes                   += tile_independence_test.cc
 endif
 
 LIBVPX_TEST_SRCS-$(CONFIG_VP9)         += convolve_test.cc
+LIBVPX_TEST_SRCS-$(CONFIG_VP9_DECODER) += vp9_thread_test.cc
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += fdct4x4_test.cc
 
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += fdct8x8_test.cc
@@ -628,3 +629,5 @@ LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-03-size-226x224.webm
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-03-size-226x224.webm.md5
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-03-size-226x226.webm
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-03-size-226x226.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp91-2-04-yv444.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp91-2-04-yv444.webm.md5

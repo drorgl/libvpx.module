@@ -38,7 +38,7 @@ void vp9_update_mode_info_in_image(VP9_COMMON *cm, MODE_INFO *mi) {
   for (i = 0; i < cm->mi_rows; i++) {
     MODE_INFO *ptr = mi;
     for (j = 0; j < cm->mi_cols; j++) {
-      ptr->mbmi.mb_in_image = 1;
+      ptr->mbmi.in_image = 1;
       ptr++;  // Next element in the row
     }
 
@@ -58,6 +58,7 @@ void vp9_free_frame_buffers(VP9_COMMON *oci) {
   vpx_free(oci->mip);
   vpx_free(oci->prev_mip);
   vpx_free(oci->above_seg_context);
+  vpx_free(oci->last_frame_seg_map);
 
   vpx_free(oci->above_context[0]);
   for (i = 0; i < MAX_MB_PLANE; i++)
@@ -65,6 +66,7 @@ void vp9_free_frame_buffers(VP9_COMMON *oci) {
   oci->mip = NULL;
   oci->prev_mip = NULL;
   oci->above_seg_context = NULL;
+  oci->last_frame_seg_map = NULL;
 }
 
 static void set_mb_mi(VP9_COMMON *cm, int aligned_width, int aligned_height) {
@@ -72,8 +74,8 @@ static void set_mb_mi(VP9_COMMON *cm, int aligned_width, int aligned_height) {
   cm->mb_rows = (aligned_height + 8) >> 4;
   cm->MBs = cm->mb_rows * cm->mb_cols;
 
-  cm->mi_cols = aligned_width >> LOG2_MI_SIZE;
-  cm->mi_rows = aligned_height >> LOG2_MI_SIZE;
+  cm->mi_cols = aligned_width >> MI_SIZE_LOG2;
+  cm->mi_rows = aligned_height >> MI_SIZE_LOG2;
   cm->mode_info_stride = cm->mi_cols + MI_BLOCK_SIZE;
 }
 
@@ -94,8 +96,8 @@ static void setup_mi(VP9_COMMON *cm) {
 int vp9_alloc_frame_buffers(VP9_COMMON *oci, int width, int height) {
   int i, mi_cols;
 
-  const int aligned_width = ALIGN_POWER_OF_TWO(width, LOG2_MI_SIZE);
-  const int aligned_height = ALIGN_POWER_OF_TWO(height, LOG2_MI_SIZE);
+  const int aligned_width = ALIGN_POWER_OF_TWO(width, MI_SIZE_LOG2);
+  const int aligned_height = ALIGN_POWER_OF_TWO(height, MI_SIZE_LOG2);
   const int ss_x = oci->subsampling_x;
   const int ss_y = oci->subsampling_y;
   int mi_size;
@@ -145,16 +147,18 @@ int vp9_alloc_frame_buffers(VP9_COMMON *oci, int width, int height) {
 
   // 2 contexts per 'mi unit', so that we have one context per 4x4 txfm
   // block where mi unit size is 8x8.
-# if CONFIG_ALPHA
-  oci->above_context[0] = vpx_calloc(sizeof(ENTROPY_CONTEXT) * 8 * mi_cols, 1);
-#else
-  oci->above_context[0] = vpx_calloc(sizeof(ENTROPY_CONTEXT) * 6 * mi_cols, 1);
-#endif
+  oci->above_context[0] = vpx_calloc(sizeof(ENTROPY_CONTEXT) * MAX_MB_PLANE *
+                                         (2 * mi_cols), 1);
   if (!oci->above_context[0])
     goto fail;
 
   oci->above_seg_context = vpx_calloc(sizeof(PARTITION_CONTEXT) * mi_cols, 1);
   if (!oci->above_seg_context)
+    goto fail;
+
+  // Create the segmentation map structure and set to 0.
+  oci->last_frame_seg_map = vpx_calloc(oci->mi_rows * oci->mi_cols, 1);
+  if (!oci->last_frame_seg_map)
     goto fail;
 
   return 0;
@@ -188,8 +192,8 @@ void vp9_initialize_common() {
 
 void vp9_update_frame_size(VP9_COMMON *cm) {
   int i, mi_cols;
-  const int aligned_width = ALIGN_POWER_OF_TWO(cm->width, LOG2_MI_SIZE);
-  const int aligned_height = ALIGN_POWER_OF_TWO(cm->height, LOG2_MI_SIZE);
+  const int aligned_width = ALIGN_POWER_OF_TWO(cm->width, MI_SIZE_LOG2);
+  const int aligned_height = ALIGN_POWER_OF_TWO(cm->height, MI_SIZE_LOG2);
 
   set_mb_mi(cm, aligned_width, aligned_height);
   setup_mi(cm);
@@ -198,4 +202,8 @@ void vp9_update_frame_size(VP9_COMMON *cm) {
   for (i = 1; i < MAX_MB_PLANE; i++)
     cm->above_context[i] =
         cm->above_context[0] + i * sizeof(ENTROPY_CONTEXT) * 2 * mi_cols;
+
+  // Initialize the previous frame segment map to 0.
+  if (cm->last_frame_seg_map)
+    vpx_memset(cm->last_frame_seg_map, 0, cm->mi_rows * cm->mi_cols);
 }

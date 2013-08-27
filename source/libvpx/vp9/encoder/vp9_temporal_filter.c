@@ -40,10 +40,7 @@ static void temporal_filter_predictors_mb_c(MACROBLOCKD *xd,
                                             int mv_col,
                                             uint8_t *pred) {
   const int which_mv = 0;
-  int_mv mv;
-
-  mv.as_mv.row = mv_row;
-  mv.as_mv.col = mv_col;
+  MV mv = { mv_row, mv_col };
 
   vp9_build_inter_predictor(y_mb_ptr, stride,
                             &pred[0], 16,
@@ -157,10 +154,10 @@ static int temporal_filter_find_matching_mb_c(VP9_COMP *cpi,
   // TODO Check that the 16x16 vf & sdf are selected here
   // Ignore mv costing by sending NULL pointer instead of cost arrays
   ref_mv = &x->e_mbd.mode_info_context->bmi[0].as_mv[0];
-  bestsme = vp9_hex_search(x, &best_ref_mv1_full, ref_mv,
-                           step_param, sadpb, &cpi->fn_ptr[BLOCK_16X16],
-                           NULL, NULL, NULL, NULL,
-                           &best_ref_mv1);
+  bestsme = vp9_hex_search(x, &best_ref_mv1_full,
+                           step_param, sadpb, 1,
+                           &cpi->fn_ptr[BLOCK_16X16],
+                           0, &best_ref_mv1, ref_mv);
 
 #if ALT_REF_SUBPEL_ENABLED
   // Try sub-pixel MC?
@@ -173,6 +170,7 @@ static int temporal_filter_find_matching_mb_c(VP9_COMP *cpi,
                                            &best_ref_mv1,
                                            x->errorperbit,
                                            &cpi->fn_ptr[BLOCK_16X16],
+                                           0, cpi->sf.subpel_iters_per_step,
                                            NULL, NULL,
                                            &distortion, &sse);
   }

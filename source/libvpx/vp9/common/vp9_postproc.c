@@ -53,7 +53,7 @@ static const unsigned char MB_PREDICTION_MODE_colors[MB_MODE_COUNT][3] = {
   { RGB_TO_YUV(0xCC33FF) },   /* Magenta */
 };
 
-static const unsigned char B_PREDICTION_MODE_colors[VP9_INTRA_MODES][3] = {
+static const unsigned char B_PREDICTION_MODE_colors[INTRA_MODES][3] = {
   { RGB_TO_YUV(0x6633ff) },   /* Purple */
   { RGB_TO_YUV(0xcc33ff) },   /* Magenta */
   { RGB_TO_YUV(0xff33cc) },   /* Pink */
@@ -631,10 +631,8 @@ static void constrain_line(int x0, int *x1, int y0, int *y1,
 }
 
 int vp9_post_proc_frame(struct VP9Common *oci,
-                        struct loopfilter *lf,
-                        YV12_BUFFER_CONFIG *dest,
-                        vp9_ppflags_t *ppflags) {
-  int q = lf->filter_level * 10 / 6;
+                        YV12_BUFFER_CONFIG *dest, vp9_ppflags_t *ppflags) {
+  int q = oci->lf.filter_level * 10 / 6;
   int flags = ppflags->post_proc_flag;
   int deblock_level = ppflags->deblocking_level;
   int noise_level = ppflags->noise_level;
@@ -739,7 +737,7 @@ int vp9_post_proc_frame(struct VP9Common *oci,
         char zz[4];
         int dc_diff = !(mi[mb_index].mbmi.mode != I4X4_PRED &&
                         mi[mb_index].mbmi.mode != SPLITMV &&
-                        mi[mb_index].mbmi.mb_skip_coeff);
+                        mi[mb_index].mbmi.skip_coeff);
 
         if (oci->frame_type == KEY_FRAME)
           sprintf(zz, "a");
@@ -882,7 +880,7 @@ int vp9_post_proc_frame(struct VP9Common *oci,
               }
             }
           }
-        } else if (mi->mbmi.mode >= NEARESTMV) {
+        } else if (is_inter_mode(mi->mbmi.mode)) {
           MV *mv = &mi->mbmi.mv.as_mv;
           const int lx0 = x0 + 8;
           const int ly0 = y0 + 8;
