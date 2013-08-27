@@ -302,7 +302,8 @@ void vp9_short_idct10_8x8_add_neon(int16_t *input, uint8_t *dest, int dest_strid
 #define vp9_short_idct10_8x8_add vp9_short_idct10_8x8_add_neon
 
 void vp9_short_idct16x16_1_add_c(int16_t *input, uint8_t *dest, int dest_stride);
-#define vp9_short_idct16x16_1_add vp9_short_idct16x16_1_add_c
+void vp9_short_idct16x16_1_add_neon(int16_t *input, uint8_t *dest, int dest_stride);
+#define vp9_short_idct16x16_1_add vp9_short_idct16x16_1_add_neon
 
 void vp9_short_idct16x16_add_c(int16_t *input, uint8_t *dest, int dest_stride);
 void vp9_short_idct16x16_add_neon(int16_t *input, uint8_t *dest, int dest_stride);

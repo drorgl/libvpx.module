@@ -302,7 +302,8 @@ void vp9_short_idct10_8x8_add_neon(int16_t *input, uint8_t *dest, int dest_strid
 RTCD_EXTERN void (*vp9_short_idct10_8x8_add)(int16_t *input, uint8_t *dest, int dest_stride);
 
 void vp9_short_idct16x16_1_add_c(int16_t *input, uint8_t *dest, int dest_stride);
-#define vp9_short_idct16x16_1_add vp9_short_idct16x16_1_add_c
+void vp9_short_idct16x16_1_add_neon(int16_t *input, uint8_t *dest, int dest_stride);
+RTCD_EXTERN void (*vp9_short_idct16x16_1_add)(int16_t *input, uint8_t *dest, int dest_stride);
 
 void vp9_short_idct16x16_add_c(int16_t *input, uint8_t *dest, int dest_stride);
 void vp9_short_idct16x16_add_neon(int16_t *input, uint8_t *dest, int dest_stride);
@@ -476,6 +477,8 @@ static void setup_rtcd_internal(void)
     vp9_short_idct10_8x8_add = vp9_short_idct10_8x8_add_c;
     if (flags & HAS_NEON) vp9_short_idct10_8x8_add = vp9_short_idct10_8x8_add_neon;
 
+    vp9_short_idct16x16_1_add = vp9_short_idct16x16_1_add_c;
+    if (flags & HAS_NEON) vp9_short_idct16x16_1_add = vp9_short_idct16x16_1_add_neon;
 
     vp9_short_idct16x16_add = vp9_short_idct16x16_add_c;
     if (flags & HAS_NEON) vp9_short_idct16x16_add = vp9_short_idct16x16_add_neon;

@@ -214,6 +214,7 @@
     '<(libvpx_source)/vp9/common/arm/neon/vp9_idct16x16_neon.c',
     '<(libvpx_source)/vp9/common/arm/neon/vp9_loopfilter_neon.asm',
     '<(libvpx_source)/vp9/common/arm/neon/vp9_mb_lpf_neon.asm',
+    '<(libvpx_source)/vp9/common/arm/neon/vp9_short_idct16x16_1_add_neon.asm',
     '<(libvpx_source)/vp9/common/arm/neon/vp9_short_idct16x16_add_neon.asm',
     '<(libvpx_source)/vp9/common/arm/neon/vp9_short_idct4x4_1_add_neon.asm',
     '<(libvpx_source)/vp9/common/arm/neon/vp9_short_idct4x4_add_neon.asm',
