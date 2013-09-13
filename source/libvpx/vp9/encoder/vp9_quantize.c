@@ -69,6 +69,7 @@ void vp9_quantize_b_c(int16_t *coeff_ptr, intptr_t n_coeffs, int skip_block,
 
       if (x >= zbin) {
         x += (round_ptr[rc != 0]);
+        x  = clamp(x, INT16_MIN, INT16_MAX);
         y  = (((int)(((int)(x * quant_ptr[rc != 0]) >> 16) + x)) *
               quant_shift_ptr[rc != 0]) >> 16;      // quantize (x)
         x  = (y ^ sz) - sz;                         // get the sign back
@@ -84,7 +85,6 @@ void vp9_quantize_b_c(int16_t *coeff_ptr, intptr_t n_coeffs, int skip_block,
   *eob_ptr = eob + 1;
 }
 
-// This function works well for large transform size.
 void vp9_quantize_b_32x32_c(int16_t *coeff_ptr, intptr_t n_coeffs,
                             int skip_block,
                             int16_t *zbin_ptr, int16_t *round_ptr,
@@ -94,7 +94,7 @@ void vp9_quantize_b_32x32_c(int16_t *coeff_ptr, intptr_t n_coeffs,
                             uint16_t *eob_ptr, const int16_t *scan,
                             const int16_t *iscan) {
   int i, rc, eob;
-  int zbins[2], nzbins[2], zbin;
+  int zbins[2], nzbins[2];
   int x, y, z, sz;
   int idx = 0;
   int idx_arr[1024];
@@ -105,8 +105,8 @@ void vp9_quantize_b_32x32_c(int16_t *coeff_ptr, intptr_t n_coeffs,
   eob = -1;
 
   // Base ZBIN
-  zbins[0] = zbin_ptr[0] + zbin_oq_value;
-  zbins[1] = zbin_ptr[1] + zbin_oq_value;
+  zbins[0] = ROUND_POWER_OF_TWO(zbin_ptr[0] + zbin_oq_value, 1);
+  zbins[1] = ROUND_POWER_OF_TWO(zbin_ptr[1] + zbin_oq_value, 1);
   nzbins[0] = zbins[0] * -1;
   nzbins[1] = zbins[1] * -1;
 
@@ -114,7 +114,7 @@ void vp9_quantize_b_32x32_c(int16_t *coeff_ptr, intptr_t n_coeffs,
     // Pre-scan pass
     for (i = 0; i < n_coeffs; i++) {
       rc = scan[i];
-      z = coeff_ptr[rc] * 2;
+      z = coeff_ptr[rc];
 
       // If the coefficient is out of the base ZBIN range, keep it for
       // quantization.
@@ -127,26 +127,21 @@ void vp9_quantize_b_32x32_c(int16_t *coeff_ptr, intptr_t n_coeffs,
     for (i = 0; i < idx; i++) {
       rc = scan[idx_arr[i]];
 
-      // Calculate ZBIN
-      zbin = (zbins[rc != 0]);
-
-      z = coeff_ptr[rc] * 2;
+      z = coeff_ptr[rc];
       sz = (z >> 31);                               // sign of z
       x  = (z ^ sz) - sz;                           // x = abs(z)
 
-      if (x >= zbin) {
-        x += (round_ptr[rc != 0]);
-        y  = (((int)(((int)(x * quant_ptr[rc != 0]) >> 16) + x)) *
-              quant_shift_ptr[rc != 0]) >> 16;      // quantize (x)
+      x += ROUND_POWER_OF_TWO(round_ptr[rc != 0], 1);
+      x  = clamp(x, INT16_MIN, INT16_MAX);
+      y  = ((((x * quant_ptr[rc != 0]) >> 16) + x) *
+            quant_shift_ptr[rc != 0]) >> 15;      // quantize (x)
 
-        x  = (y ^ sz) - sz;                         // get the sign back
-        qcoeff_ptr[rc]  = x;                        // write to destination
-        dqcoeff_ptr[rc] = x * dequant_ptr[rc != 0] / 2;  // dequantized value
+      x  = (y ^ sz) - sz;                         // get the sign back
+      qcoeff_ptr[rc]  = x;                        // write to destination
+      dqcoeff_ptr[rc] = x * dequant_ptr[rc != 0] / 2;  // dequantized value
 
-        if (y) {
-          eob = idx_arr[i];                         // last nonzero coeffs
-        }
-      }
+      if (y)
+        eob = idx_arr[i];                         // last nonzero coeffs
     }
   }
   *eob_ptr = eob + 1;
@@ -278,7 +273,7 @@ void vp9_mb_init_quantizer(VP9_COMP *cpi, MACROBLOCK *x) {
   int i;
   MACROBLOCKD *xd = &x->e_mbd;
   int zbin_extra;
-  int segment_id = xd->mode_info_context->mbmi.segment_id;
+  int segment_id = xd->this_mi->mbmi.segment_id;
   const int qindex = vp9_get_qindex(&cpi->common.seg, segment_id,
                                     cpi->common.base_qindex);
 

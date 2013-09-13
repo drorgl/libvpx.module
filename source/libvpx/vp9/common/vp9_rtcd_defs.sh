@@ -237,7 +237,7 @@ specialize vp9_loop_filter_horizontal_edge mmx neon
 #
 # post proc
 #
-if [ "$CONFIG_POSTPROC" = "yes" ]; then
+if [ "$CONFIG_VP9_POSTPROC" = "yes" ]; then
 prototype void vp9_mbpost_proc_down "uint8_t *dst, int pitch, int rows, int cols, int flimit"
 specialize vp9_mbpost_proc_down mmx sse2
 vp9_mbpost_proc_down_sse2=vp9_mbpost_proc_down_xmm
@@ -319,16 +319,16 @@ prototype void vp9_short_idct10_16x16_add "int16_t *input, uint8_t *dest, int de
 specialize vp9_short_idct10_16x16_add sse2 neon
 
 prototype void vp9_short_idct32x32_add "int16_t *input, uint8_t *dest, int dest_stride"
-specialize vp9_short_idct32x32_add sse2
+specialize vp9_short_idct32x32_add sse2 neon
 
 prototype void vp9_short_idct1_32x32 "int16_t *input, int16_t *output"
 specialize vp9_short_idct1_32x32
 
 prototype void vp9_short_iht4x4_add "int16_t *input, uint8_t *dest, int dest_stride, int tx_type"
-specialize vp9_short_iht4x4_add sse2
+specialize vp9_short_iht4x4_add sse2 neon
 
 prototype void vp9_short_iht8x8_add "int16_t *input, uint8_t *dest, int dest_stride, int tx_type"
-specialize vp9_short_iht8x8_add sse2
+specialize vp9_short_iht8x8_add sse2 neon
 
 prototype void vp9_short_iht16x16_add "int16_t *input, uint8_t *output, int pitch, int tx_type"
 specialize vp9_short_iht16x16_add sse2
@@ -701,7 +701,7 @@ prototype void vp9_quantize_b "int16_t *coeff_ptr, intptr_t n_coeffs, int skip_b
 specialize vp9_quantize_b $ssse3_x86_64
 
 prototype void vp9_quantize_b_32x32 "int16_t *coeff_ptr, intptr_t n_coeffs, int skip_block, int16_t *zbin_ptr, int16_t *round_ptr, int16_t *quant_ptr, int16_t *quant_shift_ptr, int16_t *qcoeff_ptr, int16_t *dqcoeff_ptr, int16_t *dequant_ptr, int zbin_oq_value, uint16_t *eob_ptr, const int16_t *scan, const int16_t *iscan"
-specialize vp9_quantize_b_32x32
+specialize vp9_quantize_b_32x32 $ssse3_x86_64
 
 #
 # Structured Similarity (SSIM)

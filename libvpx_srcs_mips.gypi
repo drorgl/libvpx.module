@@ -164,8 +164,6 @@
     '<(libvpx_source)/vp9/common/vp9_mvref_common.h',
     '<(libvpx_source)/vp9/common/vp9_onyxc_int.h',
     '<(libvpx_source)/vp9/common/vp9_onyx.h',
-    '<(libvpx_source)/vp9/common/vp9_postproc.c',
-    '<(libvpx_source)/vp9/common/vp9_postproc.h',
     '<(libvpx_source)/vp9/common/vp9_ppflags.h',
     '<(libvpx_source)/vp9/common/vp9_pragmas.h',
     '<(libvpx_source)/vp9/common/vp9_pred_common.c',

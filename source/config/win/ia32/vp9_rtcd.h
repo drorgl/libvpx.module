@@ -246,25 +246,6 @@ void vp9_loop_filter_horizontal_edge_c(uint8_t *s, int pitch, const uint8_t *bli
 void vp9_loop_filter_horizontal_edge_mmx(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
 RTCD_EXTERN void (*vp9_loop_filter_horizontal_edge)(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
 
-void vp9_mbpost_proc_down_c(uint8_t *dst, int pitch, int rows, int cols, int flimit);
-void vp9_mbpost_proc_down_mmx(uint8_t *dst, int pitch, int rows, int cols, int flimit);
-void vp9_mbpost_proc_down_xmm(uint8_t *dst, int pitch, int rows, int cols, int flimit);
-RTCD_EXTERN void (*vp9_mbpost_proc_down)(uint8_t *dst, int pitch, int rows, int cols, int flimit);
-
-void vp9_mbpost_proc_across_ip_c(uint8_t *src, int pitch, int rows, int cols, int flimit);
-void vp9_mbpost_proc_across_ip_xmm(uint8_t *src, int pitch, int rows, int cols, int flimit);
-RTCD_EXTERN void (*vp9_mbpost_proc_across_ip)(uint8_t *src, int pitch, int rows, int cols, int flimit);
-
-void vp9_post_proc_down_and_across_c(const uint8_t *src_ptr, uint8_t *dst_ptr, int src_pixels_per_line, int dst_pixels_per_line, int rows, int cols, int flimit);
-void vp9_post_proc_down_and_across_mmx(const uint8_t *src_ptr, uint8_t *dst_ptr, int src_pixels_per_line, int dst_pixels_per_line, int rows, int cols, int flimit);
-void vp9_post_proc_down_and_across_xmm(const uint8_t *src_ptr, uint8_t *dst_ptr, int src_pixels_per_line, int dst_pixels_per_line, int rows, int cols, int flimit);
-RTCD_EXTERN void (*vp9_post_proc_down_and_across)(const uint8_t *src_ptr, uint8_t *dst_ptr, int src_pixels_per_line, int dst_pixels_per_line, int rows, int cols, int flimit);
-
-void vp9_plane_add_noise_c(uint8_t *Start, char *noise, char blackclamp[16], char whiteclamp[16], char bothclamp[16], unsigned int Width, unsigned int Height, int Pitch);
-void vp9_plane_add_noise_mmx(uint8_t *Start, char *noise, char blackclamp[16], char whiteclamp[16], char bothclamp[16], unsigned int Width, unsigned int Height, int Pitch);
-void vp9_plane_add_noise_wmt(uint8_t *Start, char *noise, char blackclamp[16], char whiteclamp[16], char bothclamp[16], unsigned int Width, unsigned int Height, int Pitch);
-RTCD_EXTERN void (*vp9_plane_add_noise)(uint8_t *Start, char *noise, char blackclamp[16], char whiteclamp[16], char bothclamp[16], unsigned int Width, unsigned int Height, int Pitch);
-
 void vp9_blend_mb_inner_c(uint8_t *y, uint8_t *u, uint8_t *v, int y1, int u1, int v1, int alpha, int stride);
 #define vp9_blend_mb_inner vp9_blend_mb_inner_c
 
@@ -495,21 +476,6 @@ static void setup_rtcd_internal(void)
 
     vp9_loop_filter_horizontal_edge = vp9_loop_filter_horizontal_edge_c;
     if (flags & HAS_MMX) vp9_loop_filter_horizontal_edge = vp9_loop_filter_horizontal_edge_mmx;
-
-    vp9_mbpost_proc_down = vp9_mbpost_proc_down_c;
-    if (flags & HAS_MMX) vp9_mbpost_proc_down = vp9_mbpost_proc_down_mmx;
-    if (flags & HAS_SSE2) vp9_mbpost_proc_down = vp9_mbpost_proc_down_xmm;
-
-    vp9_mbpost_proc_across_ip = vp9_mbpost_proc_across_ip_c;
-    if (flags & HAS_SSE2) vp9_mbpost_proc_across_ip = vp9_mbpost_proc_across_ip_xmm;
-
-    vp9_post_proc_down_and_across = vp9_post_proc_down_and_across_c;
-    if (flags & HAS_MMX) vp9_post_proc_down_and_across = vp9_post_proc_down_and_across_mmx;
-    if (flags & HAS_SSE2) vp9_post_proc_down_and_across = vp9_post_proc_down_and_across_xmm;
-
-    vp9_plane_add_noise = vp9_plane_add_noise_c;
-    if (flags & HAS_MMX) vp9_plane_add_noise = vp9_plane_add_noise_mmx;
-    if (flags & HAS_SSE2) vp9_plane_add_noise = vp9_plane_add_noise_wmt;
 
 
 

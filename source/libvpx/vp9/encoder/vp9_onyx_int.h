@@ -36,6 +36,8 @@
 #define DISABLE_RC_LONG_TERM_MEM 0
 #endif
 
+// #define MODE_TEST_HIT_STATS
+
 // #define SPEEDSTATS 1
 #if CONFIG_MULTIPLE_ARF
 // Set MIN_GF_INTERVAL to 1 for the full decomposition.
@@ -145,18 +147,19 @@ typedef struct {
 // const MODE_DEFINITION vp9_mode_order[MAX_MODES] used in the rd code.
 typedef enum {
   THR_NEARESTMV,
-  THR_DC,
-
   THR_NEARESTA,
   THR_NEARESTG,
-  THR_NEWMV,
-  THR_COMP_NEARESTLA,
-  THR_NEARMV,
-  THR_COMP_NEARESTGA,
 
-  THR_NEWG,
+  THR_DC,
+
+  THR_NEWMV,
   THR_NEWA,
+  THR_NEWG,
+
+  THR_NEARMV,
   THR_NEARA,
+  THR_COMP_NEARESTLA,
+  THR_COMP_NEARESTGA,
 
   THR_TM,
 
@@ -255,7 +258,6 @@ typedef struct {
   int reduce_first_step_size;
   int auto_mv_step_size;
   int optimize_coefficients;
-  int search_best_filter;
   int static_segmentation;
   int comp_inter_joint_search_thresh;
   int adaptive_rd_thresh;
@@ -266,12 +268,11 @@ typedef struct {
   int use_lp32x32fdct;
   int use_avoid_tested_higherror;
   int skip_lots_of_modes;
-  int adjust_thresholds_by_speed;
   int partition_by_variance;
   int use_one_partition_size_always;
   int less_rectangular_check;
   int use_square_partition_only;
-  int unused_mode_skip_lvl;
+  int mode_skip_start;
   int reference_masking;
   BLOCK_SIZE always_this_block_size;
   int auto_min_max_partition_size;
@@ -298,6 +299,7 @@ typedef struct {
   int use_rd_breakout;
   int use_uv_intra_rd_estimate;
   int use_fast_lpf_pick;
+  int use_fast_coef_updates;  // 0: 2-loop, 1: 1-loop, 2: 1-loop reduced
 } SPEED_FEATURES;
 
 typedef struct VP9_COMP {
@@ -348,6 +350,10 @@ typedef struct VP9_COMP {
   int lst_fb_idx;
   int gld_fb_idx;
   int alt_fb_idx;
+
+  int current_layer;
+  int use_svc;
+
 #if CONFIG_MULTIPLE_ARF
   int alt_ref_fb_idx[NUM_REF_FRAMES - 3];
 #endif
@@ -377,7 +383,7 @@ typedef struct VP9_COMP {
   unsigned int mode_check_freq[MAX_MODES];
   unsigned int mode_test_hit_counts[MAX_MODES];
   unsigned int mode_chosen_counts[MAX_MODES];
-  int64_t unused_mode_skip_mask;
+  int64_t mode_skip_mask;
   int ref_frame_mask;
   int set_ref_frame_mask;
 
@@ -487,6 +493,7 @@ typedef struct VP9_COMP {
   int last_boost;
   int kf_boost;
   int kf_zeromotion_pct;
+  int gf_zeromotion_pct;
 
   int64_t target_bandwidth;
   struct vpx_codec_pkt_list  *output_pkt_list;
@@ -647,6 +654,10 @@ typedef struct VP9_COMP {
   int initial_width;
   int initial_height;
 
+  int number_spatial_layers;
+  int enable_encode_breakout;   // Default value is 1. From first pass stats,
+                                // encode_breakout may be disabled.
+
 #if CONFIG_MULTIPLE_ARF
   // ARF tracking variables.
   int multi_arf_enabled;
@@ -663,6 +674,12 @@ typedef struct VP9_COMP {
 #ifdef ENTROPY_STATS
   int64_t mv_ref_stats[INTER_MODE_CONTEXTS][INTER_MODES - 1][2];
 #endif
+
+
+#ifdef MODE_TEST_HIT_STATS
+  // Debug / test stats
+  int64_t mode_test_hits[BLOCK_SIZES];
+#endif
 } VP9_COMP;
 
 static int get_ref_frame_idx(VP9_COMP *cpi, MV_REFERENCE_FRAME ref_frame) {
@@ -672,6 +689,17 @@ static int get_ref_frame_idx(VP9_COMP *cpi, MV_REFERENCE_FRAME ref_frame) {
     return cpi->gld_fb_idx;
   } else {
     return cpi->alt_fb_idx;
+  }
+}
+
+static int get_scale_ref_frame_idx(VP9_COMP *cpi,
+                                   MV_REFERENCE_FRAME ref_frame) {
+  if (ref_frame == LAST_FRAME) {
+    return 0;
+  } else if (ref_frame == GOLDEN_FRAME) {
+    return 1;
+  } else {
+    return 2;
   }
 }
 

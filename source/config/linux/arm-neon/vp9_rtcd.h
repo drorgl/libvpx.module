@@ -228,18 +228,6 @@ void vp9_loop_filter_horizontal_edge_c(uint8_t *s, int pitch, const uint8_t *bli
 void vp9_loop_filter_horizontal_edge_neon(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
 #define vp9_loop_filter_horizontal_edge vp9_loop_filter_horizontal_edge_neon
 
-void vp9_mbpost_proc_down_c(uint8_t *dst, int pitch, int rows, int cols, int flimit);
-#define vp9_mbpost_proc_down vp9_mbpost_proc_down_c
-
-void vp9_mbpost_proc_across_ip_c(uint8_t *src, int pitch, int rows, int cols, int flimit);
-#define vp9_mbpost_proc_across_ip vp9_mbpost_proc_across_ip_c
-
-void vp9_post_proc_down_and_across_c(const uint8_t *src_ptr, uint8_t *dst_ptr, int src_pixels_per_line, int dst_pixels_per_line, int rows, int cols, int flimit);
-#define vp9_post_proc_down_and_across vp9_post_proc_down_and_across_c
-
-void vp9_plane_add_noise_c(uint8_t *Start, char *noise, char blackclamp[16], char whiteclamp[16], char bothclamp[16], unsigned int Width, unsigned int Height, int Pitch);
-#define vp9_plane_add_noise vp9_plane_add_noise_c
-
 void vp9_blend_mb_inner_c(uint8_t *y, uint8_t *u, uint8_t *v, int y1, int u1, int v1, int alpha, int stride);
 #define vp9_blend_mb_inner vp9_blend_mb_inner_c
 
@@ -314,16 +302,19 @@ void vp9_short_idct10_16x16_add_neon(int16_t *input, uint8_t *dest, int dest_str
 #define vp9_short_idct10_16x16_add vp9_short_idct10_16x16_add_neon
 
 void vp9_short_idct32x32_add_c(int16_t *input, uint8_t *dest, int dest_stride);
-#define vp9_short_idct32x32_add vp9_short_idct32x32_add_c
+void vp9_short_idct32x32_add_neon(int16_t *input, uint8_t *dest, int dest_stride);
+#define vp9_short_idct32x32_add vp9_short_idct32x32_add_neon
 
 void vp9_short_idct1_32x32_c(int16_t *input, int16_t *output);
 #define vp9_short_idct1_32x32 vp9_short_idct1_32x32_c
 
 void vp9_short_iht4x4_add_c(int16_t *input, uint8_t *dest, int dest_stride, int tx_type);
-#define vp9_short_iht4x4_add vp9_short_iht4x4_add_c
+void vp9_short_iht4x4_add_neon(int16_t *input, uint8_t *dest, int dest_stride, int tx_type);
+#define vp9_short_iht4x4_add vp9_short_iht4x4_add_neon
 
 void vp9_short_iht8x8_add_c(int16_t *input, uint8_t *dest, int dest_stride, int tx_type);
-#define vp9_short_iht8x8_add vp9_short_iht8x8_add_c
+void vp9_short_iht8x8_add_neon(int16_t *input, uint8_t *dest, int dest_stride, int tx_type);
+#define vp9_short_iht8x8_add vp9_short_iht8x8_add_neon
 
 void vp9_short_iht16x16_add_c(int16_t *input, uint8_t *output, int pitch, int tx_type);
 #define vp9_short_iht16x16_add vp9_short_iht16x16_add_c
