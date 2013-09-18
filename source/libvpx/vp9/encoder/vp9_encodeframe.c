@@ -936,7 +936,7 @@ static void copy_partitioning(VP9_COMP *cpi, MODE_INFO **mi_8x8,
     for (block_col = 0; block_col < 8; ++block_col) {
       MODE_INFO * prev_mi = prev_mi_8x8[block_row * mis + block_col];
       BLOCK_SIZE sb_type = prev_mi ? prev_mi->mbmi.sb_type : 0;
-      int offset;
+      ptrdiff_t offset;
 
       if (prev_mi) {
         offset = prev_mi - cm->prev_mi;
@@ -1044,9 +1044,9 @@ static void fill_variance(var *v, int64_t s2, int64_t s, int c) {
   v->sum_error = s;
   v->count = c;
   if (c > 0)
-    v->variance = 256
+    v->variance = (int)(256
         * (v->sum_square_error - v->sum_error * v->sum_error / v->count)
-        / v->count;
+        / v->count);
   else
     v->variance = 0;
 }
@@ -2050,6 +2050,8 @@ static void encode_sb_row(VP9_COMP *cpi, int mi_row, TOKENEXTRA **tp,
        mi_col += MI_BLOCK_SIZE) {
     int dummy_rate;
     int64_t dummy_dist;
+
+    vpx_memset(cpi->mb.pred_mv, 0, sizeof(cpi->mb.pred_mv));
 
     if (cpi->sf.reference_masking)
       rd_pick_reference_frame(cpi, mi_row, mi_col);

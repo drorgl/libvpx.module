@@ -294,15 +294,15 @@ cd $TEMP_DIR
 
 echo "Generate Config Files"
 all_platforms="--enable-external-build --enable-postproc --disable-install-srcs --enable-multi-res-encoding --enable-temporal-denoising --disable-vp9-encoder --disable-unit-tests --disable-install-docs --disable-examples"
-gen_config_files linux/ia32 "--target=x86-linux-gcc --disable-ccache --enable-pic --enable-realtime-only --disable-use-x86inc ${all_platforms}"
+gen_config_files linux/ia32 "--target=x86-linux-gcc --disable-ccache --enable-pic --enable-realtime-only ${all_platforms}"
 gen_config_files linux/x64 "--target=x86_64-linux-gcc --disable-ccache --enable-pic --enable-realtime-only ${all_platforms}"
 gen_config_files linux/arm "--target=armv6-linux-gcc --enable-pic --enable-realtime-only --disable-install-bins --disable-install-libs ${all_platforms}"
 gen_config_files linux/arm-neon "--target=armv7-linux-gcc --enable-pic --enable-realtime-only ${all_platforms}"
 gen_config_files linux/arm-neon-cpu-detect "--target=armv7-linux-gcc --enable-pic --enable-realtime-only --enable-runtime-cpu-detect ${all_platforms}"
 gen_config_files linux/mipsel "--target=mips32-linux-gcc --disable-fast-unaligned ${all_platforms}"
-gen_config_files win/ia32 "--target=x86-win32-vs7 --enable-realtime-only --disable-use-x86inc ${all_platforms}"
+gen_config_files win/ia32 "--target=x86-win32-vs7 --enable-realtime-only ${all_platforms}"
 gen_config_files win/x64 "--target=x86_64-win64-vs9 --enable-realtime-only ${all_platforms}"
-gen_config_files mac/ia32 "--target=x86-darwin9-gcc --enable-pic --enable-realtime-only --disable-use-x86inc ${all_platforms}"
+gen_config_files mac/ia32 "--target=x86-darwin9-gcc --enable-pic --enable-realtime-only ${all_platforms}"
 gen_config_files mac/x64 "--target=x86_64-darwin9-gcc --enable-pic --enable-realtime-only ${all_platforms}"
 
 echo "Remove temporary directory."
