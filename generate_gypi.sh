@@ -300,9 +300,9 @@ gen_config_files linux/arm "--target=armv6-linux-gcc --enable-pic --enable-realt
 gen_config_files linux/arm-neon "--target=armv7-linux-gcc --enable-pic --enable-realtime-only ${all_platforms}"
 gen_config_files linux/arm-neon-cpu-detect "--target=armv7-linux-gcc --enable-pic --enable-realtime-only --enable-runtime-cpu-detect ${all_platforms}"
 gen_config_files linux/mipsel "--target=mips32-linux-gcc --disable-fast-unaligned ${all_platforms}"
-gen_config_files win/ia32 "--target=x86-win32-vs7 --enable-realtime-only ${all_platforms}"
+gen_config_files win/ia32 "--target=x86-win32-vs7 --enable-realtime-only --disable-use-x86inc ${all_platforms}"
 gen_config_files win/x64 "--target=x86_64-win64-vs9 --enable-realtime-only ${all_platforms}"
-gen_config_files mac/ia32 "--target=x86-darwin9-gcc --enable-pic --enable-realtime-only ${all_platforms}"
+gen_config_files mac/ia32 "--target=x86-darwin9-gcc --enable-pic --enable-realtime-only --disable-use-x86inc ${all_platforms}"
 gen_config_files mac/x64 "--target=x86_64-darwin9-gcc --enable-pic --enable-realtime-only ${all_platforms}"
 
 echo "Remove temporary directory."
