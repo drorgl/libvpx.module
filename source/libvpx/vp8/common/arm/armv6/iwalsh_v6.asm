@@ -52,16 +52,16 @@
 
     ; first transform complete
 
-    qsubaddx    r10, r2, r3          ; [c1|a1] [1-2   |   0+3]
-    qaddsubx    r11, r2, r3          ; [b1|d1] [1+2   |   0-3]
-    qsubaddx    r12, r4, r5          ; [c1|a1] [5-6   |   4+7]
-    qaddsubx    lr, r4, r5           ; [b1|d1] [5+6   |   4-7]
+    qsax    r10, r2, r3          ; [c1|a1] [1-2   |   0+3]
+    qasx    r11, r2, r3          ; [b1|d1] [1+2   |   0-3]
+    qsax    r12, r4, r5          ; [c1|a1] [5-6   |   4+7]
+    qasx    lr, r4, r5           ; [b1|d1] [5+6   |   4-7]
 
-    qaddsubx    r2, r10, r11         ; [b2|c2] [c1+d1 | a1-b1]
-    qaddsubx    r3, r11, r10         ; [a2|d2] [b1+a1 | d1-c1]
+    qasx    r2, r10, r11         ; [b2|c2] [c1+d1 | a1-b1]
+    qasx    r3, r11, r10         ; [a2|d2] [b1+a1 | d1-c1]
     ldr         r10, c0x00030003
-    qaddsubx    r4, r12, lr          ; [b2|c2] [c1+d1 | a1-b1]
-    qaddsubx    r5, lr, r12          ; [a2|d2] [b1+a1 | d1-c1]
+    qasx    r4, r12, lr          ; [b2|c2] [c1+d1 | a1-b1]
+    qasx    r5, lr, r12          ; [a2|d2] [b1+a1 | d1-c1]
 
     qadd16      r2, r2, r10          ; [b2+3|c2+3]
     qadd16      r3, r3, r10          ; [a2+3|d2+3]
@@ -90,15 +90,15 @@
     asr         r5, r5, #3           ; [7]
     strh        r5, [r1], #32
 
-    qsubaddx    r2, r6, r7           ; [c1|a1] [9-10  |  8+11]
-    qaddsubx    r3, r6, r7           ; [b1|d1] [9+10  |  8-11]
-    qsubaddx    r4, r8, r9           ; [c1|a1] [13-14 | 12+15]
-    qaddsubx    r5, r8, r9           ; [b1|d1] [13+14 | 12-15]
+    qsax    r2, r6, r7           ; [c1|a1] [9-10  |  8+11]
+    qasx    r3, r6, r7           ; [b1|d1] [9+10  |  8-11]
+    qsax    r4, r8, r9           ; [c1|a1] [13-14 | 12+15]
+    qasx    r5, r8, r9           ; [b1|d1] [13+14 | 12-15]
 
-    qaddsubx    r6, r2, r3           ; [b2|c2] [c1+d1 | a1-b1]
-    qaddsubx    r7, r3, r2           ; [a2|d2] [b1+a1 | d1-c1]
-    qaddsubx    r8, r4, r5           ; [b2|c2] [c1+d1 | a1-b1]
-    qaddsubx    r9, r5, r4           ; [a2|d2] [b1+a1 | d1-c1]
+    qasx    r6, r2, r3           ; [b2|c2] [c1+d1 | a1-b1]
+    qasx    r7, r3, r2           ; [a2|d2] [b1+a1 | d1-c1]
+    qasx    r8, r4, r5           ; [b2|c2] [c1+d1 | a1-b1]
+    qasx    r9, r5, r4           ; [a2|d2] [b1+a1 | d1-c1]
 
     qadd16      r6, r6, r10          ; [b2+3|c2+3]
     qadd16      r7, r7, r10          ; [a2+3|d2+3]

@@ -83,10 +83,10 @@ copy_mem16x16_1_loop
 
     add     r2, r2, r3
 
-    ldrneb  r4, [r0]
-    ldrneb  r5, [r0, #1]
-    ldrneb  r6, [r0, #2]
-    ldrneb  r7, [r0, #3]
+    ldrbne  r4, [r0]
+    ldrbne  r5, [r0, #1]
+    ldrbne  r6, [r0, #2]
+    ldrbne  r7, [r0, #3]
 
     pld     [r0, #31]               ; preload for next 16x16 block
 

@@ -85,15 +85,15 @@
     ands    r10, r7, #0xff                  ; test loop counter
 
     add     lr, lr, #0x40                   ; round_shift_and_clamp
-    ldrneb  r8, [r0, #-2]                   ; load data for next loop
+    ldrbne  r8, [r0, #-2]                   ; load data for next loop
     usat    lr, #8, lr, asr #7
     add     r11, r11, #0x40
-    ldrneb  r9, [r0, #-1]
+    ldrbne  r9, [r0, #-1]
     usat    r11, #8, r11, asr #7
 
     strh    lr, [r1], r12                   ; result is transposed and stored, which
                                             ; will make second pass filtering easier.
-    ldrneb  r10, [r0], #2
+    ldrbne  r10, [r0], #2
     strh    r11, [r1], r12
 
     bne     width_loop_1st_6
@@ -175,15 +175,15 @@
     ands    r10, r7, #0xff                  ; test loop counter
 
     add     lr, lr, #0x40                   ; round_shift_and_clamp
-    ldrneb  r8, [r0, #-2]                   ; load data for next loop
+    ldrbne  r8, [r0, #-2]                   ; load data for next loop
     usat    lr, #8, lr, asr #7
     add     r11, r11, #0x40
-    ldrneb  r9, [r0, #-1]
+    ldrbne  r9, [r0, #-1]
     usat    r11, #8, r11, asr #7
 
     strh    lr, [r1], r12                   ; result is transposed and stored, which
                                             ; will make second pass filtering easier.
-    ldrneb  r10, [r0], #2
+    ldrbne  r10, [r0], #2
     strh    r11, [r1], r12
 
     bne     width_loop_1st_16_6
@@ -268,15 +268,15 @@
     ands    r10, r7, #0xff                  ; test loop counter
 
     add     lr, lr, #0x40                   ; round_shift_and_clamp
-    ldrneb  r8, [r0, #-2]                   ; load data for next loop
+    ldrbne  r8, [r0, #-2]                   ; load data for next loop
     usat    lr, #8, lr, asr #7
     add     r11, r11, #0x40
-    ldrneb  r9, [r0, #-1]
+    ldrbne  r9, [r0, #-1]
     usat    r11, #8, r11, asr #7
 
     strh    lr, [r1], r12                   ; result is transposed and stored, which
                                             ; will make second pass filtering easier.
-    ldrneb  r10, [r0], #2
+    ldrbne  r10, [r0], #2
     strh    r11, [r1], r12
 
     bne     width_loop_1st_8_6
@@ -500,15 +500,15 @@
     smlad   r10, r10, r6, r8
 
 ;;  add     lr, lr, #0x40                   ; round_shift_and_clamp
-    ldrneb  r8, [r0, #-2]                   ; load data for next loop
+    ldrbne  r8, [r0, #-2]                   ; load data for next loop
     usat    lr, #8, lr, asr #7
 ;;  add     r10, r10, #0x40
     strb    lr, [r1], #1                    ; store the result
     usat    r10, #8, r10, asr #7
 
-    ldrneb  r9, [r0, #-1]
+    ldrbne  r9, [r0, #-1]
     strb    r10, [r1], #1
-    ldrneb  r10, [r0], #2
+    ldrbne  r10, [r0], #2
 
     bne     width_loop_1st_only_6
 
@@ -594,15 +594,15 @@
     ands    r9, r7, #0xff
 
     add     lr, lr, #0x40                   ; round_shift_and_clamp
-    ldrneb  r8, [r0], r2                    ; load data for next loop
+    ldrbne  r8, [r0], r2                    ; load data for next loop
     usat    lr, #8, lr, asr #7
     add     r10, r10, #0x40
     strb    lr, [r1], r12                   ; store the result for the column
     usat    r10, #8, r10, asr #7
 
-    ldrneb  r9, [r0], r2
+    ldrbne  r9, [r0], r2
     strb    r10, [r1], r12
-    ldrneb  r10, [r0], r2
+    ldrbne  r10, [r0], r2
 
     bne     height_loop_2nd_only_6
 
