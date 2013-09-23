@@ -277,11 +277,9 @@ static vpx_codec_err_t set_vp9e_config(VP9_CONFIG *oxcf,
   // CBR code has been deprectated for experimental phase.
   // CQ mode not yet tested
   oxcf->end_usage        = USAGE_LOCAL_FILE_PLAYBACK;
-  /*
   if (cfg.rc_end_usage == VPX_CQ)
     oxcf->end_usage      = USAGE_CONSTRAINED_QUALITY;
-    */
-  if (cfg.rc_end_usage == VPX_Q)
+  else if (cfg.rc_end_usage == VPX_Q)
     oxcf->end_usage      = USAGE_CONSTANT_QUALITY;
 
   oxcf->target_bandwidth        = cfg.rc_target_bitrate;
@@ -769,7 +767,7 @@ static vpx_codec_err_t vp9e_encode(vpx_codec_alg_priv_t  *ctx,
         }
 
         /* Add the frame packet to the list of returned packets. */
-        round = 1000000 * ctx->cfg.g_timebase.num / 2 - 1;
+        round = (vpx_codec_pts_t)1000000 * ctx->cfg.g_timebase.num / 2 - 1;
         delta = (dst_end_time_stamp - dst_time_stamp);
         pkt.kind = VPX_CODEC_CX_FRAME_PKT;
         pkt.data.frame.pts =

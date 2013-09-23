@@ -883,10 +883,10 @@ static unsigned int murmur(const void *key, int len, unsigned int seed) {
   while (len >= 4) {
     unsigned int k;
 
-    k  = data[0];
-    k |= data[1] << 8;
-    k |= data[2] << 16;
-    k |= data[3] << 24;
+    k  = (unsigned int)data[0];
+    k |= (unsigned int)data[1] << 8;
+    k |= (unsigned int)data[2] << 16;
+    k |= (unsigned int)data[3] << 24;
 
     k *= m;
     k ^= k >> r;
@@ -1765,9 +1765,13 @@ static void parse_global_config(struct global_config *global, char **argv) {
 
   /* Validate global config */
   if (global->passes == 0) {
+#if CONFIG_VP9_ENCODER
     // Make default VP9 passes = 2 until there is a better quality 1-pass
     // encoder
     global->passes = (global->codec->iface == vpx_codec_vp9_cx ? 2 : 1);
+#else
+    global->passes = 1;
+#endif
   }
 
   if (global->pass) {
@@ -2671,8 +2675,8 @@ int main(int argc, const char **argv_) {
           fprintf(stderr, "%7"PRId64" %s %.2f %s ",
                   cx_time > 9999999 ? cx_time / 1000 : cx_time,
                   cx_time > 9999999 ? "ms" : "us",
-                  fps >= 1.0 ? fps : 1000.0 / fps,
-                  fps >= 1.0 ? "fps" : "ms/f");
+                  fps >= 1.0 ? fps : fps * 60,
+                  fps >= 1.0 ? "fps" : "fpm");
           print_time("ETA", estimated_time_left);
           fprintf(stderr, "\033[K");
         }

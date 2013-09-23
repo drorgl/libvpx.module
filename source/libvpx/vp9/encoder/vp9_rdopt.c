@@ -269,7 +269,7 @@ void vp9_initialize_rd_consts(VP9_COMP *cpi, int qindex) {
         cpi->mb.inter_mode_cost[i][m - NEARESTMV] =
             cost_token(vp9_inter_mode_tree,
                        cpi->common.fc.inter_mode_probs[i],
-                       vp9_inter_mode_encodings - NEARESTMV + m);
+                       vp9_inter_mode_encodings + (m - NEARESTMV));
     }
   }
 }
@@ -1515,25 +1515,21 @@ static int64_t encode_inter_mb_segment(VP9_COMP *cpi,
   int k;
   MACROBLOCKD *xd = &x->e_mbd;
   struct macroblockd_plane *const pd = &xd->plane[0];
+  struct macroblock_plane *const p = &x->plane[0];
   MODE_INFO *const mi = xd->this_mi;
   const BLOCK_SIZE bsize = mi->mbmi.sb_type;
   const int width = plane_block_width(bsize, pd);
   const int height = plane_block_height(bsize, pd);
   int idx, idy;
-  const int src_stride = x->plane[0].src.stride;
-  uint8_t* const src = raster_block_offset_uint8(BLOCK_8X8, i,
-                                                 x->plane[0].src.buf,
-                                                 src_stride);
-  int16_t* src_diff = raster_block_offset_int16(BLOCK_8X8, i,
-                                                x->plane[0].src_diff);
-  int16_t* coeff = BLOCK_OFFSET(x->plane[0].coeff, i);
-  uint8_t* const dst = raster_block_offset_uint8(BLOCK_8X8, i,
+
+  uint8_t *const src = raster_block_offset_uint8(BLOCK_8X8, i,
+                                                 p->src.buf, p->src.stride);
+  uint8_t *const dst = raster_block_offset_uint8(BLOCK_8X8, i,
                                                  pd->dst.buf, pd->dst.stride);
   int64_t thisdistortion = 0, thissse = 0;
-  int thisrate = 0;
-  int ref, second_ref = has_second_ref(&mi->mbmi);
-
-  for (ref = 0; ref < 1 + second_ref; ++ref) {
+  int thisrate = 0, ref;
+  const int is_compound = has_second_ref(&mi->mbmi);
+  for (ref = 0; ref < 1 + is_compound; ++ref) {
     const uint8_t *pre = raster_block_offset_uint8(BLOCK_8X8, i,
                                      pd->pre[ref].buf, pd->pre[ref].stride);
     vp9_build_inter_predictor(pre, pd->pre[ref].stride,
@@ -1543,19 +1539,21 @@ static int64_t encode_inter_mb_segment(VP9_COMP *cpi,
                               width, height, ref, &xd->subpix, MV_PRECISION_Q3);
   }
 
-  vp9_subtract_block(height, width, src_diff, 8, src, src_stride,
+  vp9_subtract_block(height, width,
+                     raster_block_offset_int16(BLOCK_8X8, i, p->src_diff), 8,
+                     src, p->src.stride,
                      dst, pd->dst.stride);
 
   k = i;
   for (idy = 0; idy < height / 4; ++idy) {
     for (idx = 0; idx < width / 4; ++idx) {
       int64_t ssz, rd, rd1, rd2;
+      int16_t* coeff;
 
       k += (idy * 2 + idx);
-      src_diff = raster_block_offset_int16(BLOCK_8X8, k,
-                                           x->plane[0].src_diff);
-      coeff = BLOCK_OFFSET(x->plane[0].coeff, k);
-      x->fwd_txm4x4(src_diff, coeff, 16);
+      coeff = BLOCK_OFFSET(p->coeff, k);
+      x->fwd_txm4x4(raster_block_offset_int16(BLOCK_8X8, k, p->src_diff),
+                    coeff, 16);
       x->quantize_b_4x4(x, k, DCT_DCT, 16);
       thisdistortion += vp9_block_error(coeff, BLOCK_OFFSET(pd->dqcoeff, k),
                                         16, &ssz);
@@ -1572,6 +1570,7 @@ static int64_t encode_inter_mb_segment(VP9_COMP *cpi,
         return INT64_MAX;
     }
   }
+
   *distortion = thisdistortion >> 2;
   *labelyrate = thisrate;
   *sse = thissse >> 2;
@@ -1684,17 +1683,17 @@ static void rd_check_segment_txsize(VP9_COMP *cpi, MACROBLOCK *x,
       i = idy * 2 + idx;
 
       frame_mv[ZEROMV][mbmi->ref_frame[0]].as_int = 0;
-      frame_mv[ZEROMV][mbmi->ref_frame[1]].as_int = 0;
       vp9_append_sub8x8_mvs_for_idx(&cpi->common, &x->e_mbd,
                                     &frame_mv[NEARESTMV][mbmi->ref_frame[0]],
                                     &frame_mv[NEARMV][mbmi->ref_frame[0]],
                                     i, 0, mi_row, mi_col);
-      if (has_second_rf)
+      if (has_second_rf) {
+        frame_mv[ZEROMV][mbmi->ref_frame[1]].as_int = 0;
         vp9_append_sub8x8_mvs_for_idx(&cpi->common, &x->e_mbd,
-                                   &frame_mv[NEARESTMV][mbmi->ref_frame[1]],
-                                   &frame_mv[NEARMV][mbmi->ref_frame[1]],
-                                   i, 1, mi_row, mi_col);
-
+                                      &frame_mv[NEARESTMV][mbmi->ref_frame[1]],
+                                      &frame_mv[NEARMV][mbmi->ref_frame[1]],
+                                      i, 1, mi_row, mi_col);
+      }
       // search for the best motion vector on this segment
       for (this_mode = NEARESTMV; this_mode <= NEWMV; ++this_mode) {
         const struct buf_2d orig_src = x->plane[0].src;
@@ -2297,7 +2296,7 @@ static void setup_buffer_inter(VP9_COMP *cpi, MACROBLOCK *x,
   // Further refinement that is encode side only to test the top few candidates
   // in full and choose the best as the centre point for subsequent searches.
   // The current implementation doesn't support scaling.
-  if (!vp9_is_scaled(&scale[frame_type]))
+  if (!vp9_is_scaled(&scale[frame_type]) && block_size >= BLOCK_8X8)
     mv_pred(cpi, x, yv12_mb[frame_type][0].buf, yv12->y_stride,
             frame_type, block_size);
 }
@@ -2501,7 +2500,7 @@ static void joint_motion_search(VP9_COMP *cpi, MACROBLOCK *x,
     for (i = 0; i < MAX_MB_PLANE; i++)
       backup_second_yv12[i] = xd->plane[i].pre[1];
 
-    setup_pre_planes(xd, 0, scaled_ref_frame[1], mi_row, mi_col, NULL);
+    setup_pre_planes(xd, 1, scaled_ref_frame[1], mi_row, mi_col, NULL);
   }
 
   xd->scale_factor[0].set_scaled_offsets(&xd->scale_factor[0],
@@ -3263,8 +3262,8 @@ int64_t vp9_rd_pick_inter_mode_sb(VP9_COMP *cpi, MACROBLOCK *x,
       continue;
 
     // Test best rd so far against threshold for trying this mode.
-    if ((best_rd < ((cpi->rd_threshes[bsize][mode_index] *
-                     cpi->rd_thresh_freq_fact[bsize][mode_index]) >> 5)) ||
+    if ((best_rd < ((int64_t)cpi->rd_threshes[bsize][mode_index] *
+                     cpi->rd_thresh_freq_fact[bsize][mode_index] >> 5)) ||
         cpi->rd_threshes[bsize][mode_index] == INT_MAX)
       continue;
 
