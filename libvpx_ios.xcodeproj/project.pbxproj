@@ -2513,6 +2513,7 @@
 				OTHER_CFLAGS = "";
 				PRODUCT_NAME = vpx_asm_offsets_vpx_scale;
 				RUN_CLANG_STATIC_ANALYZER = NO;
+				SUPPORTED_PLATFORMS = iphoneos;
 				USE_HEADERMAP = NO;
 				VALID_ARCHS = armv7;
 				WARNING_CFLAGS = (
@@ -2534,6 +2535,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				PRODUCT_NAME = "simple_decoder Support";
+				SUPPORTED_PLATFORMS = iphoneos;
 			};
 			name = Debug;
 		};
@@ -2581,6 +2583,7 @@
 				);
 				PRODUCT_NAME = simple_decoder;
 				RUN_CLANG_STATIC_ANALYZER = NO;
+				SUPPORTED_PLATFORMS = iphoneos;
 				USE_HEADERMAP = NO;
 				WARNING_CFLAGS = (
 					"-Wendif-labels",
@@ -2639,6 +2642,7 @@
 				OTHER_CFLAGS = "";
 				PRODUCT_NAME = vpx_asm_offsets_vpx_scale;
 				RUN_CLANG_STATIC_ANALYZER = NO;
+				SUPPORTED_PLATFORMS = iphoneos;
 				USE_HEADERMAP = NO;
 				VALID_ARCHS = armv7;
 				WARNING_CFLAGS = (
@@ -2701,6 +2705,7 @@
 				OTHER_CFLAGS = "";
 				PRODUCT_NAME = vpx;
 				RUN_CLANG_STATIC_ANALYZER = NO;
+				SUPPORTED_PLATFORMS = iphoneos;
 				USE_HEADERMAP = NO;
 				WARNING_CFLAGS = (
 					"-Wendif-labels",
@@ -2717,6 +2722,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				PRODUCT_NAME = "simple_decoder Support";
+				SUPPORTED_PLATFORMS = iphoneos;
 			};
 			name = Release;
 		};
@@ -2737,6 +2743,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				PRODUCT_NAME = "simple_encoder Support";
+				SUPPORTED_PLATFORMS = iphoneos;
 			};
 			name = Debug;
 		};
@@ -2787,6 +2794,7 @@
 				PRODUCT_NAME = simple_decoder;
 				RUN_CLANG_STATIC_ANALYZER = NO;
 				STRIP_INSTALLED_PRODUCT = YES;
+				SUPPORTED_PLATFORMS = iphoneos;
 				USE_HEADERMAP = NO;
 				WARNING_CFLAGS = (
 					"-Wendif-labels",
@@ -2840,6 +2848,7 @@
 				OTHER_LDFLAGS = "-Wl,-search_paths_first";
 				PRODUCT_NAME = gen_asm_offsets_vpx_scale;
 				RUN_CLANG_STATIC_ANALYZER = NO;
+				SUPPORTED_PLATFORMS = iphoneos;
 				USE_HEADERMAP = NO;
 				WARNING_CFLAGS = (
 					"-Wendif-labels",
@@ -2970,6 +2979,7 @@
 				OTHER_CFLAGS = "";
 				PRODUCT_NAME = vpx;
 				RUN_CLANG_STATIC_ANALYZER = NO;
+				SUPPORTED_PLATFORMS = iphoneos;
 				USE_HEADERMAP = NO;
 				WARNING_CFLAGS = (
 					"-Wendif-labels",
@@ -3021,6 +3031,7 @@
 				OTHER_LDFLAGS = "-Wl,-search_paths_first";
 				PRODUCT_NAME = gen_asm_offsets_vpx_scale;
 				RUN_CLANG_STATIC_ANALYZER = NO;
+				SUPPORTED_PLATFORMS = iphoneos;
 				USE_HEADERMAP = NO;
 				WARNING_CFLAGS = (
 					"-Wendif-labels",
@@ -3041,6 +3052,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				PRODUCT_NAME = "libvpx Support";
+				SUPPORTED_PLATFORMS = iphoneos;
 			};
 			name = Debug;
 		};
@@ -3081,6 +3093,7 @@
 				OTHER_LDFLAGS = "-Wl,-search_paths_first";
 				PRODUCT_NAME = gen_asm_offsets_vp8;
 				RUN_CLANG_STATIC_ANALYZER = NO;
+				SUPPORTED_PLATFORMS = iphoneos;
 				USE_HEADERMAP = NO;
 				WARNING_CFLAGS = (
 					"-Wendif-labels",
@@ -3207,6 +3220,7 @@
 				OTHER_CFLAGS = "";
 				PRODUCT_NAME = vpx_asm_offsets_vp8;
 				RUN_CLANG_STATIC_ANALYZER = NO;
+				SUPPORTED_PLATFORMS = iphoneos;
 				USE_HEADERMAP = NO;
 				VALID_ARCHS = armv7;
 				WARNING_CFLAGS = (
@@ -3268,6 +3282,7 @@
 				);
 				PRODUCT_NAME = simple_encoder;
 				RUN_CLANG_STATIC_ANALYZER = NO;
+				SUPPORTED_PLATFORMS = iphoneos;
 				USE_HEADERMAP = NO;
 				WARNING_CFLAGS = (
 					"-Wendif-labels",
@@ -3288,6 +3303,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				PRODUCT_NAME = "libvpx Support";
+				SUPPORTED_PLATFORMS = iphoneos;
 			};
 			name = Release;
 		};
@@ -3330,6 +3346,7 @@
 				OTHER_LDFLAGS = "-Wl,-search_paths_first";
 				PRODUCT_NAME = gen_asm_offsets_vp8;
 				RUN_CLANG_STATIC_ANALYZER = NO;
+				SUPPORTED_PLATFORMS = iphoneos;
 				USE_HEADERMAP = NO;
 				WARNING_CFLAGS = (
 					"-Wendif-labels",
@@ -3390,6 +3407,7 @@
 				OTHER_CFLAGS = "";
 				PRODUCT_NAME = vpx_asm_offsets_vp8;
 				RUN_CLANG_STATIC_ANALYZER = NO;
+				SUPPORTED_PLATFORMS = iphoneos;
 				USE_HEADERMAP = NO;
 				VALID_ARCHS = armv7;
 				WARNING_CFLAGS = (
@@ -3424,6 +3442,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				PRODUCT_NAME = "simple_encoder Support";
+				SUPPORTED_PLATFORMS = iphoneos;
 			};
 			name = Release;
 		};
@@ -3474,6 +3493,7 @@
 				PRODUCT_NAME = simple_encoder;
 				RUN_CLANG_STATIC_ANALYZER = NO;
 				STRIP_INSTALLED_PRODUCT = YES;
+				SUPPORTED_PLATFORMS = iphoneos;
 				USE_HEADERMAP = NO;
 				WARNING_CFLAGS = (
 					"-Wendif-labels",
@@ -3494,6 +3514,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				PRODUCT_NAME = All;
+				SUPPORTED_PLATFORMS = iphoneos;
 			};
 			name = Release;
 		};
@@ -3501,6 +3522,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				PRODUCT_NAME = All;
+				SUPPORTED_PLATFORMS = iphoneos;
 			};
 			name = Debug;
 		};
