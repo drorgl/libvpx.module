@@ -578,12 +578,13 @@
 		E23DD47A177CF8B700341BBD /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = "$(SHARED_INTERMEDIATE_DIR)/third_party/libvpx";
-			dstSubfolderSpec = 0;
+			dstPath = "../DerivedSources/$(CONFIGURATION)/third_party/libvpx";
+			dstSubfolderSpec = 16;
 			files = (
 				E2922776177DB628003DCB63 /* ads2gas_apple.pl in CopyFiles */,
 				E23DD47C177CF8EF00341BBD /* thumb.pm in CopyFiles */,
 			);
+			name = CopyFiles;
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		FEE3570FBFBF637859ADE6EE /* Copy to $(SHARED_INTERMEDIATE_DIR)/third_party/libvpx/simple_encoder */ = {
