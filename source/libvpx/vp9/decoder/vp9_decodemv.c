@@ -30,10 +30,26 @@ static MB_PREDICTION_MODE read_intra_mode(vp9_reader *r, const vp9_prob *p) {
   return (MB_PREDICTION_MODE)treed_read(r, vp9_intra_mode_tree, p);
 }
 
+static MB_PREDICTION_MODE read_intra_mode_y(VP9_COMMON *cm, vp9_reader *r,
+                                            int size_group) {
+  const MB_PREDICTION_MODE y_mode = read_intra_mode(r,
+                                        cm->fc.y_mode_prob[size_group]);
+  ++cm->counts.y_mode[size_group][y_mode];
+  return y_mode;
+}
+
+static MB_PREDICTION_MODE read_intra_mode_uv(VP9_COMMON *cm, vp9_reader *r,
+                                             MB_PREDICTION_MODE y_mode) {
+  const MB_PREDICTION_MODE uv_mode = read_intra_mode(r,
+                                         cm->fc.uv_mode_prob[y_mode]);
+  ++cm->counts.uv_mode[y_mode][uv_mode];
+  return uv_mode;
+}
+
 static MB_PREDICTION_MODE read_inter_mode(VP9_COMMON *cm, vp9_reader *r,
                                           uint8_t context) {
-  MB_PREDICTION_MODE mode = treed_read(r, vp9_inter_mode_tree,
-                            cm->fc.inter_mode_probs[context]);
+  const MB_PREDICTION_MODE mode = treed_read(r, vp9_inter_mode_tree,
+                                             cm->fc.inter_mode_probs[context]);
   ++cm->counts.inter_mode[context][inter_mode_offset(mode)];
   return mode;
 }
@@ -348,16 +364,15 @@ static void read_switchable_interp_probs(FRAME_CONTEXT *fc, vp9_reader *r) {
   int i, j;
   for (j = 0; j < SWITCHABLE_FILTERS + 1; ++j)
     for (i = 0; i < SWITCHABLE_FILTERS - 1; ++i)
-      if (vp9_read(r, MODE_UPDATE_PROB))
-        vp9_diff_update_prob(r, &fc->switchable_interp_prob[j][i]);
+      vp9_diff_update_prob(r, MODE_UPDATE_PROB,
+                           &fc->switchable_interp_prob[j][i]);
 }
 
 static void read_inter_mode_probs(FRAME_CONTEXT *fc, vp9_reader *r) {
   int i, j;
   for (i = 0; i < INTER_MODE_CONTEXTS; ++i)
     for (j = 0; j < INTER_MODES - 1; ++j)
-      if (vp9_read(r, MODE_UPDATE_PROB))
-        vp9_diff_update_prob(r, &fc->inter_mode_probs[i][j]);
+      vp9_diff_update_prob(r, MODE_UPDATE_PROB, &fc->inter_mode_probs[i][j]);
 }
 
 static INLINE COMPPREDMODE_TYPE read_comp_pred_mode(vp9_reader *r) {
@@ -388,9 +403,7 @@ static void read_intra_block_mode_info(VP9D_COMP *pbi, MODE_INFO *mi,
   mbmi->ref_frame[1] = NONE;
 
   if (bsize >= BLOCK_8X8) {
-    const int size_group = size_group_lookup[bsize];
-    mbmi->mode = read_intra_mode(r, cm->fc.y_mode_prob[size_group]);
-    cm->counts.y_mode[size_group][mbmi->mode]++;
+    mbmi->mode = read_intra_mode_y(cm, r, size_group_lookup[bsize]);
   } else {
      // Only 4x4, 4x8, 8x4 blocks
      const int num_4x4_w = num_4x4_blocks_wide_lookup[bsize];  // 1 or 2
@@ -400,10 +413,8 @@ static void read_intra_block_mode_info(VP9D_COMP *pbi, MODE_INFO *mi,
      for (idy = 0; idy < 2; idy += num_4x4_h) {
        for (idx = 0; idx < 2; idx += num_4x4_w) {
          const int ib = idy * 2 + idx;
-         const int b_mode = read_intra_mode(r, cm->fc.y_mode_prob[0]);
+         const int b_mode = read_intra_mode_y(cm, r, 0);
          mi->bmi[ib].as_mode = b_mode;
-         cm->counts.y_mode[0][b_mode]++;
-
          if (num_4x4_h == 2)
            mi->bmi[ib + 2].as_mode = b_mode;
          if (num_4x4_w == 2)
@@ -413,8 +424,47 @@ static void read_intra_block_mode_info(VP9D_COMP *pbi, MODE_INFO *mi,
     mbmi->mode = mi->bmi[3].as_mode;
   }
 
-  mbmi->uv_mode = read_intra_mode(r, cm->fc.uv_mode_prob[mbmi->mode]);
-  cm->counts.uv_mode[mbmi->mode][mbmi->uv_mode]++;
+  mbmi->uv_mode = read_intra_mode_uv(cm, r, mbmi->mode);
+}
+
+static INLINE int assign_mv(VP9_COMMON *cm, MB_PREDICTION_MODE mode,
+                             int_mv mv[2], int_mv best_mv[2],
+                             int_mv nearest_mv[2], int_mv near_mv[2],
+                             int is_compound, int allow_hp, vp9_reader *r) {
+  int i;
+  int ret = 1;
+
+  switch (mode) {
+    case NEWMV:
+       read_mv(r, &mv[0].as_mv, &best_mv[0].as_mv,
+               &cm->fc.nmvc, &cm->counts.mv, allow_hp);
+       if (is_compound)
+         read_mv(r, &mv[1].as_mv, &best_mv[1].as_mv,
+                 &cm->fc.nmvc, &cm->counts.mv, allow_hp);
+       for (i = 0; i < 1 + is_compound; ++i) {
+         ret = ret && mv[i].as_mv.row < MV_UPP && mv[i].as_mv.row > MV_LOW;
+         ret = ret && mv[i].as_mv.col < MV_UPP && mv[i].as_mv.col > MV_LOW;
+       }
+       break;
+    case NEARESTMV:
+      mv[0].as_int = nearest_mv[0].as_int;
+      if (is_compound)
+        mv[1].as_int = nearest_mv[1].as_int;
+      break;
+    case NEARMV:
+      mv[0].as_int = near_mv[0].as_int;
+      if (is_compound)
+        mv[1].as_int = near_mv[1].as_int;
+      break;
+    case ZEROMV:
+      mv[0].as_int = 0;
+      if (is_compound)
+        mv[1].as_int = 0;
+      break;
+    default:
+      return 0;
+  }
+  return ret;
 }
 
 static int read_is_inter_block(VP9D_COMP *pbi, int segment_id, vp9_reader *r) {
@@ -436,15 +486,11 @@ static void read_inter_block_mode_info(VP9D_COMP *pbi, MODE_INFO *mi,
                                        int mi_row, int mi_col, vp9_reader *r) {
   VP9_COMMON *const cm = &pbi->common;
   MACROBLOCKD *const xd = &pbi->mb;
-  nmv_context *const nmvc = &cm->fc.nmvc;
   MB_MODE_INFO *const mbmi = &mi->mbmi;
-  int_mv *const mv0 = &mbmi->mv[0];
-  int_mv *const mv1 = &mbmi->mv[1];
   const BLOCK_SIZE bsize = mbmi->sb_type;
   const int allow_hp = xd->allow_high_precision_mv;
 
-  int_mv nearest, nearby, best_mv;
-  int_mv nearest_second, nearby_second, best_mv_second;
+  int_mv nearest[2], nearmv[2], best[2];
   uint8_t inter_mode_ctx;
   MV_REFERENCE_FRAME ref0;
   int is_compound;
@@ -461,7 +507,11 @@ static void read_inter_block_mode_info(VP9D_COMP *pbi, MODE_INFO *mi,
 
   if (vp9_segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
     mbmi->mode = ZEROMV;
-    assert(bsize >= BLOCK_8X8);
+    if (bsize < BLOCK_8X8) {
+        vpx_internal_error(&cm->error, VPX_CODEC_UNSUP_BITSTREAM,
+                           "Invalid usage of segement feature on small blocks");
+        return;
+    }
   } else {
     if (bsize >= BLOCK_8X8)
       mbmi->mode = read_inter_mode(cm, r, inter_mode_ctx);
@@ -469,8 +519,8 @@ static void read_inter_block_mode_info(VP9D_COMP *pbi, MODE_INFO *mi,
 
   // nearest, nearby
   if (bsize < BLOCK_8X8 || mbmi->mode != ZEROMV) {
-    vp9_find_best_ref_mvs(xd, mbmi->ref_mvs[ref0], &nearest, &nearby);
-    best_mv.as_int = mbmi->ref_mvs[ref0][0].as_int;
+    vp9_find_best_ref_mvs(xd, mbmi->ref_mvs[ref0], &nearest[0], &nearmv[0]);
+    best[0].as_int = nearest[0].as_int;
   }
 
   if (is_compound) {
@@ -479,9 +529,8 @@ static void read_inter_block_mode_info(VP9D_COMP *pbi, MODE_INFO *mi,
                      ref1, mbmi->ref_mvs[ref1], mi_row, mi_col);
 
     if (bsize < BLOCK_8X8 || mbmi->mode != ZEROMV) {
-      vp9_find_best_ref_mvs(xd, mbmi->ref_mvs[ref1],
-                            &nearest_second, &nearby_second);
-      best_mv_second.as_int = mbmi->ref_mvs[ref1][0].as_int;
+      vp9_find_best_ref_mvs(xd, mbmi->ref_mvs[ref1], &nearest[1], &nearmv[1]);
+      best[1].as_int = nearest[1].as_int;
     }
   }
 
@@ -493,92 +542,50 @@ static void read_inter_block_mode_info(VP9D_COMP *pbi, MODE_INFO *mi,
     const int num_4x4_w = num_4x4_blocks_wide_lookup[bsize];  // 1 or 2
     const int num_4x4_h = num_4x4_blocks_high_lookup[bsize];  // 1 or 2
     int idx, idy;
+    int b_mode;
     for (idy = 0; idy < 2; idy += num_4x4_h) {
       for (idx = 0; idx < 2; idx += num_4x4_w) {
-        int_mv blockmv, secondmv;
+        int_mv block[2];
         const int j = idy * 2 + idx;
-        const int b_mode = read_inter_mode(cm, r, inter_mode_ctx);
+        b_mode = read_inter_mode(cm, r, inter_mode_ctx);
 
         if (b_mode == NEARESTMV || b_mode == NEARMV) {
-          vp9_append_sub8x8_mvs_for_idx(cm, xd, &nearest, &nearby, j, 0,
+          vp9_append_sub8x8_mvs_for_idx(cm, xd, &nearest[0],
+                                        &nearmv[0], j, 0,
                                         mi_row, mi_col);
 
           if (is_compound)
-            vp9_append_sub8x8_mvs_for_idx(cm, xd,  &nearest_second,
-                                         &nearby_second, j, 1,
-                                         mi_row, mi_col);
+            vp9_append_sub8x8_mvs_for_idx(cm, xd,  &nearest[1],
+                                          &nearmv[1], j, 1,
+                                          mi_row, mi_col);
         }
 
-        switch (b_mode) {
-          case NEWMV:
-            read_mv(r, &blockmv.as_mv, &best_mv.as_mv, nmvc,
-                    &cm->counts.mv, allow_hp);
+        if (!assign_mv(cm, b_mode, block, best, nearest, nearmv,
+                       is_compound, allow_hp, r)) {
+          xd->corrupted |= 1;
+          break;
+        };
 
-            if (is_compound)
-              read_mv(r, &secondmv.as_mv, &best_mv_second.as_mv, nmvc,
-                      &cm->counts.mv, allow_hp);
-            break;
-          case NEARESTMV:
-            blockmv.as_int = nearest.as_int;
-            if (is_compound)
-              secondmv.as_int = nearest_second.as_int;
-            break;
-          case NEARMV:
-            blockmv.as_int = nearby.as_int;
-            if (is_compound)
-              secondmv.as_int = nearby_second.as_int;
-            break;
-          case ZEROMV:
-            blockmv.as_int = 0;
-            if (is_compound)
-              secondmv.as_int = 0;
-            break;
-          default:
-            assert(!"Invalid inter mode value");
-        }
-        mi->bmi[j].as_mv[0].as_int = blockmv.as_int;
+
+        mi->bmi[j].as_mv[0].as_int = block[0].as_int;
         if (is_compound)
-          mi->bmi[j].as_mv[1].as_int = secondmv.as_int;
+          mi->bmi[j].as_mv[1].as_int = block[1].as_int;
 
         if (num_4x4_h == 2)
           mi->bmi[j + 2] = mi->bmi[j];
         if (num_4x4_w == 2)
           mi->bmi[j + 1] = mi->bmi[j];
-        mi->mbmi.mode = b_mode;
       }
     }
 
-    mv0->as_int = mi->bmi[3].as_mv[0].as_int;
-    mv1->as_int = mi->bmi[3].as_mv[1].as_int;
+    mi->mbmi.mode = b_mode;
+
+    mbmi->mv[0].as_int = mi->bmi[3].as_mv[0].as_int;
+    mbmi->mv[1].as_int = mi->bmi[3].as_mv[1].as_int;
   } else {
-    switch (mbmi->mode) {
-      case NEARMV:
-        mv0->as_int = nearby.as_int;
-        if (is_compound)
-          mv1->as_int = nearby_second.as_int;
-        break;
-
-      case NEARESTMV:
-        mv0->as_int = nearest.as_int;
-        if (is_compound)
-          mv1->as_int = nearest_second.as_int;
-        break;
-
-      case ZEROMV:
-        mv0->as_int = 0;
-        if (is_compound)
-          mv1->as_int = 0;
-        break;
-
-      case NEWMV:
-        read_mv(r, &mv0->as_mv, &best_mv.as_mv, nmvc, &cm->counts.mv, allow_hp);
-        if (is_compound)
-          read_mv(r, &mv1->as_mv, &best_mv_second.as_mv, nmvc, &cm->counts.mv,
-                  allow_hp);
-        break;
-      default:
-        assert(!"Invalid inter mode value");
-    }
+    xd->corrupted |= !assign_mv(cm, mbmi->mode, mbmi->mv,
+                                best, nearest, nearmv,
+                                is_compound, allow_hp, r);
   }
 }
 
@@ -610,21 +617,17 @@ static void read_comp_pred(VP9_COMMON *cm, vp9_reader *r) {
 
   if (cm->comp_pred_mode == HYBRID_PREDICTION)
     for (i = 0; i < COMP_INTER_CONTEXTS; i++)
-      if (vp9_read(r, MODE_UPDATE_PROB))
-        vp9_diff_update_prob(r, &cm->fc.comp_inter_prob[i]);
+      vp9_diff_update_prob(r, MODE_UPDATE_PROB, &cm->fc.comp_inter_prob[i]);
 
   if (cm->comp_pred_mode != COMP_PREDICTION_ONLY)
     for (i = 0; i < REF_CONTEXTS; i++) {
-      if (vp9_read(r, MODE_UPDATE_PROB))
-        vp9_diff_update_prob(r, &cm->fc.single_ref_prob[i][0]);
-      if (vp9_read(r, MODE_UPDATE_PROB))
-        vp9_diff_update_prob(r, &cm->fc.single_ref_prob[i][1]);
+      vp9_diff_update_prob(r, MODE_UPDATE_PROB, &cm->fc.single_ref_prob[i][0]);
+      vp9_diff_update_prob(r, MODE_UPDATE_PROB, &cm->fc.single_ref_prob[i][1]);
     }
 
   if (cm->comp_pred_mode != SINGLE_PREDICTION_ONLY)
     for (i = 0; i < REF_CONTEXTS; i++)
-      if (vp9_read(r, MODE_UPDATE_PROB))
-        vp9_diff_update_prob(r, &cm->fc.comp_ref_prob[i]);
+      vp9_diff_update_prob(r, MODE_UPDATE_PROB, &cm->fc.comp_ref_prob[i]);
 }
 
 void vp9_prepare_read_mode_info(VP9D_COMP* pbi, vp9_reader *r) {
@@ -634,8 +637,7 @@ void vp9_prepare_read_mode_info(VP9D_COMP* pbi, vp9_reader *r) {
   // TODO(jkoleszar): does this clear more than MBSKIP_CONTEXTS? Maybe remove.
   // vpx_memset(cm->fc.mbskip_probs, 0, sizeof(cm->fc.mbskip_probs));
   for (k = 0; k < MBSKIP_CONTEXTS; ++k)
-    if (vp9_read(r, MODE_UPDATE_PROB))
-      vp9_diff_update_prob(r, &cm->fc.mbskip_probs[k]);
+    vp9_diff_update_prob(r, MODE_UPDATE_PROB, &cm->fc.mbskip_probs[k]);
 
   if (cm->frame_type != KEY_FRAME && !cm->intra_only) {
     nmv_context *const nmvc = &pbi->common.fc.nmvc;
@@ -648,20 +650,18 @@ void vp9_prepare_read_mode_info(VP9D_COMP* pbi, vp9_reader *r) {
       read_switchable_interp_probs(&cm->fc, r);
 
     for (i = 0; i < INTRA_INTER_CONTEXTS; i++)
-      if (vp9_read(r, MODE_UPDATE_PROB))
-        vp9_diff_update_prob(r, &cm->fc.intra_inter_prob[i]);
+      vp9_diff_update_prob(r, MODE_UPDATE_PROB, &cm->fc.intra_inter_prob[i]);
 
     read_comp_pred(cm, r);
 
     for (j = 0; j < BLOCK_SIZE_GROUPS; j++)
       for (i = 0; i < INTRA_MODES - 1; ++i)
-        if (vp9_read(r, MODE_UPDATE_PROB))
-          vp9_diff_update_prob(r, &cm->fc.y_mode_prob[j][i]);
+        vp9_diff_update_prob(r, MODE_UPDATE_PROB, &cm->fc.y_mode_prob[j][i]);
 
     for (j = 0; j < NUM_PARTITION_CONTEXTS; ++j)
       for (i = 0; i < PARTITION_TYPES - 1; ++i)
-        if (vp9_read(r, MODE_UPDATE_PROB))
-          vp9_diff_update_prob(r, &cm->fc.partition_prob[INTER_FRAME][j][i]);
+        vp9_diff_update_prob(r, MODE_UPDATE_PROB,
+                             &cm->fc.partition_prob[INTER_FRAME][j][i]);
 
     read_mv_probs(r, nmvc, xd->allow_high_precision_mv);
   }
