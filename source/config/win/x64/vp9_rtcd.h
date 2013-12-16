@@ -238,8 +238,7 @@ void vp9_loop_filter_vertical_edge_16_sse2(uint8_t *s, int pitch, const uint8_t 
 
 void vp9_mb_lpf_horizontal_edge_w_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
 void vp9_mb_lpf_horizontal_edge_w_sse2(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
-void vp9_mb_lpf_horizontal_edge_w_avx2(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
-RTCD_EXTERN void (*vp9_mb_lpf_horizontal_edge_w)(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
+#define vp9_mb_lpf_horizontal_edge_w vp9_mb_lpf_horizontal_edge_w_sse2
 
 void vp9_mbloop_filter_horizontal_edge_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
 void vp9_mbloop_filter_horizontal_edge_sse2(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
@@ -472,8 +471,6 @@ static void setup_rtcd_internal(void)
 
 
 
-    vp9_mb_lpf_horizontal_edge_w = vp9_mb_lpf_horizontal_edge_w_sse2;
-    if (flags & HAS_AVX2) vp9_mb_lpf_horizontal_edge_w = vp9_mb_lpf_horizontal_edge_w_avx2;
 
 
 

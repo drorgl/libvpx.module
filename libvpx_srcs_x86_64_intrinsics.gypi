@@ -77,26 +77,5 @@
         }],
       ],
     },
-    {
-      'target_name': 'libvpx_intrinsics_avx2',
-      'type': 'static_library',
-      'include_dirs': [
-        'source/config/<(OS_CATEGORY)/<(target_arch)',
-        '<(libvpx_source)',
-      ],
-      'sources': [
-        '<(libvpx_source)/vp9/common/x86/vp9_loopfilter_intrin_avx2.c',
-      ],
-      'conditions': [
-        ['os_posix==1 and OS!="mac"', {
-          'cflags': [ '-mavx2', ],
-        }],
-        ['OS=="mac"', {
-          'xcode_settings': {
-            'OTHER_CFLAGS': [ '-mavx2', ],
-          },
-        }],
-      ],
-    },
   ],
 }

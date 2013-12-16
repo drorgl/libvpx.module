@@ -123,10 +123,6 @@ function write_special_flags {
     echo "ERROR: Comment ssse3 sections in libvpx.gyp"
     exit 1
   fi
-  if [ 0 -eq ${#avx2_sources} ]; then
-    echo "ERROR: Comment avx2 sections in libvpx.gyp"
-    exit 1
-  fi
 
   # Do not expect output for these:
   if [ 0 -ne ${#sse3_sources} ]; then
@@ -141,6 +137,10 @@ function write_special_flags {
     echo "ERROR: Uncomment avx sections in libvpx.gyp"
     exit 1
   fi
+  if [ 0 -ne ${#avx2_sources} ]; then
+    echo "ERROR: Uncomment avx2 sections in libvpx.gyp"
+    exit 1
+  fi
 
   write_gypi_header $2
 
@@ -152,7 +152,7 @@ function write_special_flags {
   write_target_definition ssse3_sources[@] $2 libvpx_intrinsics_ssse3 ssse3
   #write_target_definition sse4_1_sources[@] $2 libvpx_intrinsics_sse4_1 sse4.1
   #write_target_definition avx_sources[@] $2 libvpx_intrinsics_avx avx
-  write_target_definition avx2_sources[@] $2 libvpx_intrinsics_avx2 avx2
+  #write_target_definition avx2_sources[@] $2 libvpx_intrinsics_avx2 avx2
 
   echo "  ]," >> $2
 

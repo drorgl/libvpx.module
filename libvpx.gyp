@@ -106,7 +106,8 @@
                 #'libvpx_intrinsics_sse4_1',
                 # Currently no avx intrinsic functions
                 #'libvpx_intrinsics_avx',
-                'libvpx_intrinsics_avx2',
+                # Add avx2 support when VS2013 lands: crbug.com/328981
+                #'libvpx_intrinsics_avx2',
               ],
             }],
             ['target_arch=="x64"', {
@@ -123,7 +124,8 @@
                 #'libvpx_intrinsics_sse4_1',
                 # Currently no avx intrinsic functions
                 #'libvpx_intrinsics_avx',
-                'libvpx_intrinsics_avx2',
+                # Add avx2 support when VS2013 lands: crbug.com/328981
+                #'libvpx_intrinsics_avx2',
               ],
             }],
             ['clang == 1', {

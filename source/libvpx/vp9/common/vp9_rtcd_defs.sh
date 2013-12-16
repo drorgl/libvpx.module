@@ -210,7 +210,7 @@ prototype void vp9_loop_filter_vertical_edge_16 "uint8_t *s, int pitch, const ui
 specialize vp9_loop_filter_vertical_edge_16 sse2 neon dspr2
 
 prototype void vp9_mb_lpf_horizontal_edge_w "uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count"
-specialize vp9_mb_lpf_horizontal_edge_w sse2 avx2 neon dspr2
+specialize vp9_mb_lpf_horizontal_edge_w sse2 neon dspr2
 
 prototype void vp9_mbloop_filter_horizontal_edge "uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count"
 specialize vp9_mbloop_filter_horizontal_edge sse2 neon dspr2
