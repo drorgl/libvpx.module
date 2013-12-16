@@ -34,26 +34,10 @@ typedef int8_t vp9_tree_index;
 
 typedef const vp9_tree_index vp9_tree[];
 
-struct vp9_token {
-  int value;
-  int len;
-};
-
-/* Construct encoding array from tree. */
-
-void vp9_tokens_from_tree(struct vp9_token*, vp9_tree);
-void vp9_tokens_from_tree_offset(struct vp9_token*, vp9_tree, int offset);
-
 /* Convert array of token occurrence counts into a table of probabilities
    for the associated binary encoding tree.  Also writes count of branches
    taken for each node on the tree; this facilitiates decisions as to
    probability updates. */
-
-void vp9_tree_probs_from_distribution(vp9_tree tree,
-                                      vp9_prob probs[ /* n - 1 */ ],
-                                      unsigned int branch_ct[ /* n - 1 */ ][2],
-                                      const unsigned int num_events[ /* n */ ],
-                                      unsigned int tok0_offset);
 
 static INLINE vp9_prob clip_prob(int p) {
   return (p > 255) ? 255u : (p < 1) ? 1u : p;
@@ -81,21 +65,46 @@ static INLINE vp9_prob weighted_prob(int prob1, int prob2, int factor) {
   return ROUND_POWER_OF_TWO(prob1 * (256 - factor) + prob2 * factor, 8);
 }
 
-static INLINE vp9_prob merge_probs(vp9_prob pre_prob, vp9_prob prob,
+static INLINE vp9_prob merge_probs(vp9_prob pre_prob,
                                    const unsigned int ct[2],
                                    unsigned int count_sat,
                                    unsigned int max_update_factor) {
+  const vp9_prob prob = get_binary_prob(ct[0], ct[1]);
   const unsigned int count = MIN(ct[0] + ct[1], count_sat);
   const unsigned int factor = max_update_factor * count / count_sat;
   return weighted_prob(pre_prob, prob, factor);
 }
 
-static INLINE vp9_prob merge_probs2(vp9_prob pre_prob,
-                                   const unsigned int ct[2],
-                                   unsigned int count_sat,
-                                   unsigned int max_update_factor) {
-  return merge_probs(pre_prob, get_binary_prob(ct[0], ct[1]), ct, count_sat,
-                     max_update_factor);
+static unsigned int tree_merge_probs_impl(unsigned int i,
+                                          const vp9_tree_index *tree,
+                                          const vp9_prob *pre_probs,
+                                          const unsigned int *counts,
+                                          unsigned int count_sat,
+                                          unsigned int max_update_factor,
+                                          vp9_prob *probs) {
+  const int l = tree[i];
+  const unsigned int left_count = (l <= 0)
+                 ? counts[-l]
+                 : tree_merge_probs_impl(l, tree, pre_probs, counts,
+                                         count_sat, max_update_factor, probs);
+  const int r = tree[i + 1];
+  const unsigned int right_count = (r <= 0)
+                 ? counts[-r]
+                 : tree_merge_probs_impl(r, tree, pre_probs, counts,
+                                         count_sat, max_update_factor, probs);
+  const unsigned int ct[2] = { left_count, right_count };
+  probs[i >> 1] = merge_probs(pre_probs[i >> 1], ct,
+                              count_sat, max_update_factor);
+  return left_count + right_count;
+}
+
+static void tree_merge_probs(const vp9_tree_index *tree,
+                             const vp9_prob *pre_probs,
+                             const unsigned int *counts,
+                             unsigned int count_sat,
+                             unsigned int max_update_factor, vp9_prob *probs) {
+  tree_merge_probs_impl(0, tree, pre_probs, counts,
+                        count_sat, max_update_factor, probs);
 }
 
 

@@ -11,22 +11,22 @@
 #include <math.h>
 #include <limits.h>
 
-#include "vp9/common/vp9_onyxc_int.h"
-#include "vp9/common/vp9_reconinter.h"
-#include "vp9/encoder/vp9_onyx_int.h"
-#include "vp9/common/vp9_systemdependent.h"
-#include "vp9/encoder/vp9_quantize.h"
 #include "vp9/common/vp9_alloccommon.h"
-#include "vp9/encoder/vp9_mcomp.h"
-#include "vp9/encoder/vp9_firstpass.h"
-#include "vp9/encoder/vp9_psnr.h"
-#include "vpx_scale/vpx_scale.h"
-#include "vp9/common/vp9_extend.h"
-#include "vp9/encoder/vp9_ratectrl.h"
+#include "vp9/common/vp9_onyxc_int.h"
 #include "vp9/common/vp9_quant_common.h"
+#include "vp9/common/vp9_reconinter.h"
+#include "vp9/common/vp9_systemdependent.h"
+#include "vp9/encoder/vp9_extend.h"
+#include "vp9/encoder/vp9_firstpass.h"
+#include "vp9/encoder/vp9_mcomp.h"
+#include "vp9/encoder/vp9_onyx_int.h"
+#include "vp9/encoder/vp9_psnr.h"
+#include "vp9/encoder/vp9_quantize.h"
+#include "vp9/encoder/vp9_ratectrl.h"
 #include "vp9/encoder/vp9_segmentation.h"
 #include "vpx_mem/vpx_mem.h"
 #include "vpx_ports/vpx_timer.h"
+#include "vpx_scale/vpx_scale.h"
 
 #define ALT_REF_MC_ENABLED 1    // dis/enable MC in AltRef filtering
 #define ALT_REF_SUBPEL_ENABLED 1  // dis/enable subpel in MC AltRef filtering
@@ -469,7 +469,7 @@ void configure_arnr_filter(VP9_COMP *cpi, const unsigned int this_frame,
   // cases where the filter extends beyond the end of clip.
   // Note: this_frame->frame has been updated in the loop
   // so it now points at the ARF frame.
-  half_gf_int = cpi->baseline_gf_interval >> 1;
+  half_gf_int = cpi->rc.baseline_gf_interval >> 1;
   frames_after_arf = (int)(cpi->twopass.total_stats.count - this_frame - 1);
 
   switch (cpi->oxcf.arnr_type) {
@@ -507,7 +507,7 @@ void configure_arnr_filter(VP9_COMP *cpi, const unsigned int this_frame,
   cpi->active_arnr_frames = frames_bwd + 1 + frames_fwd;
 
   // Adjust the strength based on active max q
-  q = ((int)vp9_convert_qindex_to_q(cpi->active_worst_quality) >> 1);
+  q = ((int)vp9_convert_qindex_to_q(cpi->rc.active_worst_quality) >> 1);
   if (q > 8) {
     cpi->active_arnr_strength = cpi->oxcf.arnr_strength;
   } else {

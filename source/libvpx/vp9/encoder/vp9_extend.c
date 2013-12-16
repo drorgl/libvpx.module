@@ -11,7 +11,7 @@
 #include "vpx_mem/vpx_mem.h"
 
 #include "vp9/common/vp9_common.h"
-#include "vp9/common/vp9_extend.h"
+#include "vp9/encoder/vp9_extend.h"
 
 static void copy_and_extend_plane(const uint8_t *src, int src_pitch,
                                   uint8_t *dst, int dst_pitch,
@@ -62,7 +62,7 @@ void vp9_copy_and_extend_frame(const YV12_BUFFER_CONFIG *src,
   const int et_y = 16;
   const int el_y = 16;
   // Motion estimation may use src block variance with the block size up
-  // to 64x64, so the right and bottom need to be extended to 64 mulitple
+  // to 64x64, so the right and bottom need to be extended to 64 multiple
   // or up to 16, whichever is greater.
   const int eb_y = MAX(ALIGN_POWER_OF_TWO(src->y_width, 6) - src->y_width,
                        16);

@@ -103,6 +103,8 @@ function write_special_flags {
   local sse3_sources=$(echo "$file_list" | grep '_sse3\.c$')
   local ssse3_sources=$(echo "$file_list" | grep '_ssse3\.c$')
   local sse4_1_sources=$(echo "$file_list" | grep '_sse4\.c$')
+  local avx_sources=$(echo "$file_list" | grep '_avx\.c$')
+  local avx2_sources=$(echo "$file_list" | grep '_avx2\.c$')
 
   # Intrinsic functions and files are in flux. We can selectively generate them
   # but we can not selectively include them in libvpx.gyp. Throw some warnings
@@ -110,25 +112,33 @@ function write_special_flags {
 
   # Expect output for these:
   if [ 0 -eq ${#mmx_sources} ]; then
-    echo "WARNING: Comment mmx sections in libvpx.gyp"
+    echo "ERROR: Comment mmx sections in libvpx.gyp"
     exit 1
   fi
   if [ 0 -eq ${#sse2_sources} ]; then
-    echo "WARNING: Comment sse2 sections in libvpx.gyp"
+    echo "ERROR: Comment sse2 sections in libvpx.gyp"
     exit 1
   fi
   if [ 0 -eq ${#ssse3_sources} ]; then
-    echo "WARNING: Comment ssse3 sections in libvpx.gyp"
+    echo "ERROR: Comment ssse3 sections in libvpx.gyp"
+    exit 1
+  fi
+  if [ 0 -eq ${#avx2_sources} ]; then
+    echo "ERROR: Comment avx2 sections in libvpx.gyp"
     exit 1
   fi
 
   # Do not expect output for these:
   if [ 0 -ne ${#sse3_sources} ]; then
-    echo "WARNING: Uncomment sse3 sections in libvpx.gyp"
+    echo "ERROR: Uncomment sse3 sections in libvpx.gyp"
     exit 1
   fi
   if [ 0 -ne ${#sse4_1_sources} ]; then
-    echo "WARNING: Uncomment sse4_1 sections in libvpx.gyp"
+    echo "ERROR: Uncomment sse4_1 sections in libvpx.gyp"
+    exit 1
+  fi
+  if [ 0 -ne ${#avx_sources} ]; then
+    echo "ERROR: Uncomment avx sections in libvpx.gyp"
     exit 1
   fi
 
@@ -141,6 +151,8 @@ function write_special_flags {
   #write_target_definition sse3_sources[@] $2 libvpx_intrinsics_sse3 sse3
   write_target_definition ssse3_sources[@] $2 libvpx_intrinsics_ssse3 ssse3
   #write_target_definition sse4_1_sources[@] $2 libvpx_intrinsics_sse4_1 sse4.1
+  #write_target_definition avx_sources[@] $2 libvpx_intrinsics_avx avx
+  write_target_definition avx2_sources[@] $2 libvpx_intrinsics_avx2 avx2
 
   echo "  ]," >> $2
 
@@ -173,7 +185,7 @@ function convert_srcs_to_gypi {
   # Select all x86 files ending with .c
   local x86_intrinsic_list=$(echo "$source_list" | \
     egrep 'vp[89]/(encoder|decoder|common)/x86/'  | \
-    egrep '(mmx|sse2|sse3|ssse3|sse4).c$')
+    egrep '(mmx|sse2|sse3|ssse3|sse4|avx|avx2).c$')
 
   # Remove these files from the main list.
   source_list=$(comm -23 <(echo "$source_list") <(echo "$x86_intrinsic_list"))

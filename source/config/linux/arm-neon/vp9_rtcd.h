@@ -21,6 +21,7 @@ struct macroblock;
 struct vp9_variance_vtable;
 
 #define DEC_MVCOSTS int *mvjcost, int *mvcost[2]
+struct mv;
 union int_mv;
 struct yv12_buffer_config;
 
@@ -184,13 +185,25 @@ void vp9_mb_lpf_vertical_edge_w_c(uint8_t *s, int pitch, const uint8_t *blimit, 
 void vp9_mb_lpf_vertical_edge_w_neon(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
 #define vp9_mb_lpf_vertical_edge_w vp9_mb_lpf_vertical_edge_w_neon
 
+void vp9_mb_lpf_vertical_edge_w_16_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
+void vp9_mb_lpf_vertical_edge_w_16_neon(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
+#define vp9_mb_lpf_vertical_edge_w_16 vp9_mb_lpf_vertical_edge_w_16_neon
+
 void vp9_mbloop_filter_vertical_edge_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
 void vp9_mbloop_filter_vertical_edge_neon(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
 #define vp9_mbloop_filter_vertical_edge vp9_mbloop_filter_vertical_edge_neon
 
+void vp9_mbloop_filter_vertical_edge_16_c(uint8_t *s, int pitch, const uint8_t *blimit0, const uint8_t *limit0, const uint8_t *thresh0, const uint8_t *blimit1, const uint8_t *limit1, const uint8_t *thresh1);
+void vp9_mbloop_filter_vertical_edge_16_neon(uint8_t *s, int pitch, const uint8_t *blimit0, const uint8_t *limit0, const uint8_t *thresh0, const uint8_t *blimit1, const uint8_t *limit1, const uint8_t *thresh1);
+#define vp9_mbloop_filter_vertical_edge_16 vp9_mbloop_filter_vertical_edge_16_neon
+
 void vp9_loop_filter_vertical_edge_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
 void vp9_loop_filter_vertical_edge_neon(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
 #define vp9_loop_filter_vertical_edge vp9_loop_filter_vertical_edge_neon
+
+void vp9_loop_filter_vertical_edge_16_c(uint8_t *s, int pitch, const uint8_t *blimit0, const uint8_t *limit0, const uint8_t *thresh0, const uint8_t *blimit1, const uint8_t *limit1, const uint8_t *thresh1);
+void vp9_loop_filter_vertical_edge_16_neon(uint8_t *s, int pitch, const uint8_t *blimit0, const uint8_t *limit0, const uint8_t *thresh0, const uint8_t *blimit1, const uint8_t *limit1, const uint8_t *thresh1);
+#define vp9_loop_filter_vertical_edge_16 vp9_loop_filter_vertical_edge_16_neon
 
 void vp9_mb_lpf_horizontal_edge_w_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
 void vp9_mb_lpf_horizontal_edge_w_neon(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
@@ -200,9 +213,17 @@ void vp9_mbloop_filter_horizontal_edge_c(uint8_t *s, int pitch, const uint8_t *b
 void vp9_mbloop_filter_horizontal_edge_neon(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
 #define vp9_mbloop_filter_horizontal_edge vp9_mbloop_filter_horizontal_edge_neon
 
+void vp9_mbloop_filter_horizontal_edge_16_c(uint8_t *s, int pitch, const uint8_t *blimit0, const uint8_t *limit0, const uint8_t *thresh0, const uint8_t *blimit1, const uint8_t *limit1, const uint8_t *thresh1);
+void vp9_mbloop_filter_horizontal_edge_16_neon(uint8_t *s, int pitch, const uint8_t *blimit0, const uint8_t *limit0, const uint8_t *thresh0, const uint8_t *blimit1, const uint8_t *limit1, const uint8_t *thresh1);
+#define vp9_mbloop_filter_horizontal_edge_16 vp9_mbloop_filter_horizontal_edge_16_neon
+
 void vp9_loop_filter_horizontal_edge_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
 void vp9_loop_filter_horizontal_edge_neon(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh, int count);
 #define vp9_loop_filter_horizontal_edge vp9_loop_filter_horizontal_edge_neon
+
+void vp9_loop_filter_horizontal_edge_16_c(uint8_t *s, int pitch, const uint8_t *blimit0, const uint8_t *limit0, const uint8_t *thresh0, const uint8_t *blimit1, const uint8_t *limit1, const uint8_t *thresh1);
+void vp9_loop_filter_horizontal_edge_16_neon(uint8_t *s, int pitch, const uint8_t *blimit0, const uint8_t *limit0, const uint8_t *thresh0, const uint8_t *blimit1, const uint8_t *limit1, const uint8_t *thresh1);
+#define vp9_loop_filter_horizontal_edge_16 vp9_loop_filter_horizontal_edge_16_neon
 
 void vp9_blend_mb_inner_c(uint8_t *y, uint8_t *u, uint8_t *v, int y1, int u1, int v1, int alpha, int stride);
 #define vp9_blend_mb_inner vp9_blend_mb_inner_c
@@ -282,10 +303,12 @@ void vp9_idct32x32_1024_add_neon(const int16_t *input, uint8_t *dest, int dest_s
 #define vp9_idct32x32_1024_add vp9_idct32x32_1024_add_neon
 
 void vp9_idct32x32_34_add_c(const int16_t *input, uint8_t *dest, int dest_stride);
-#define vp9_idct32x32_34_add vp9_idct32x32_34_add_c
+void vp9_idct32x32_1024_add_neon(const int16_t *input, uint8_t *dest, int dest_stride);
+#define vp9_idct32x32_34_add vp9_idct32x32_1024_add_neon
 
 void vp9_idct32x32_1_add_c(const int16_t *input, uint8_t *dest, int dest_stride);
-#define vp9_idct32x32_1_add vp9_idct32x32_1_add_c
+void vp9_idct32x32_1_add_neon(const int16_t *input, uint8_t *dest, int dest_stride);
+#define vp9_idct32x32_1_add vp9_idct32x32_1_add_neon
 
 void vp9_iht4x4_16_add_c(const int16_t *input, uint8_t *dest, int dest_stride, int tx_type);
 void vp9_iht4x4_16_add_neon(const int16_t *input, uint8_t *dest, int dest_stride, int tx_type);
