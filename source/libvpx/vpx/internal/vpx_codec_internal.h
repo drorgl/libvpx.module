@@ -41,8 +41,8 @@
  * Once initialized, the instance is manged using other functions from
  * the vpx_codec_* family.
  */
-#ifndef VPX_CODEC_INTERNAL_H
-#define VPX_CODEC_INTERNAL_H
+#ifndef VPX_INTERNAL_VPX_CODEC_INTERNAL_H_
+#define VPX_INTERNAL_VPX_CODEC_INTERNAL_H_
 #include "../vpx_decoder.h"
 #include "../vpx_encoder.h"
 #include <stdarg.h>
@@ -238,8 +238,9 @@ typedef vpx_image_t *(*vpx_codec_get_frame_fn_t)(vpx_codec_alg_priv_t *ctx,
  *     using external frame buffers.
  *
  * \note
- * When decoding VP9, the application must pass in at least 8 external
- * frame buffers, as VP9 can have up to 8 reference frames.
+ * When decoding VP9, the application must pass in at least
+ * #VP9_MAXIMUM_REF_BUFFERS + #VPX_MAXIMUM_WORK_BUFFERS external frame
+ * buffers.
  */
 typedef vpx_codec_err_t (*vpx_codec_set_frame_buffers_fn_t)(
     vpx_codec_alg_priv_t *ctx,
@@ -531,4 +532,4 @@ vpx_codec_err_t vpx_validate_mmaps(const vpx_codec_stream_info_t *si,
                                    const vpx_codec_mmap_t *mmaps,
                                    const mem_req_t *mem_reqs, int nreqs,
                                    vpx_codec_flags_t init_flags);
-#endif
+#endif  // VPX_INTERNAL_VPX_CODEC_INTERNAL_H_

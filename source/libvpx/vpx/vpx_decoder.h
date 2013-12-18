@@ -7,8 +7,8 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
-#ifndef VPX_DECODER_H
-#define VPX_DECODER_H
+#ifndef VPX_VPX_DECODER_H_
+#define VPX_VPX_DECODER_H_
 
 /*!\defgroup decoder Decoder Algorithm Interface
  * \ingroup codec
@@ -362,8 +362,9 @@ extern "C" {
    *     using external frame buffers.
    *
    * \note
-   * When decoding VP9, the application must pass in at least 8 external
-   * frame buffers, as VP9 can have up to 8 reference frames.
+   * When decoding VP9, the application must pass in at least
+   * #VP9_MAXIMUM_REF_BUFFERS + #VPX_MAXIMUM_WORK_BUFFERS external frame
+   * buffers.
    */
   vpx_codec_err_t vpx_codec_set_frame_buffers(
       vpx_codec_ctx_t *ctx,
@@ -376,5 +377,5 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
-#endif
+#endif  // VPX_VPX_DECODER_H_
 

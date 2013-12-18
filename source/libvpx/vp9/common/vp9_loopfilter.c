@@ -221,23 +221,10 @@ static const uint16_t size_mask_uv[BLOCK_SIZES] = {
 static const uint16_t left_border_uv =  0x1111;
 static const uint16_t above_border_uv = 0x000f;
 
-
-static void lf_init_lut(loop_filter_info_n *lfi) {
-  lfi->mode_lf_lut[DC_PRED] = 0;
-  lfi->mode_lf_lut[D45_PRED] = 0;
-  lfi->mode_lf_lut[D135_PRED] = 0;
-  lfi->mode_lf_lut[D117_PRED] = 0;
-  lfi->mode_lf_lut[D153_PRED] = 0;
-  lfi->mode_lf_lut[D207_PRED] = 0;
-  lfi->mode_lf_lut[D63_PRED] = 0;
-  lfi->mode_lf_lut[V_PRED] = 0;
-  lfi->mode_lf_lut[H_PRED] = 0;
-  lfi->mode_lf_lut[TM_PRED] = 0;
-  lfi->mode_lf_lut[ZEROMV]  = 0;
-  lfi->mode_lf_lut[NEARESTMV] = 1;
-  lfi->mode_lf_lut[NEARMV] = 1;
-  lfi->mode_lf_lut[NEWMV] = 1;
-}
+static const int mode_lf_lut[MB_MODE_COUNT] = {
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  // INTRA_MODES
+  1, 1, 0, 1                     // INTER_MODES (ZEROMV == 0)
+};
 
 static void update_sharpness(loop_filter_info_n *lfi, int sharpness_lvl) {
   int lvl;
@@ -269,9 +256,6 @@ void vp9_loop_filter_init(VP9_COMMON *cm) {
   // init limits for given sharpness
   update_sharpness(lfi, lf->sharpness_level);
   lf->last_sharpness_level = lf->sharpness_level;
-
-  // init LUT for lvl  and hev thr picking
-  lf_init_lut(lfi);
 
   // init hev threshold const vectors
   for (lvl = 0; lvl <= MAX_LOOP_FILTER; lvl++)
@@ -355,56 +339,56 @@ static void filter_selectively_vert_row2(PLANE_TYPE plane_type,
     if (mask & 1) {
       if ((mask_16x16_0 | mask_16x16_1) & 1) {
         if ((mask_16x16_0 & mask_16x16_1) & 1) {
-          vp9_mb_lpf_vertical_edge_w_16(s, pitch, lfi0->mblim, lfi0->lim,
-                                     lfi0->hev_thr);
+          vp9_lpf_vertical_16_dual(s, pitch, lfi0->mblim, lfi0->lim,
+                                   lfi0->hev_thr);
         } else if (mask_16x16_0 & 1) {
-          vp9_mb_lpf_vertical_edge_w(s, pitch, lfi0->mblim, lfi0->lim,
-                                     lfi0->hev_thr);
+          vp9_lpf_vertical_16(s, pitch, lfi0->mblim, lfi0->lim,
+                              lfi0->hev_thr);
         } else {
-          vp9_mb_lpf_vertical_edge_w(s + 8 *pitch, pitch, lfi1->mblim,
-                                     lfi1->lim, lfi1->hev_thr);
+          vp9_lpf_vertical_16(s + 8 *pitch, pitch, lfi1->mblim,
+                              lfi1->lim, lfi1->hev_thr);
         }
       }
 
       if ((mask_8x8_0 | mask_8x8_1) & 1) {
         if ((mask_8x8_0 & mask_8x8_1) & 1) {
-          vp9_mbloop_filter_vertical_edge_16(s, pitch, lfi0->mblim, lfi0->lim,
-                                          lfi0->hev_thr, lfi1->mblim,
-                                          lfi1->lim, lfi1->hev_thr);
+          vp9_lpf_vertical_8_dual(s, pitch, lfi0->mblim, lfi0->lim,
+                                  lfi0->hev_thr, lfi1->mblim, lfi1->lim,
+                                  lfi1->hev_thr);
         } else if (mask_8x8_0 & 1) {
-          vp9_mbloop_filter_vertical_edge(s, pitch, lfi0->mblim, lfi0->lim,
-                                          lfi0->hev_thr, 1);
+          vp9_lpf_vertical_8(s, pitch, lfi0->mblim, lfi0->lim, lfi0->hev_thr,
+                             1);
         } else {
-          vp9_mbloop_filter_vertical_edge(s + 8 *pitch, pitch, lfi1->mblim,
-                                          lfi1->lim, lfi1->hev_thr, 1);
+          vp9_lpf_vertical_8(s + 8 * pitch, pitch, lfi1->mblim, lfi1->lim,
+                             lfi1->hev_thr, 1);
         }
       }
 
       if ((mask_4x4_0 | mask_4x4_1) & 1) {
         if ((mask_4x4_0 & mask_4x4_1) & 1) {
-          vp9_loop_filter_vertical_edge_16(s, pitch, lfi0->mblim, lfi0->lim,
-                                        lfi0->hev_thr, lfi1->mblim,
-                                        lfi1->lim, lfi1->hev_thr);
+          vp9_lpf_vertical_4_dual(s, pitch, lfi0->mblim, lfi0->lim,
+                                  lfi0->hev_thr, lfi1->mblim, lfi1->lim,
+                                  lfi1->hev_thr);
         } else if (mask_4x4_0 & 1) {
-          vp9_loop_filter_vertical_edge(s, pitch, lfi0->mblim, lfi0->lim,
-                                        lfi0->hev_thr, 1);
+          vp9_lpf_vertical_4(s, pitch, lfi0->mblim, lfi0->lim, lfi0->hev_thr,
+                             1);
         } else {
-          vp9_loop_filter_vertical_edge(s + 8 *pitch, pitch, lfi1->mblim,
-                                        lfi1->lim, lfi1->hev_thr, 1);
+          vp9_lpf_vertical_4(s + 8 * pitch, pitch, lfi1->mblim, lfi1->lim,
+                             lfi1->hev_thr, 1);
         }
       }
 
       if ((mask_4x4_int_0 | mask_4x4_int_1) & 1) {
         if ((mask_4x4_int_0 & mask_4x4_int_1) & 1) {
-          vp9_loop_filter_vertical_edge_16(s + 4, pitch, lfi0->mblim, lfi0->lim,
-                                        lfi0->hev_thr, lfi1->mblim,
-                                        lfi1->lim, lfi1->hev_thr);
+          vp9_lpf_vertical_4_dual(s + 4, pitch, lfi0->mblim, lfi0->lim,
+                                  lfi0->hev_thr, lfi1->mblim, lfi1->lim,
+                                  lfi1->hev_thr);
         } else if (mask_4x4_int_0 & 1) {
-          vp9_loop_filter_vertical_edge(s + 4, pitch, lfi0->mblim, lfi0->lim,
-                                        lfi0->hev_thr, 1);
+          vp9_lpf_vertical_4(s + 4, pitch, lfi0->mblim, lfi0->lim,
+                             lfi0->hev_thr, 1);
         } else {
-          vp9_loop_filter_vertical_edge(s + 8 *pitch + 4, pitch, lfi1->mblim,
-                                        lfi1->lim, lfi1->hev_thr, 1);
+          vp9_lpf_vertical_4(s + 8 * pitch + 4, pitch, lfi1->mblim, lfi1->lim,
+                             lfi1->hev_thr, 1);
         }
       }
     }
@@ -440,81 +424,73 @@ static void filter_selectively_horiz(uint8_t *s, int pitch,
     if (mask & 1) {
       if (mask_16x16 & 1) {
         if ((mask_16x16 & 3) == 3) {
-          vp9_mb_lpf_horizontal_edge_w(s, pitch, lfi->mblim, lfi->lim,
-                                       lfi->hev_thr, 2);
+          vp9_lpf_horizontal_16(s, pitch, lfi->mblim, lfi->lim,
+                                lfi->hev_thr, 2);
           count = 2;
         } else {
-          vp9_mb_lpf_horizontal_edge_w(s, pitch, lfi->mblim, lfi->lim,
-                                       lfi->hev_thr, 1);
+          vp9_lpf_horizontal_16(s, pitch, lfi->mblim, lfi->lim,
+                                lfi->hev_thr, 1);
         }
       } else if (mask_8x8 & 1) {
         if ((mask_8x8 & 3) == 3) {
           // Next block's thresholds
           const loop_filter_thresh *lfin = lfi_n->lfthr + *(lfl + 1);
 
-          vp9_mbloop_filter_horizontal_edge_16(s, pitch, lfi->mblim,
-                                               lfi->lim, lfi->hev_thr,
-                                               lfin->mblim, lfin->lim,
-                                               lfin->hev_thr);
+          vp9_lpf_horizontal_8_dual(s, pitch, lfi->mblim, lfi->lim,
+                                    lfi->hev_thr, lfin->mblim, lfin->lim,
+                                    lfin->hev_thr);
 
           if ((mask_4x4_int & 3) == 3) {
-            vp9_loop_filter_horizontal_edge_16(s + 4 * pitch, pitch, lfi->mblim,
-                                               lfi->lim, lfi->hev_thr,
-                                               lfin->mblim, lfin->lim,
-                                               lfin->hev_thr);
+            vp9_lpf_horizontal_4_dual(s + 4 * pitch, pitch, lfi->mblim,
+                                      lfi->lim, lfi->hev_thr, lfin->mblim,
+                                      lfin->lim, lfin->hev_thr);
           } else {
             if (mask_4x4_int & 1)
-              vp9_loop_filter_horizontal_edge(s + 4 * pitch, pitch, lfi->mblim,
-                                              lfi->lim, lfi->hev_thr, 1);
+              vp9_lpf_horizontal_4(s + 4 * pitch, pitch, lfi->mblim, lfi->lim,
+                                   lfi->hev_thr, 1);
             else if (mask_4x4_int & 2)
-              vp9_loop_filter_horizontal_edge(s + 8 + 4 * pitch, pitch,
-                                              lfin->mblim, lfin->lim,
-                                              lfin->hev_thr, 1);
+              vp9_lpf_horizontal_4(s + 8 + 4 * pitch, pitch, lfin->mblim,
+                                   lfin->lim, lfin->hev_thr, 1);
           }
           count = 2;
         } else {
-          vp9_mbloop_filter_horizontal_edge(s, pitch, lfi->mblim, lfi->lim,
-                                            lfi->hev_thr, 1);
+          vp9_lpf_horizontal_8(s, pitch, lfi->mblim, lfi->lim, lfi->hev_thr, 1);
 
           if (mask_4x4_int & 1)
-            vp9_loop_filter_horizontal_edge(s + 4 * pitch, pitch, lfi->mblim,
-                                            lfi->lim, lfi->hev_thr, 1);
+            vp9_lpf_horizontal_4(s + 4 * pitch, pitch, lfi->mblim, lfi->lim,
+                                 lfi->hev_thr, 1);
         }
       } else if (mask_4x4 & 1) {
         if ((mask_4x4 & 3) == 3) {
           // Next block's thresholds
           const loop_filter_thresh *lfin = lfi_n->lfthr + *(lfl + 1);
 
-          vp9_loop_filter_horizontal_edge_16(s, pitch, lfi->mblim,
-                                             lfi->lim, lfi->hev_thr,
-                                             lfin->mblim, lfin->lim,
-                                             lfin->hev_thr);
+          vp9_lpf_horizontal_4_dual(s, pitch, lfi->mblim, lfi->lim,
+                                    lfi->hev_thr, lfin->mblim, lfin->lim,
+                                    lfin->hev_thr);
           if ((mask_4x4_int & 3) == 3) {
-            vp9_loop_filter_horizontal_edge_16(s + 4 * pitch, pitch, lfi->mblim,
-                                               lfi->lim, lfi->hev_thr,
-                                               lfin->mblim, lfin->lim,
-                                               lfin->hev_thr);
+            vp9_lpf_horizontal_4_dual(s + 4 * pitch, pitch, lfi->mblim,
+                                      lfi->lim, lfi->hev_thr, lfin->mblim,
+                                      lfin->lim, lfin->hev_thr);
           } else {
             if (mask_4x4_int & 1)
-              vp9_loop_filter_horizontal_edge(s + 4 * pitch, pitch, lfi->mblim,
-                                              lfi->lim, lfi->hev_thr, 1);
+              vp9_lpf_horizontal_4(s + 4 * pitch, pitch, lfi->mblim, lfi->lim,
+                                   lfi->hev_thr, 1);
             else if (mask_4x4_int & 2)
-              vp9_loop_filter_horizontal_edge(s + 8 + 4 * pitch, pitch,
-                                              lfin->mblim, lfin->lim,
-                                              lfin->hev_thr, 1);
+              vp9_lpf_horizontal_4(s + 8 + 4 * pitch, pitch, lfin->mblim,
+                                   lfin->lim, lfin->hev_thr, 1);
           }
           count = 2;
         } else {
-        vp9_loop_filter_horizontal_edge(s, pitch, lfi->mblim, lfi->lim,
-                                        lfi->hev_thr, 1);
+          vp9_lpf_horizontal_4(s, pitch, lfi->mblim, lfi->lim, lfi->hev_thr, 1);
 
-        if (mask_4x4_int & 1)
-          vp9_loop_filter_horizontal_edge(s + 4 * pitch, pitch, lfi->mblim,
-                                          lfi->lim, lfi->hev_thr, 1);
+          if (mask_4x4_int & 1)
+            vp9_lpf_horizontal_4(s + 4 * pitch, pitch, lfi->mblim, lfi->lim,
+                                 lfi->hev_thr, 1);
         }
       } else if (mask_4x4_int & 1) {
-        vp9_loop_filter_horizontal_edge(s + 4 * pitch, pitch, lfi->mblim,
-                                        lfi->lim, lfi->hev_thr, 1);
+        vp9_lpf_horizontal_4(s + 4 * pitch, pitch, lfi->mblim, lfi->lim,
+                             lfi->hev_thr, 1);
       }
     }
     s += 8 * count;
@@ -543,8 +519,7 @@ static void build_masks(const loop_filter_info_n *const lfi_n,
   const int skip = mi->mbmi.skip_coeff;
   const int seg = mi->mbmi.segment_id;
   const int ref = mi->mbmi.ref_frame[0];
-  const int mode = lfi_n->mode_lf_lut[mi->mbmi.mode];
-  const int filter_level = lfi_n->lvl[seg][ref][mode];
+  const int filter_level = lfi_n->lvl[seg][ref][mode_lf_lut[mi->mbmi.mode]];
   uint64_t *left_y = &lfm->left_y[tx_size_y];
   uint64_t *above_y = &lfm->above_y[tx_size_y];
   uint64_t *int_4x4_y = &lfm->int_4x4_y;
@@ -625,8 +600,7 @@ static void build_y_mask(const loop_filter_info_n *const lfi_n,
   const int skip = mi->mbmi.skip_coeff;
   const int seg = mi->mbmi.segment_id;
   const int ref = mi->mbmi.ref_frame[0];
-  const int mode = lfi_n->mode_lf_lut[mi->mbmi.mode];
-  const int filter_level = lfi_n->lvl[seg][ref][mode];
+  const int filter_level = lfi_n->lvl[seg][ref][mode_lf_lut[mi->mbmi.mode]];
   uint64_t *left_y = &lfm->left_y[tx_size_y];
   uint64_t *above_y = &lfm->above_y[tx_size_y];
   uint64_t *int_4x4_y = &lfm->int_4x4_y;
@@ -919,10 +893,7 @@ static uint8_t build_lfi(const loop_filter_info_n *lfi_n,
                      const MB_MODE_INFO *mbmi) {
   const int seg = mbmi->segment_id;
   const int ref = mbmi->ref_frame[0];
-  const int mode = lfi_n->mode_lf_lut[mbmi->mode];
-  const int filter_level = lfi_n->lvl[seg][ref][mode];
-
-  return filter_level;
+  return lfi_n->lvl[seg][ref][mode_lf_lut[mbmi->mode]];
 }
 
 static void filter_selectively_vert(uint8_t *s, int pitch,
@@ -940,19 +911,15 @@ static void filter_selectively_vert(uint8_t *s, int pitch,
 
     if (mask & 1) {
       if (mask_16x16 & 1) {
-        vp9_mb_lpf_vertical_edge_w(s, pitch, lfi->mblim, lfi->lim,
-                                   lfi->hev_thr);
+        vp9_lpf_vertical_16(s, pitch, lfi->mblim, lfi->lim, lfi->hev_thr);
       } else if (mask_8x8 & 1) {
-        vp9_mbloop_filter_vertical_edge(s, pitch, lfi->mblim, lfi->lim,
-                                        lfi->hev_thr, 1);
+        vp9_lpf_vertical_8(s, pitch, lfi->mblim, lfi->lim, lfi->hev_thr, 1);
       } else if (mask_4x4 & 1) {
-        vp9_loop_filter_vertical_edge(s, pitch, lfi->mblim, lfi->lim,
-                                      lfi->hev_thr, 1);
+        vp9_lpf_vertical_4(s, pitch, lfi->mblim, lfi->lim, lfi->hev_thr, 1);
       }
     }
     if (mask_4x4_int & 1)
-      vp9_loop_filter_vertical_edge(s + 4, pitch, lfi->mblim, lfi->lim,
-                                    lfi->hev_thr, 1);
+      vp9_lpf_vertical_4(s + 4, pitch, lfi->mblim, lfi->lim, lfi->hev_thr, 1);
     s += 8;
     lfl += 1;
     mask_16x16 >>= 1;
@@ -989,15 +956,16 @@ static void filter_block_plane_non420(VP9_COMMON *cm,
     // Determine the vertical edges that need filtering
     for (c = 0; c < MI_BLOCK_SIZE && mi_col + c < cm->mi_cols; c += col_step) {
       const MODE_INFO *mi = mi_8x8[c];
+      const BLOCK_SIZE sb_type = mi[0].mbmi.sb_type;
       const int skip_this = mi[0].mbmi.skip_coeff
                             && is_inter_block(&mi[0].mbmi);
       // left edge of current unit is block/partition edge -> no skip
-      const int block_edge_left = b_width_log2(mi[0].mbmi.sb_type) ?
-          !(c & ((1 << (b_width_log2(mi[0].mbmi.sb_type)-1)) - 1)) : 1;
+      const int block_edge_left = (num_4x4_blocks_wide_lookup[sb_type] > 1) ?
+          !(c & (num_8x8_blocks_wide_lookup[sb_type] - 1)) : 1;
       const int skip_this_c = skip_this && !block_edge_left;
       // top edge of current unit is block/partition edge -> no skip
-      const int block_edge_above = b_height_log2(mi[0].mbmi.sb_type) ?
-          !(r & ((1 << (b_height_log2(mi[0].mbmi.sb_type)-1)) - 1)) : 1;
+      const int block_edge_above = (num_4x4_blocks_high_lookup[sb_type] > 1) ?
+          !(r & (num_8x8_blocks_high_lookup[sb_type] - 1)) : 1;
       const int skip_this_r = skip_this && !block_edge_above;
       const TX_SIZE tx_size = (plane->plane_type == PLANE_TYPE_UV)
                             ? get_uv_tx_size(&mi[0].mbmi)

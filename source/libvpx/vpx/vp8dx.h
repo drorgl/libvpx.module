@@ -9,8 +9,6 @@
  */
 
 
-#include "./vp8.h"
-
 /*!\defgroup vp8_decoder WebM VP8 Decoder
  * \ingroup vp8
  *
@@ -20,12 +18,15 @@
  * \brief Provides definitions for using the VP8 algorithm within the vpx Decoder
  *        interface.
  */
-#ifndef VP8DX_H
-#define VP8DX_H
+#ifndef VPX_VP8DX_H_
+#define VPX_VP8DX_H_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* Include controls common to both the encoder and decoder */
+#include "./vp8.h"
 
 /*!\name Algorithm interface for VP8
  *
@@ -40,9 +41,6 @@ extern vpx_codec_iface_t *vpx_codec_vp8_dx(void);
 extern vpx_codec_iface_t  vpx_codec_vp9_dx_algo;
 extern vpx_codec_iface_t *vpx_codec_vp9_dx(void);
 /*!@} - end algorithm interface member group*/
-
-/* Include controls common to both the encoder and decoder */
-#include "./vp8.h"
 
 
 /*!\enum vp8_dec_control_id
@@ -125,4 +123,4 @@ VPX_CTRL_USE_TYPE(VP9D_SET_FRAME_BUFFER_LRU_CACHE, int)
 }  // extern "C"
 #endif
 
-#endif
+#endif  // VPX_VP8DX_H_

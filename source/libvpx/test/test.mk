@@ -92,6 +92,7 @@ LIBVPX_TEST_SRCS-yes                   += vp9_boolcoder_test.cc
 
 # IDCT test currently depends on FDCT function
 LIBVPX_TEST_SRCS-yes                   += idct8x8_test.cc
+LIBVPX_TEST_SRCS-yes                   += partial_idct_test.cc
 LIBVPX_TEST_SRCS-yes                   += superframe_test.cc
 LIBVPX_TEST_SRCS-yes                   += tile_independence_test.cc
 endif
@@ -668,6 +669,8 @@ LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-08-tile-4x1.webm
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-08-tile-4x1.webm.md5
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-09-subpixel-00.ivf
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-09-subpixel-00.ivf.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-09-aq2.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-09-aq2.webm.md5
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp91-2-04-yv444.webm
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp91-2-04-yv444.webm.md5
 

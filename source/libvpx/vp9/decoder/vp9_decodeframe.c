@@ -76,9 +76,8 @@ static void setup_compound_reference(VP9_COMMON *cm) {
   }
 }
 
-// len == 0 is not allowed
 static int read_is_valid(const uint8_t *start, size_t len, const uint8_t *end) {
-  return start + len > start && start + len <= end;
+  return len != 0 && len <= end - start;
 }
 
 static int decode_unsigned_max(struct vp9_read_bit_buffer *rb, int max) {
@@ -305,12 +304,10 @@ static void predict_and_reconstruct_intra_block(int plane, int block,
   txfrm_block_to_raster_xy(plane_bsize, tx_size, block, &x, &y);
   dst = &pd->dst.buf[4 * y * pd->dst.stride + 4 * x];
 
-  if (xd->mb_to_right_edge < 0 || xd->mb_to_bottom_edge < 0)
-    extend_for_intra(xd, plane_bsize, plane, x, y);
-
   vp9_predict_intra_block(xd, block >> (tx_size << 1),
                           b_width_log2(plane_bsize), tx_size, mode,
-                          dst, pd->dst.stride, dst, pd->dst.stride);
+                          dst, pd->dst.stride, dst, pd->dst.stride,
+                          x, y, plane);
 
   if (!mi->mbmi.skip_coeff) {
     const int eob = vp9_decode_block_tokens(cm, xd, plane, block,
@@ -857,10 +854,14 @@ static size_t get_tile(const uint8_t *const data_end,
   if (!is_last) {
     if (!read_is_valid(*data, 4, data_end))
       vpx_internal_error(error_info, VPX_CODEC_CORRUPT_FRAME,
-          "Truncated packet or corrupt tile length");
+                         "Truncated packet or corrupt tile length");
 
     size = read_be32(*data);
     *data += 4;
+
+    if (size > data_end - *data)
+      vpx_internal_error(error_info, VPX_CODEC_CORRUPT_FRAME,
+                         "Truncated packet or corrupt tile size");
   } else {
     size = data_end - *data;
   }
@@ -1349,6 +1350,7 @@ int vp9_decode_frame(VP9D_COMP *pbi, const uint8_t **p_data_end) {
   const int tile_rows = 1 << cm->log2_tile_rows;
   const int tile_cols = 1 << cm->log2_tile_cols;
   YV12_BUFFER_CONFIG *const new_fb = get_frame_new_buffer(cm);
+  xd->cur_buf = new_fb;
 
   if (!first_partition_size) {
       // showing a frame directly

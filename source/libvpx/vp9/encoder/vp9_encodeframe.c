@@ -548,6 +548,9 @@ void vp9_setup_src_planes(MACROBLOCK *x, const YV12_BUFFER_CONFIG *src,
                           src->alpha_stride};
   int i;
 
+  // Set current frame pointer.
+  x->e_mbd.cur_buf = src;
+
   for (i = 0; i < MAX_MB_PLANE; i++)
     setup_pred_plane(&x->plane[i].src, buffers[i], strides[i], mi_row, mi_col,
                      NULL, x->e_mbd.plane[i].subsampling_x,
@@ -857,15 +860,8 @@ static void save_context(VP9_COMP *cpi, int mi_row, int mi_col,
 
 static void encode_b(VP9_COMP *cpi, const TileInfo *const tile,
                      TOKENEXTRA **tp, int mi_row, int mi_col,
-                     int output_enabled, BLOCK_SIZE bsize, int sub_index) {
-  VP9_COMMON *const cm = &cpi->common;
+                     int output_enabled, BLOCK_SIZE bsize) {
   MACROBLOCK *const x = &cpi->mb;
-
-  if (mi_row >= cm->mi_rows || mi_col >= cm->mi_cols)
-    return;
-
-  if (sub_index != -1)
-    *get_sb_index(x, bsize) = sub_index;
 
   if (bsize < BLOCK_8X8) {
     // When ab_index = 0 all sub-blocks are handled, so for ab_index != 0
@@ -890,64 +886,73 @@ static void encode_sb(VP9_COMP *cpi, const TileInfo *const tile,
                       int output_enabled, BLOCK_SIZE bsize) {
   VP9_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &cpi->mb;
-  BLOCK_SIZE c1 = BLOCK_8X8;
-  const int bsl = b_width_log2(bsize), bs = (1 << bsl) / 4;
-  int pl = 0;
+  const int bsl = b_width_log2(bsize), hbs = (1 << bsl) / 4;
+  int ctx;
   PARTITION_TYPE partition;
   BLOCK_SIZE subsize;
-  int i;
 
   if (mi_row >= cm->mi_rows || mi_col >= cm->mi_cols)
     return;
 
-  c1 = BLOCK_4X4;
   if (bsize >= BLOCK_8X8) {
-    pl = partition_plane_context(cpi->above_seg_context, cpi->left_seg_context,
+    ctx = partition_plane_context(cpi->above_seg_context, cpi->left_seg_context,
                                  mi_row, mi_col, bsize);
-    c1 = *(get_sb_partitioning(x, bsize));
+    subsize = *get_sb_partitioning(x, bsize);
+  } else {
+    ctx = 0;
+    subsize = BLOCK_4X4;
   }
-  partition = partition_lookup[bsl][c1];
+
+  partition = partition_lookup[bsl][subsize];
 
   switch (partition) {
     case PARTITION_NONE:
       if (output_enabled && bsize >= BLOCK_8X8)
-        cm->counts.partition[pl][PARTITION_NONE]++;
-      encode_b(cpi, tile, tp, mi_row, mi_col, output_enabled, c1, -1);
+        cm->counts.partition[ctx][PARTITION_NONE]++;
+      encode_b(cpi, tile, tp, mi_row, mi_col, output_enabled, subsize);
       break;
     case PARTITION_VERT:
       if (output_enabled)
-        cm->counts.partition[pl][PARTITION_VERT]++;
-      encode_b(cpi, tile, tp, mi_row, mi_col, output_enabled, c1, 0);
-      encode_b(cpi, tile, tp, mi_row, mi_col + bs, output_enabled, c1, 1);
+        cm->counts.partition[ctx][PARTITION_VERT]++;
+      *get_sb_index(x, subsize) = 0;
+      encode_b(cpi, tile, tp, mi_row, mi_col, output_enabled, subsize);
+      if (mi_col + hbs < cm->mi_cols) {
+        *get_sb_index(x, subsize) = 1;
+        encode_b(cpi, tile, tp, mi_row, mi_col + hbs, output_enabled, subsize);
+      }
       break;
     case PARTITION_HORZ:
       if (output_enabled)
-        cm->counts.partition[pl][PARTITION_HORZ]++;
-      encode_b(cpi, tile, tp, mi_row, mi_col, output_enabled, c1, 0);
-      encode_b(cpi, tile, tp, mi_row + bs, mi_col, output_enabled, c1, 1);
+        cm->counts.partition[ctx][PARTITION_HORZ]++;
+      *get_sb_index(x, subsize) = 0;
+      encode_b(cpi, tile, tp, mi_row, mi_col, output_enabled, subsize);
+      if (mi_row + hbs < cm->mi_rows) {
+        *get_sb_index(x, subsize) = 1;
+        encode_b(cpi, tile, tp, mi_row + hbs, mi_col, output_enabled, subsize);
+      }
       break;
     case PARTITION_SPLIT:
       subsize = get_subsize(bsize, PARTITION_SPLIT);
-
       if (output_enabled)
-        cm->counts.partition[pl][PARTITION_SPLIT]++;
+        cm->counts.partition[ctx][PARTITION_SPLIT]++;
 
-      for (i = 0; i < 4; i++) {
-        const int x_idx = i & 1, y_idx = i >> 1;
-
-        *get_sb_index(x, subsize) = i;
-        encode_sb(cpi, tile, tp, mi_row + y_idx * bs, mi_col + x_idx * bs,
-                  output_enabled, subsize);
-      }
+      *get_sb_index(x, subsize) = 0;
+      encode_sb(cpi, tile, tp, mi_row, mi_col, output_enabled, subsize);
+      *get_sb_index(x, subsize) = 1;
+      encode_sb(cpi, tile, tp, mi_row, mi_col + hbs, output_enabled, subsize);
+      *get_sb_index(x, subsize) = 2;
+      encode_sb(cpi, tile, tp, mi_row + hbs, mi_col, output_enabled, subsize);
+      *get_sb_index(x, subsize) = 3;
+      encode_sb(cpi, tile, tp, mi_row + hbs, mi_col + hbs, output_enabled,
+                subsize);
       break;
     default:
-      assert(0);
-      break;
+      assert("Invalid partition type.");
   }
 
   if (partition != PARTITION_SPLIT || bsize == BLOCK_8X8)
     update_partition_context(cpi->above_seg_context, cpi->left_seg_context,
-                             mi_row, mi_col, c1, bsize);
+                             mi_row, mi_col, subsize, bsize);
 }
 
 // Check to see if the given partition size is allowed for a specified number
@@ -1455,7 +1460,7 @@ static void compute_fast_motion_search_level(VP9_COMP *cpi, BLOCK_SIZE bsize) {
   // int use_8x8 = (MIN(cpi->common.width, cpi->common.height) < 720) ? 1 : 0;
   int use_8x8 = 1;
 
-  if (cm->frame_type && !cpi->is_src_frame_alt_ref &&
+  if (cm->frame_type && !cpi->rc.is_src_frame_alt_ref &&
       ((use_8x8 && bsize == BLOCK_16X16) ||
       bsize == BLOCK_32X32 || bsize == BLOCK_64X64)) {
     int ref0 = 0, ref1 = 0, ref2 = 0, ref3 = 0;
@@ -1944,7 +1949,7 @@ static void encode_sb_row(VP9_COMP *cpi, const TileInfo *const tile,
             || cm->prev_mi == 0
             || cpi->common.show_frame == 0
             || cpi->common.frame_type == KEY_FRAME
-            || cpi->is_src_frame_alt_ref
+            || cpi->rc.is_src_frame_alt_ref
             || ((cpi->sf.use_lastframe_partitioning ==
                  LAST_FRAME_PARTITION_LOW_MOTION) &&
                  sb_has_motion(cpi, prev_mi_8x8))) {
@@ -2072,7 +2077,7 @@ static void encode_frame_internal(VP9_COMP *cpi) {
 
   xd->last_mi = cm->prev_mi;
 
-  vp9_zero(cpi->NMVcount);
+  vp9_zero(cpi->common.counts.mv);
   vp9_zero(cpi->coef_counts);
   vp9_zero(cm->counts.eob_branch);
 
@@ -2274,7 +2279,7 @@ static int get_frame_type(VP9_COMP *cpi) {
   int frame_type;
   if (frame_is_intra_only(&cpi->common))
     frame_type = 0;
-  else if (cpi->is_src_frame_alt_ref && cpi->refresh_golden_frame)
+  else if (cpi->rc.is_src_frame_alt_ref && cpi->refresh_golden_frame)
     frame_type = 3;
   else if (cpi->refresh_golden_frame || cpi->refresh_alt_ref_frame)
     frame_type = 1;
