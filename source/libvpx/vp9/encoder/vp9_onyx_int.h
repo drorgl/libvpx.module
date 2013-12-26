@@ -26,7 +26,6 @@
 #include "vpx_ports/mem.h"
 #include "vpx/internal/vpx_codec_internal.h"
 #include "vp9/encoder/vp9_mcomp.h"
-#include "vp9/common/vp9_findnearmv.h"
 #include "vp9/encoder/vp9_lookahead.h"
 
 #define DISABLE_RC_LONG_TERM_MEM 0
@@ -331,6 +330,9 @@ typedef struct {
   int buffer_level;
   int bits_off_target;
 
+  int decimation_factor;
+  int decimation_count;
+
   int rolling_target_bits;
   int rolling_actual_bits;
 
@@ -428,11 +430,6 @@ typedef struct VP9_COMP {
 
   int64_t rd_comp_pred_diff[REFERENCE_MODES];
   int64_t rd_prediction_type_threshes[4][REFERENCE_MODES];
-  unsigned int intra_inter_count[INTRA_INTER_CONTEXTS][2];
-  unsigned int comp_inter_count[COMP_INTER_CONTEXTS][2];
-  unsigned int single_ref_count[REF_CONTEXTS][2][2];
-  unsigned int comp_ref_count[REF_CONTEXTS][2];
-
   int64_t rd_tx_select_diff[TX_MODES];
   // FIXME(rbultje) can this overflow?
   int rd_tx_select_threshes[4][TX_MODES];
@@ -440,6 +437,7 @@ typedef struct VP9_COMP {
   int64_t rd_filter_diff[SWITCHABLE_FILTER_CONTEXTS];
   int64_t rd_filter_threshes[4][SWITCHABLE_FILTER_CONTEXTS];
   int64_t rd_filter_cache[SWITCHABLE_FILTER_CONTEXTS];
+  int64_t mask_filter_rd;
 
   int RDMULT;
   int RDDIV;
@@ -460,9 +458,6 @@ typedef struct VP9_COMP {
 
   int cq_target_quality;
 
-  int y_mode_count[4][INTRA_MODES];
-  int y_uv_mode_count[INTRA_MODES][INTRA_MODES];
-
   vp9_coeff_count coef_counts[TX_SIZES][PLANE_TYPES];
   vp9_coeff_probs_model frame_coef_probs[TX_SIZES][PLANE_TYPES];
   vp9_coeff_stats frame_branch_ct[TX_SIZES][PLANE_TYPES];
@@ -479,9 +474,6 @@ typedef struct VP9_COMP {
   int mbgraph_n_frames;             // number of frames filled in the above
   int static_mb_pct;                // % forced skip mbs by segmentation
   int seg0_progress, seg0_idx, seg0_cnt;
-
-  int decimation_factor;
-  int decimation_count;
 
   // for real time encoding
   int speed;
@@ -535,7 +527,6 @@ typedef struct VP9_COMP {
     int64_t clip_bits_total;
     double avg_iiratio;
     double modified_error_total;
-    double modified_error_used;
     double modified_error_left;
     double kf_intra_err_min;
     double gf_intra_err_min;

@@ -364,6 +364,19 @@ void vp9_end_first_pass(VP9_COMP *cpi) {
   output_stats(cpi, cpi->output_pkt_list, &cpi->twopass.total_stats);
 }
 
+static vp9_variance_fn_t get_block_variance_fn(BLOCK_SIZE bsize) {
+  switch (bsize) {
+    case BLOCK_8X8:
+      return vp9_mse8x8;
+    case BLOCK_16X8:
+      return vp9_mse16x8;
+    case BLOCK_8X16:
+      return vp9_mse8x16;
+    default:
+      return vp9_mse16x16;
+  }
+}
+
 static unsigned int zz_motion_search(VP9_COMP *cpi, MACROBLOCK *x,
                                      YV12_BUFFER_CONFIG *recon_buffer,
                                      int recon_yoffset) {
@@ -375,20 +388,8 @@ static unsigned int zz_motion_search(VP9_COMP *cpi, MACROBLOCK *x,
   const int ref_stride = xd->plane[0].pre[0].stride;
 
   unsigned int sse;
-  switch (xd->mi_8x8[0]->mbmi.sb_type) {
-    case BLOCK_8X8:
-      vp9_mse8x8(src, src_stride, ref, ref_stride, &sse);
-      break;
-    case BLOCK_16X8:
-      vp9_mse16x8(src, src_stride, ref, ref_stride, &sse);
-      break;
-    case BLOCK_8X16:
-      vp9_mse8x16(src, src_stride, ref, ref_stride, &sse);
-      break;
-    default:
-      vp9_mse16x16(src, src_stride, ref, ref_stride, &sse);
-      break;
-  }
+  vp9_variance_fn_t fn = get_block_variance_fn(xd->mi_8x8[0]->mbmi.sb_type);
+  fn(src, src_stride, ref, ref_stride, &sse);
   return sse;
 }
 
@@ -421,20 +422,7 @@ static void first_pass_motion_search(VP9_COMP *cpi, MACROBLOCK *x,
   further_steps -= sr;
 
   // override the default variance function to use MSE
-  switch (xd->mi_8x8[0]->mbmi.sb_type) {
-    case BLOCK_8X8:
-      v_fn_ptr.vf = vp9_mse8x8;
-      break;
-    case BLOCK_16X8:
-      v_fn_ptr.vf = vp9_mse16x8;
-      break;
-    case BLOCK_8X16:
-      v_fn_ptr.vf = vp9_mse8x16;
-      break;
-    default:
-      v_fn_ptr.vf = vp9_mse16x16;
-      break;
-  }
+  v_fn_ptr.vf = get_block_variance_fn(xd->mi_8x8[0]->mbmi.sb_type);
 
   // Set up pointers for this macro block recon buffer
   xd->plane[0].pre[0].buf = recon_buffer->y_buffer + recon_yoffset;
@@ -502,6 +490,7 @@ void vp9_first_pass(VP9_COMP *cpi) {
   YV12_BUFFER_CONFIG *const new_yv12 = get_frame_new_buffer(cm);
   const int recon_y_stride = lst_yv12->y_stride;
   const int recon_uv_stride = lst_yv12->uv_stride;
+  const int uv_mb_height = 16 >> (lst_yv12->y_height > lst_yv12->uv_height);
   int64_t intra_error = 0;
   int64_t coded_error = 0;
   int64_t sr_coded_error = 0;
@@ -565,7 +554,7 @@ void vp9_first_pass(VP9_COMP *cpi) {
     // reset above block coeffs
     xd->up_available = (mb_row != 0);
     recon_yoffset = (mb_row * recon_y_stride * 16);
-    recon_uvoffset = (mb_row * recon_uv_stride * 8);
+    recon_uvoffset = (mb_row * recon_uv_stride * uv_mb_height);
 
     // Set up limit values for motion vectors to prevent them extending
     // outside the UMV borders
@@ -780,17 +769,19 @@ void vp9_first_pass(VP9_COMP *cpi) {
 
       // adjust to the next column of macroblocks
       x->plane[0].src.buf += 16;
-      x->plane[1].src.buf += 8;
-      x->plane[2].src.buf += 8;
+      x->plane[1].src.buf += uv_mb_height;
+      x->plane[2].src.buf += uv_mb_height;
 
       recon_yoffset += 16;
-      recon_uvoffset += 8;
+      recon_uvoffset += uv_mb_height;
     }
 
     // adjust to the next row of mbs
     x->plane[0].src.buf += 16 * x->plane[0].src.stride - 16 * cm->mb_cols;
-    x->plane[1].src.buf += 8 * x->plane[1].src.stride - 8 * cm->mb_cols;
-    x->plane[2].src.buf += 8 * x->plane[1].src.stride - 8 * cm->mb_cols;
+    x->plane[1].src.buf += uv_mb_height * x->plane[1].src.stride -
+                           uv_mb_height * cm->mb_cols;
+    x->plane[2].src.buf += uv_mb_height * x->plane[1].src.stride -
+                           uv_mb_height * cm->mb_cols;
 
     vp9_clear_system_state();  // __asm emms;
   }
@@ -951,7 +942,7 @@ static double calc_correction_factor(double err_per_mb,
   const double error_term = err_per_mb / err_divisor;
 
   // Adjustment based on actual quantizer to power term.
-  const double power_term = MIN(vp9_convert_qindex_to_q(q) * 0.01 + pt_low,
+  const double power_term = MIN(vp9_convert_qindex_to_q(q) * 0.0125 + pt_low,
                                 pt_high);
 
   // Calculate correction factor
@@ -1011,7 +1002,7 @@ static int estimate_max_q(VP9_COMP *cpi,
     int bits_per_mb_at_this_q;
 
     err_correction_factor = calc_correction_factor(err_per_mb,
-                                                   ERR_DIVISOR, 0.4, 0.90, q);
+                                                   ERR_DIVISOR, 0.5, 0.90, q);
 
     bits_per_mb_at_this_q = vp9_rc_bits_per_mb(INTER_FRAME, q,
                                                err_correction_factor);
@@ -1061,7 +1052,7 @@ static int estimate_cq(VP9_COMP *cpi,
 
     // Error per MB based correction factor
     err_correction_factor =
-      calc_correction_factor(err_per_mb, 100.0, 0.4, 0.90, q) * clip_iifactor;
+      calc_correction_factor(err_per_mb, 100.0, 0.5, 0.90, q) * clip_iifactor;
 
     bits_per_mb_at_this_q =
       vp9_rc_bits_per_mb(INTER_FRAME, q, err_correction_factor);
@@ -1154,7 +1145,6 @@ void vp9_init_second_pass(VP9_COMP *cpi) {
     start_pos = cpi->twopass.stats_in;  // Note starting "file" position
 
     cpi->twopass.modified_error_total = 0.0;
-    cpi->twopass.modified_error_used = 0.0;
 
     while (input_stats(cpi, &this_frame) != EOF) {
       cpi->twopass.modified_error_total +=
@@ -1637,9 +1627,8 @@ static void define_gf_group(VP9_COMP *cpi, FIRSTPASS_STATS *this_frame) {
     active_max_gf_interval = cpi->rc.max_gf_interval;
 
   i = 0;
-  while (((i < cpi->twopass.static_scene_max_gf_interval) ||
-          ((cpi->rc.frames_to_key - i) < MIN_GF_INTERVAL)) &&
-         (i < cpi->rc.frames_to_key)) {
+  while ((i < cpi->twopass.static_scene_max_gf_interval) &&
+         (i < (cpi->rc.frames_to_key - 1))) {
     i++;    // Increment the loop counter
 
     // Accumulate error score of frames in this gf group
@@ -1693,8 +1682,6 @@ static void define_gf_group(VP9_COMP *cpi, FIRSTPASS_STATS *this_frame) {
       (
         // Don't break out with a very short interval
         (i > MIN_GF_INTERVAL) &&
-        // Don't break out very close to a key frame
-        ((cpi->rc.frames_to_key - i) >= MIN_GF_INTERVAL) &&
         ((boost_score > 125.0) || (next_frame.pcnt_inter < 0.75)) &&
         (!flash_detected) &&
         ((mv_ratio_accumulator > mv_ratio_accumulator_thresh) ||
@@ -1714,7 +1701,7 @@ static void define_gf_group(VP9_COMP *cpi, FIRSTPASS_STATS *this_frame) {
 
   // Don't allow a gf too near the next kf
   if ((cpi->rc.frames_to_key - i) < MIN_GF_INTERVAL) {
-    while (i < cpi->rc.frames_to_key) {
+    while (i < (cpi->rc.frames_to_key - 1)) {
       i++;
 
       if (EOF == input_stats(cpi, this_frame))
@@ -1746,8 +1733,6 @@ static void define_gf_group(VP9_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   if (allow_alt_ref &&
       (i < cpi->oxcf.lag_in_frames) &&
       (i >= MIN_GF_INTERVAL) &&
-      // dont use ARF very near next kf
-      (i <= (cpi->rc.frames_to_key - MIN_GF_INTERVAL)) &&
       ((next_frame.pcnt_inter > 0.75) ||
        (next_frame.pcnt_second_ref > 0.5)) &&
       ((mv_in_out_accumulator / (double)i > -0.2) ||
@@ -1852,9 +1837,6 @@ static void define_gf_group(VP9_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   // Reset the file position
   reset_fpf_position(cpi, start_pos);
 
-  // Update the record of error used so far (only done once per gf group)
-  cpi->twopass.modified_error_used += gf_group_err;
-
   // Assign  bits to the arf or gf.
   for (i = 0;
       i <= (cpi->rc.source_alt_ref_pending &&
@@ -1937,15 +1919,18 @@ static void define_gf_group(VP9_COMP *cpi, FIRSTPASS_STATS *this_frame) {
     if (cpi->twopass.kf_group_bits < 0)
       cpi->twopass.kf_group_bits = 0;
 
-    // Note the error score left in the remaining frames of the group.
-    // For normal GFs we want to remove the error score for the first frame
-    // of the group (except in Key frame case where this has already
-    // happened)
-    if (!cpi->rc.source_alt_ref_pending && cpi->common.frame_type != KEY_FRAME)
+    // If this is an arf update we want to remove the score for the
+    // overlay frame at the end which will usually be very cheap to code.
+    // For normal GFs remove the score for the GF itself unless this is
+    // also a key frame in which case it has already been accounted for.
+    if (cpi->rc.source_alt_ref_pending) {
+      cpi->twopass.gf_group_error_left = (int64_t)gf_group_err - mod_frame_err;
+    } else if (cpi->common.frame_type != KEY_FRAME) {
       cpi->twopass.gf_group_error_left = (int64_t)(gf_group_err
                                                    - gf_first_frame_err);
-    else
+    } else {
       cpi->twopass.gf_group_error_left = (int64_t)gf_group_err;
+    }
 
     cpi->twopass.gf_group_bits -= cpi->twopass.gf_bits
         - cpi->rc.min_frame_bandwidth;
@@ -2040,27 +2025,49 @@ static void assign_std_frame_bits(VP9_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   cpi->rc.per_frame_bandwidth = target_frame_size;
 }
 
-// Make a damped adjustment to the active max q.
-static int adjust_active_maxq(int old_maxqi, int new_maxqi) {
-  int i;
-  const double old_q = vp9_convert_qindex_to_q(old_maxqi);
-  const double new_q = vp9_convert_qindex_to_q(new_maxqi);
-  const double target_q = ((old_q * 7.0) + new_q) / 8.0;
-
-  if (target_q > old_q) {
-    for (i = old_maxqi; i <= new_maxqi; i++)
-      if (vp9_convert_qindex_to_q(i) >= target_q)
-        return i;
+void vp9_get_svc_params(VP9_COMP *cpi) {
+  VP9_COMMON *const cm = &cpi->common;
+  if ((cm->current_video_frame == 0) ||
+      (cm->frame_flags & FRAMEFLAGS_KEY) ||
+      (cpi->oxcf.auto_key && (cpi->rc.frames_since_key %
+                              cpi->key_frame_frequency == 0))) {
+    cm->frame_type = KEY_FRAME;
   } else {
-    for (i = old_maxqi; i >= new_maxqi; i--)
-      if (vp9_convert_qindex_to_q(i) <= target_q)
-        return i;
+    cm->frame_type = INTER_FRAME;
   }
-
-  return new_maxqi;
+  cpi->rc.frames_till_gf_update_due = INT_MAX;
+  cpi->rc.baseline_gf_interval = INT_MAX;
 }
 
-void vp9_second_pass(VP9_COMP *cpi) {
+void vp9_get_one_pass_params(VP9_COMP *cpi) {
+  VP9_COMMON *const cm = &cpi->common;
+  if (!cpi->refresh_alt_ref_frame &&
+      (cm->current_video_frame == 0 ||
+       cm->frame_flags & FRAMEFLAGS_KEY ||
+       (cpi->oxcf.auto_key && (cpi->rc.frames_since_key %
+                               cpi->key_frame_frequency == 0)))) {
+    cm->frame_type = KEY_FRAME;
+  } else {
+    cm->frame_type = INTER_FRAME;
+  }
+  if (cpi->rc.frames_till_gf_update_due == 0) {
+    cpi->rc.frames_till_gf_update_due = cpi->rc.baseline_gf_interval;
+    cpi->refresh_golden_frame = 1;
+  }
+}
+
+void vp9_get_first_pass_params(VP9_COMP *cpi) {
+  VP9_COMMON *const cm = &cpi->common;
+  if (!cpi->refresh_alt_ref_frame &&
+      (cm->current_video_frame == 0 ||
+       cm->frame_flags & FRAMEFLAGS_KEY)) {
+    cm->frame_type = KEY_FRAME;
+  } else {
+    cm->frame_type = INTER_FRAME;
+  }
+}
+
+void vp9_get_second_pass_params(VP9_COMP *cpi) {
   int tmp_q;
   int frames_left = (int)(cpi->twopass.total_stats.count -
                           cpi->common.current_video_frame);
@@ -2071,6 +2078,10 @@ void vp9_second_pass(VP9_COMP *cpi) {
   double this_frame_intra_error;
   double this_frame_coded_error;
 
+  if (cpi->refresh_alt_ref_frame) {
+    cpi->common.frame_type = INTER_FRAME;
+    return;
+  }
   if (!cpi->twopass.stats_in)
     return;
 
@@ -2154,6 +2165,8 @@ void vp9_second_pass(VP9_COMP *cpi) {
       assign_std_frame_bits(cpi, &this_frame_copy);
       cpi->rc.per_frame_bandwidth = bak;
     }
+    cpi->rc.frames_till_gf_update_due = cpi->rc.baseline_gf_interval;
+    cpi->refresh_golden_frame = 1;
   } else {
     // Otherwise this is an ordinary frame
     // Assign bits from those allocated to the GF group

@@ -20,7 +20,6 @@
 #include "vp9/common/vp9_common.h"
 #include "vp9/common/vp9_entropy.h"
 #include "vp9/common/vp9_entropymode.h"
-#include "vp9/common/vp9_findnearmv.h"
 #include "vp9/common/vp9_idct.h"
 #include "vp9/common/vp9_mvref_common.h"
 #include "vp9/common/vp9_pred_common.h"
@@ -368,8 +367,8 @@ static void select_in_frame_q_segment(VP9_COMP *cpi,
   int target_rate = cpi->rc.sb64_target_rate << 8;   // convert to bits << 8
 
   const int mi_offset = mi_row * cm->mi_cols + mi_col;
-  const int bw = 1 << mi_width_log2(BLOCK_64X64);
-  const int bh = 1 << mi_height_log2(BLOCK_64X64);
+  const int bw = num_8x8_blocks_wide_lookup[BLOCK_64X64];
+  const int bh = num_8x8_blocks_high_lookup[BLOCK_64X64];
   const int xmis = MIN(cm->mi_cols - mi_col, bw);
   const int ymis = MIN(cm->mi_rows - mi_row, bh);
   int complexity_metric = 64;
@@ -754,7 +753,7 @@ static void update_stats(VP9_COMP *cpi) {
                                                      SEG_LVL_REF_FRAME);
 
     if (!seg_ref_active)
-      cpi->intra_inter_count[vp9_get_intra_inter_context(xd)]
+      cm->counts.intra_inter[vp9_get_intra_inter_context(xd)]
                             [is_inter_block(mbmi)]++;
 
     // If the segment reference feature is enabled we have only a single
@@ -762,17 +761,17 @@ static void update_stats(VP9_COMP *cpi) {
     // the reference frame counts used to work out probabilities.
     if (is_inter_block(mbmi) && !seg_ref_active) {
       if (cm->reference_mode == REFERENCE_MODE_SELECT)
-        cpi->comp_inter_count[vp9_get_reference_mode_context(cm, xd)]
+        cm->counts.comp_inter[vp9_get_reference_mode_context(cm, xd)]
                              [has_second_ref(mbmi)]++;
 
       if (has_second_ref(mbmi)) {
-        cpi->comp_ref_count[vp9_get_pred_context_comp_ref_p(cm, xd)]
+        cm->counts.comp_ref[vp9_get_pred_context_comp_ref_p(cm, xd)]
                            [mbmi->ref_frame[0] == GOLDEN_FRAME]++;
       } else {
-        cpi->single_ref_count[vp9_get_pred_context_single_ref_p1(xd)][0]
+        cm->counts.single_ref[vp9_get_pred_context_single_ref_p1(xd)][0]
                              [mbmi->ref_frame[0] != LAST_FRAME]++;
         if (mbmi->ref_frame[0] != LAST_FRAME)
-          cpi->single_ref_count[vp9_get_pred_context_single_ref_p2(xd)][1]
+          cm->counts.single_ref[vp9_get_pred_context_single_ref_p2(xd)][1]
                                [mbmi->ref_frame[0] != GOLDEN_FRAME]++;
       }
     }
@@ -2006,14 +2005,14 @@ static void init_encode_frame_mb_context(VP9_COMP *cpi) {
   xd->mi_8x8[0]->mbmi.mode = DC_PRED;
   xd->mi_8x8[0]->mbmi.uv_mode = DC_PRED;
 
-  vp9_zero(cpi->y_mode_count);
-  vp9_zero(cpi->y_uv_mode_count);
+  vp9_zero(cm->counts.y_mode);
+  vp9_zero(cm->counts.uv_mode);
   vp9_zero(cm->counts.inter_mode);
   vp9_zero(cm->counts.partition);
-  vp9_zero(cpi->intra_inter_count);
-  vp9_zero(cpi->comp_inter_count);
-  vp9_zero(cpi->single_ref_count);
-  vp9_zero(cpi->comp_ref_count);
+  vp9_zero(cm->counts.intra_inter);
+  vp9_zero(cm->counts.comp_inter);
+  vp9_zero(cm->counts.single_ref);
+  vp9_zero(cm->counts.comp_ref);
   vp9_zero(cm->counts.tx);
   vp9_zero(cm->counts.mbskip);
 
@@ -2145,8 +2144,8 @@ static void encode_frame_internal(VP9_COMP *cpi) {
     int j;
     unsigned int intra_count = 0, inter_count = 0;
     for (j = 0; j < INTRA_INTER_CONTEXTS; ++j) {
-      intra_count += cpi->intra_inter_count[j][0];
-      inter_count += cpi->intra_inter_count[j][1];
+      intra_count += cm->counts.intra_inter[j][0];
+      inter_count += cm->counts.intra_inter[j][1];
     }
     cpi->sf.skip_encode_frame = ((intra_count << 2) < inter_count);
     cpi->sf.skip_encode_frame &= (cm->frame_type != KEY_FRAME);
@@ -2340,7 +2339,8 @@ void vp9_encode_frame(VP9_COMP *cpi) {
   }
 
   if (cpi->sf.RD) {
-    int i, pred_type;
+    int i;
+    REFERENCE_MODE reference_mode;
     INTERPOLATION_TYPE filter_type;
     /*
      * This code does a single RD pass over the whole frame assuming
@@ -2351,55 +2351,47 @@ void vp9_encode_frame(VP9_COMP *cpi) {
      * that for subsequent frames.
      * It does the same analysis for transform size selection also.
      */
-    int frame_type = get_frame_type(cpi);
+    const int frame_type = get_frame_type(cpi);
+    const int64_t *mode_thresh = cpi->rd_prediction_type_threshes[frame_type];
+    const int64_t *filter_thresh = cpi->rd_filter_threshes[frame_type];
 
     /* prediction (compound, single or hybrid) mode selection */
     if (frame_type == 3 || !cm->allow_comp_inter_inter)
-      pred_type = SINGLE_REFERENCE;
-    else if (cpi->rd_prediction_type_threshes[frame_type][1]
-             > cpi->rd_prediction_type_threshes[frame_type][0]
-             && cpi->rd_prediction_type_threshes[frame_type][1]
-             > cpi->rd_prediction_type_threshes[frame_type][2]
-             && check_dual_ref_flags(cpi) && cpi->static_mb_pct == 100)
-      pred_type = COMPOUND_REFERENCE;
-    else if (cpi->rd_prediction_type_threshes[frame_type][0]
-             > cpi->rd_prediction_type_threshes[frame_type][2])
-      pred_type = SINGLE_REFERENCE;
+      reference_mode = SINGLE_REFERENCE;
+    else if (mode_thresh[COMPOUND_REFERENCE] > mode_thresh[SINGLE_REFERENCE] &&
+             mode_thresh[COMPOUND_REFERENCE] >
+                 mode_thresh[REFERENCE_MODE_SELECT] &&
+             check_dual_ref_flags(cpi) &&
+             cpi->static_mb_pct == 100)
+      reference_mode = COMPOUND_REFERENCE;
+    else if (mode_thresh[SINGLE_REFERENCE] > mode_thresh[REFERENCE_MODE_SELECT])
+      reference_mode = SINGLE_REFERENCE;
     else
-      pred_type = REFERENCE_MODE_SELECT;
+      reference_mode = REFERENCE_MODE_SELECT;
 
     /* filter type selection */
     // FIXME(rbultje) for some odd reason, we often select smooth_filter
     // as default filter for ARF overlay frames. This is a REALLY BAD
     // IDEA so we explicitly disable it here.
     if (frame_type != 3 &&
-        cpi->rd_filter_threshes[frame_type][1] >
-            cpi->rd_filter_threshes[frame_type][0] &&
-        cpi->rd_filter_threshes[frame_type][1] >
-            cpi->rd_filter_threshes[frame_type][2] &&
-        cpi->rd_filter_threshes[frame_type][1] >
-            cpi->rd_filter_threshes[frame_type][SWITCHABLE_FILTERS]) {
+        filter_thresh[EIGHTTAP_SMOOTH] > filter_thresh[EIGHTTAP] &&
+        filter_thresh[EIGHTTAP_SMOOTH] > filter_thresh[EIGHTTAP_SHARP] &&
+        filter_thresh[EIGHTTAP_SMOOTH] > filter_thresh[SWITCHABLE - 1]) {
       filter_type = EIGHTTAP_SMOOTH;
-    } else if (cpi->rd_filter_threshes[frame_type][2] >
-            cpi->rd_filter_threshes[frame_type][0] &&
-        cpi->rd_filter_threshes[frame_type][2] >
-            cpi->rd_filter_threshes[frame_type][SWITCHABLE_FILTERS]) {
+    } else if (filter_thresh[EIGHTTAP_SHARP] > filter_thresh[EIGHTTAP] &&
+               filter_thresh[EIGHTTAP_SHARP] > filter_thresh[SWITCHABLE - 1]) {
       filter_type = EIGHTTAP_SHARP;
-    } else if (cpi->rd_filter_threshes[frame_type][0] >
-                  cpi->rd_filter_threshes[frame_type][SWITCHABLE_FILTERS]) {
+    } else if (filter_thresh[EIGHTTAP] > filter_thresh[SWITCHABLE - 1]) {
       filter_type = EIGHTTAP;
     } else {
       filter_type = SWITCHABLE;
     }
 
-    cpi->mb.e_mbd.lossless = 0;
-    if (cpi->oxcf.lossless) {
-      cpi->mb.e_mbd.lossless = 1;
-    }
+    cpi->mb.e_mbd.lossless = cpi->oxcf.lossless;
 
     /* transform size selection (4x4, 8x8, 16x16 or select-per-mb) */
     select_tx_mode(cpi);
-    cpi->common.reference_mode = pred_type;
+    cpi->common.reference_mode = reference_mode;
     cpi->common.mcomp_filter_type = filter_type;
     encode_frame_internal(cpi);
 
@@ -2431,16 +2423,16 @@ void vp9_encode_frame(VP9_COMP *cpi) {
       int comp_count_zero = 0;
 
       for (i = 0; i < COMP_INTER_CONTEXTS; i++) {
-        single_count_zero += cpi->comp_inter_count[i][0];
-        comp_count_zero += cpi->comp_inter_count[i][1];
+        single_count_zero += cm->counts.comp_inter[i][0];
+        comp_count_zero += cm->counts.comp_inter[i][1];
       }
 
       if (comp_count_zero == 0) {
         cpi->common.reference_mode = SINGLE_REFERENCE;
-        vp9_zero(cpi->comp_inter_count);
+        vp9_zero(cm->counts.comp_inter);
       } else if (single_count_zero == 0) {
         cpi->common.reference_mode = COMPOUND_REFERENCE;
-        vp9_zero(cpi->comp_inter_count);
+        vp9_zero(cm->counts.comp_inter);
       }
     }
 
@@ -2484,12 +2476,12 @@ void vp9_encode_frame(VP9_COMP *cpi) {
   }
 }
 
-static void sum_intra_stats(VP9_COMP *cpi, const MODE_INFO *mi) {
+static void sum_intra_stats(VP9_COMMON *cm, const MODE_INFO *mi) {
   const MB_PREDICTION_MODE y_mode = mi->mbmi.mode;
   const MB_PREDICTION_MODE uv_mode = mi->mbmi.uv_mode;
   const BLOCK_SIZE bsize = mi->mbmi.sb_type;
 
-  ++cpi->y_uv_mode_count[y_mode][uv_mode];
+  ++cm->counts.uv_mode[y_mode][uv_mode];
 
   if (bsize < BLOCK_8X8) {
     int idx, idy;
@@ -2497,9 +2489,9 @@ static void sum_intra_stats(VP9_COMP *cpi, const MODE_INFO *mi) {
     const int num_4x4_blocks_high = num_4x4_blocks_high_lookup[bsize];
     for (idy = 0; idy < 2; idy += num_4x4_blocks_high)
       for (idx = 0; idx < 2; idx += num_4x4_blocks_wide)
-        ++cpi->y_mode_count[0][mi->bmi[idy * 2 + idx].as_mode];
+        ++cm->counts.y_mode[0][mi->bmi[idy * 2 + idx].as_mode];
   } else {
-    ++cpi->y_mode_count[size_group_lookup[bsize]][y_mode];
+    ++cm->counts.y_mode[size_group_lookup[bsize]][y_mode];
   }
 }
 
@@ -2523,6 +2515,25 @@ static void adjust_act_zbin(VP9_COMP *cpi, MACROBLOCK *x) {
     x->act_zbin_adj = 1 - (int) (((int64_t) a + (b >> 1)) / b);
 #endif
 }
+
+static int get_zbin_mode_boost(MB_MODE_INFO *mbmi, int enabled) {
+  if (enabled) {
+    if (is_inter_block(mbmi)) {
+      if (mbmi->mode == ZEROMV) {
+        return mbmi->ref_frame[0] != LAST_FRAME ? GF_ZEROMV_ZBIN_BOOST
+                                                : LF_ZEROMV_ZBIN_BOOST;
+      } else {
+        return mbmi->sb_type < BLOCK_8X8 ? SPLIT_MV_ZBIN_BOOST
+                                         : MV_ZBIN_BOOST;
+      }
+    } else {
+      return INTRA_ZBIN_BOOST;
+    }
+  } else {
+    return 0;
+  }
+}
+
 static void encode_superblock(VP9_COMP *cpi, TOKENEXTRA **t, int output_enabled,
                               int mi_row, int mi_col, BLOCK_SIZE bsize) {
   VP9_COMMON * const cm = &cpi->common;
@@ -2561,24 +2572,8 @@ static void encode_superblock(VP9_COMP *cpi, TOKENEXTRA **t, int output_enabled,
 
     // Experimental code. Special case for gf and arf zeromv modes.
     // Increase zbin size to suppress noise
-    cpi->zbin_mode_boost = 0;
-    if (cpi->zbin_mode_boost_enabled) {
-      if (is_inter_block(mbmi)) {
-        if (mbmi->mode == ZEROMV) {
-          if (mbmi->ref_frame[0] != LAST_FRAME)
-            cpi->zbin_mode_boost = GF_ZEROMV_ZBIN_BOOST;
-          else
-            cpi->zbin_mode_boost = LF_ZEROMV_ZBIN_BOOST;
-        } else if (mbmi->sb_type < BLOCK_8X8) {
-          cpi->zbin_mode_boost = SPLIT_MV_ZBIN_BOOST;
-        } else {
-          cpi->zbin_mode_boost = MV_ZBIN_BOOST;
-        }
-      } else {
-        cpi->zbin_mode_boost = INTRA_ZBIN_BOOST;
-      }
-    }
-
+    cpi->zbin_mode_boost = get_zbin_mode_boost(mbmi,
+                                               cpi->zbin_mode_boost_enabled);
     vp9_update_zbin_extra(cpi, x);
   }
 
@@ -2586,7 +2581,7 @@ static void encode_superblock(VP9_COMP *cpi, TOKENEXTRA **t, int output_enabled,
     vp9_encode_intra_block_y(x, MAX(bsize, BLOCK_8X8));
     vp9_encode_intra_block_uv(x, MAX(bsize, BLOCK_8X8));
     if (output_enabled)
-      sum_intra_stats(cpi, mi);
+      sum_intra_stats(cm, mi);
   } else {
     int idx = cm->ref_frame_map[get_ref_frame_idx(cpi, mbmi->ref_frame[0])];
     YV12_BUFFER_CONFIG *ref_fb = &cm->yv12_fb[idx];
@@ -2598,10 +2593,9 @@ static void encode_superblock(VP9_COMP *cpi, TOKENEXTRA **t, int output_enabled,
 
     assert(cm->frame_type != KEY_FRAME);
 
-    setup_pre_planes(xd, 0, ref_fb, mi_row, mi_col,
-                     &xd->scale_factor[0]);
+    setup_pre_planes(xd, 0, ref_fb, mi_row, mi_col, xd->scale_factors[0]);
     setup_pre_planes(xd, 1, second_ref_fb, mi_row, mi_col,
-                     &xd->scale_factor[1]);
+                     xd->scale_factors[1]);
 
     vp9_build_inter_predictors_sb(xd, mi_row, mi_col, MAX(bsize, BLOCK_8X8));
   }

@@ -11,8 +11,7 @@
 #ifndef VP9_ENCODER_VP9_TREEWRITER_H_
 #define VP9_ENCODER_VP9_TREEWRITER_H_
 
-#include "vp9/common/vp9_treecoder.h"
-#include "vp9/encoder/vp9_boolhuff.h"       /* for now */
+#include "vp9/encoder/vp9_writer.h"
 
 #define vp9_cost_zero(prob) (vp9_prob_cost[prob])
 

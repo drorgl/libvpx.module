@@ -17,13 +17,11 @@
 
 #include "vp9/common/vp9_entropymode.h"
 #include "vp9/common/vp9_entropymv.h"
-#include "vp9/common/vp9_findnearmv.h"
 #include "vp9/common/vp9_tile_common.h"
 #include "vp9/common/vp9_seg_common.h"
 #include "vp9/common/vp9_pred_common.h"
 #include "vp9/common/vp9_entropy.h"
 #include "vp9/common/vp9_mvref_common.h"
-#include "vp9/common/vp9_treecoder.h"
 #include "vp9/common/vp9_systemdependent.h"
 #include "vp9/common/vp9_pragmas.h"
 
@@ -1243,7 +1241,7 @@ static size_t write_compressed_header(VP9_COMP *cpi, uint8_t *data) {
 
     for (i = 0; i < INTRA_INTER_CONTEXTS; i++)
       vp9_cond_prob_diff_update(&header_bc, &fc->intra_inter_prob[i],
-                                cpi->intra_inter_count[i]);
+                                cm->counts.intra_inter[i]);
 
     if (cm->allow_comp_inter_inter) {
       const int reference_mode = cpi->common.reference_mode;
@@ -1256,28 +1254,27 @@ static size_t write_compressed_header(VP9_COMP *cpi, uint8_t *data) {
         if (use_hybrid_pred)
           for (i = 0; i < COMP_INTER_CONTEXTS; i++)
             vp9_cond_prob_diff_update(&header_bc, &fc->comp_inter_prob[i],
-                                      cpi->comp_inter_count[i]);
+                                      cm->counts.comp_inter[i]);
       }
     }
 
     if (cm->reference_mode != COMPOUND_REFERENCE) {
       for (i = 0; i < REF_CONTEXTS; i++) {
         vp9_cond_prob_diff_update(&header_bc, &fc->single_ref_prob[i][0],
-                                  cpi->single_ref_count[i][0]);
+                                  cm->counts.single_ref[i][0]);
         vp9_cond_prob_diff_update(&header_bc, &fc->single_ref_prob[i][1],
-                                  cpi->single_ref_count[i][1]);
+                                  cm->counts.single_ref[i][1]);
       }
     }
 
     if (cm->reference_mode != SINGLE_REFERENCE)
       for (i = 0; i < REF_CONTEXTS; i++)
         vp9_cond_prob_diff_update(&header_bc, &fc->comp_ref_prob[i],
-                                  cpi->comp_ref_count[i]);
+                                  cm->counts.comp_ref[i]);
 
     for (i = 0; i < BLOCK_SIZE_GROUPS; ++i)
       prob_diff_update(vp9_intra_mode_tree, cm->fc.y_mode_prob[i],
-                       (unsigned int *)cpi->y_mode_count[i], INTRA_MODES,
-                       &header_bc);
+                       cm->counts.y_mode[i], INTRA_MODES, &header_bc);
 
     for (i = 0; i < PARTITION_CONTEXTS; ++i)
       prob_diff_update(vp9_partition_tree, fc->partition_prob[i],

@@ -8,8 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef VP9_DECODER_VP9_DBOOLHUFF_H_
-#define VP9_DECODER_VP9_DBOOLHUFF_H_
+#ifndef VP9_DECODER_VP9_READER_H_
+#define VP9_DECODER_VP9_READER_H_
 
 #include <stddef.h>
 #include <limits.h>
@@ -18,13 +18,11 @@
 #include "vpx_ports/mem.h"
 #include "vpx/vpx_integer.h"
 
-#include "vp9/common/vp9_treecoder.h"
+#include "vp9/common/vp9_prob.h"
 
 typedef size_t BD_VALUE;
 
 #define BD_VALUE_SIZE ((int)sizeof(BD_VALUE) * CHAR_BIT)
-
-DECLARE_ALIGNED(16, extern const uint8_t, vp9_norm[256]);
 
 typedef struct {
   const uint8_t *buffer_end;
@@ -102,4 +100,4 @@ static int vp9_read_tree(vp9_reader *r, const vp9_tree_index *tree,
   return -i;
 }
 
-#endif  // VP9_DECODER_VP9_DBOOLHUFF_H_
+#endif  // VP9_DECODER_VP9_READER_H_

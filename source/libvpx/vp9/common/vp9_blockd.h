@@ -24,7 +24,6 @@
 #include "vp9/common/vp9_mv.h"
 #include "vp9/common/vp9_scale.h"
 #include "vp9/common/vp9_seg_common.h"
-#include "vp9/common/vp9_treecoder.h"
 
 #define BLOCK_SIZE_GROUPS 4
 #define MBSKIP_CONTEXTS 3
@@ -216,7 +215,7 @@ struct macroblockd_plane {
 typedef struct macroblockd {
   struct macroblockd_plane plane[MAX_MB_PLANE];
 
-  struct scale_factors scale_factor[2];
+  const struct scale_factors *scale_factors[2];
 
   MODE_INFO *last_mi;
   int mode_info_stride;

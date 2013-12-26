@@ -16,7 +16,6 @@
 #include "vp9/common/vp9_blockd.h"
 #include "vp9/common/vp9_common.h"
 #include "vp9/common/vp9_scan.h"
-#include "vp9/common/vp9_treecoder.h"
 #include "vp9/common/vp9_entropymode.h"
 
 #define DIFF_UPDATE_PROB 252
@@ -54,7 +53,6 @@ typedef struct {
 // indexed by token value
 extern const vp9_extra_bit vp9_extra_bits[ENTROPY_TOKENS];
 
-#define MAX_PROB                255
 #define DCT_MAX_VALUE           16384
 
 /* Coefficients are predicted via a 3-dimensional probability table. */
