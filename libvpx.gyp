@@ -303,9 +303,8 @@
               ],
             }],
             ['OS == "android"', {
-              'include_dirs': [
-                '<(android_ndk_include)',
-                '<(android_ndk_root)/sources/android/cpufeatures',
+              'includes': [
+                '../../build/android/cpufeatures.gypi',
               ],
             }],
             ['chromeos == 1', {
@@ -396,6 +395,14 @@
         'libvpx_asm_offsets_vp8',
         'libvpx_obj_int_extract#host',
       ],
+      'variables' : {
+        'lib_intermediate_path' : '',
+        'conditions' : [
+          ['android_webview_build==1', {
+            'lib_intermediate_path' : '<(android_src)/$(call intermediates-dir-for, STATIC_LIBRARIES, libvpx_asm_offsets_vp8)/libvpx_asm_offsets_vp8.a',
+          }],
+        ],
+      },
       'conditions': [
         ['OS=="win"', {
           'variables': {
@@ -437,6 +444,7 @@
                 '-a', '<(PRODUCT_DIR)/libvpx_asm_offsets_vp8.a',
                 '-a', '<(LIB_DIR)/third_party/libvpx/libvpx_asm_offsets_vp8.a',
                 '-a', '<(LIB_DIR)/Source/WebKit/chromium/third_party/libvpx/libvpx_asm_offsets_vp8.a',
+                '-a', '<(lib_intermediate_path)',
                 '-f', 'vp8_asm_enc_offsets.o',
               ],
               'process_output_as_sources': 1,
@@ -494,6 +502,14 @@
         'libvpx_asm_offsets_vpx_scale',
         'libvpx_obj_int_extract#host',
       ],
+      'variables' : {
+        'lib_intermediate_path' : '',
+        'conditions' : [
+          ['android_webview_build==1', {
+            'lib_intermediate_path' : '<(android_src)/$(call intermediates-dir-for, STATIC_LIBRARIES, libvpx_asm_offsets_vpx_scale)/libvpx_asm_offsets_vpx_scale.a',
+          }],
+        ],
+      },
       'conditions': [
         ['OS=="win"', {
           'variables': {
@@ -535,6 +551,7 @@
                 '-a', '<(PRODUCT_DIR)/libvpx_asm_offsets_vpx_scale.a',
                 '-a', '<(LIB_DIR)/third_party/libvpx/libvpx_asm_offsets_vpx_scale.a',
                 '-a', '<(LIB_DIR)/Source/WebKit/chromium/third_party/libvpx/libvpx_asm_offsets_vpx_scale.a',
+                '-a', '<(lib_intermediate_path)',
                 '-f', 'vpx_scale_asm_offsets.o',
               ],
               'process_output_as_sources': 1,
