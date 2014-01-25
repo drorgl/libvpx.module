@@ -411,17 +411,17 @@
           'actions': [
             {
               'action_name': 'copy_enc_offsets_obj',
-              'inputs': [ 'copy_obj.sh' ],
+              'inputs': [ 'copy_obj.py' ],
               'outputs': [ '<(INTERMEDIATE_DIR)/vp8_asm_enc_offsets.obj' ],
               'action': [
-                '<(DEPTH)/third_party/libvpx/copy_obj.sh',
+                'python',
+                '<(DEPTH)/third_party/libvpx/copy_obj.py',
                 '-d', '<@(_outputs)',
                 '-s', '<(PRODUCT_DIR)/obj/libvpx_asm_offsets_vp8/vp8_asm_enc_offsets.obj',
                 '-s', '<(ninja_obj_dir)/encoder/libvpx_asm_offsets_vp8.vp8_asm_enc_offsets.obj',
                 '-s', '<(PRODUCT_DIR)/obj/Source/WebKit/chromium/third_party/libvpx/<(libvpx_source)/vp8/encoder/libvpx_asm_offsets_vp8.vp8_asm_enc_offsets.obj',
               ],
               'process_output_as_sources': 1,
-              'msvs_cygwin_shell': 1,
             },
           ],
           'sources': [
@@ -448,7 +448,6 @@
                 '-f', 'vp8_asm_enc_offsets.o',
               ],
               'process_output_as_sources': 1,
-              'msvs_cygwin_shell': 1,
             },
           ],
           # Need this otherwise gyp won't run the rule on them.
@@ -464,7 +463,7 @@
           'extension': '<(asm_obj_extension)',
           'inputs': [
             '<(PRODUCT_DIR)/libvpx_obj_int_extract',
-            'obj_int_extract.sh',
+            'obj_int_extract.py',
           ],
           'outputs': [
             '<(shared_generated_dir)/<(RULE_INPUT_ROOT).asm',
@@ -479,14 +478,14 @@
             ],
           },
           'action': [
-            '<(DEPTH)/third_party/libvpx/obj_int_extract.sh',
+            'python',
+            '<(DEPTH)/third_party/libvpx/obj_int_extract.py',
             '-e', '<(PRODUCT_DIR)/libvpx_obj_int_extract',
             '-f', '<(asm_format)',
             '-b', '<(RULE_INPUT_PATH)',
             '-o', '<(shared_generated_dir)/<(RULE_INPUT_ROOT).asm',
           ],
           'message': 'Generate assembly offsets <(RULE_INPUT_PATH)',
-          'msvs_cygwin_shell': 1,
         },
       ],
     },
@@ -518,17 +517,17 @@
           'actions': [
             {
               'action_name': 'copy_enc_offsets_obj',
-              'inputs': [ 'copy_obj.sh' ],
+              'inputs': [ 'copy_obj.py' ],
               'outputs': [ '<(INTERMEDIATE_DIR)/vpx_scale_asm_offsets.obj' ],
               'action': [
-                '<(DEPTH)/third_party/libvpx/copy_obj.sh',
+                'python',
+                '<(DEPTH)/third_party/libvpx/copy_obj.py',
                 '-d', '<@(_outputs)',
                 '-s', '<(PRODUCT_DIR)/obj/libvpx_asm_offsets_vpx_scale/vpx_scale_asm_offsets.obj',
                 '-s', '<(ninja_obj_dir)/encoder/libvpx_asm_offsets_vpx_scale.vpx_scale_asm_offsets.obj',
                 '-s', '<(PRODUCT_DIR)/obj/Source/WebKit/chromium/third_party/libvpx/<(libvpx_source)/vpx_scale/libvpx_asm_offsets_vpx_scale.vpx_scale_asm_offsets.obj',
               ],
               'process_output_as_sources': 1,
-              'msvs_cygwin_shell': 1,
             },
           ],
           'sources': [
@@ -570,7 +569,7 @@
           'extension': '<(asm_obj_extension)',
           'inputs': [
             '<(PRODUCT_DIR)/libvpx_obj_int_extract',
-            'obj_int_extract.sh',
+            'obj_int_extract.py',
           ],
           'outputs': [
             '<(shared_generated_dir)/<(RULE_INPUT_ROOT).asm',
@@ -585,14 +584,14 @@
             ],
           },
           'action': [
-            '<(DEPTH)/third_party/libvpx/obj_int_extract.sh',
+            'python',
+            '<(DEPTH)/third_party/libvpx/obj_int_extract.py',
             '-e', '<(PRODUCT_DIR)/libvpx_obj_int_extract',
             '-f', '<(asm_format)',
             '-b', '<(RULE_INPUT_PATH)',
             '-o', '<(shared_generated_dir)/<(RULE_INPUT_ROOT).asm',
           ],
           'message': 'Generate assembly offsets <(RULE_INPUT_PATH)',
-          'msvs_cygwin_shell': 1,
         },
       ],
     },

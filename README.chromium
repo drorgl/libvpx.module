@@ -61,6 +61,6 @@ prints the final configuration after checking.
 Unpack a static library of .a type. This tool takes a list of possible
 locations of the library file and extract the content.
 
-- copy_obj.sh
+- copy_obj.py
 
 A copy utility from a list of candidate locations.
