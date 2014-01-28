@@ -396,10 +396,17 @@
         'libvpx_obj_int_extract#host',
       ],
       'variables' : {
-        'lib_intermediate_path' : '',
+        'lib_intermediate_name' : '',
+        'output_format':'',
+        'output_dir': '<(shared_generated_dir)',
         'conditions' : [
           ['android_webview_build==1', {
-            'lib_intermediate_path' : '<(android_src)/$(call intermediates-dir-for, STATIC_LIBRARIES, libvpx_asm_offsets_vp8)/libvpx_asm_offsets_vp8.a',
+            'lib_intermediate_name' : '<(android_src)/$(call intermediates-dir-for, STATIC_LIBRARIES, libvpx_asm_offsets_vp8)/libvpx_asm_offsets_vp8.a',
+          }],
+          ['(target_arch=="arm" or target_arch=="armv7")', {
+            'output_format': 'gas',
+          }, {
+            'output_format': 'rvds',
           }],
         ],
       },
@@ -428,66 +435,24 @@
             '<(INTERMEDIATE_DIR)/vp8_asm_enc_offsets.obj',
           ],
         }, {
-          'actions': [
-            {
-              # Take archived .a file and unpack it unto .o files.
-              'action_name': 'unpack_lib_posix',
-              'inputs': [
-                'unpack_lib_posix.sh',
-              ],
-              'outputs': [
-                '<(INTERMEDIATE_DIR)/vp8_asm_enc_offsets.o',
-              ],
-              'action': [
-                '<(DEPTH)/third_party/libvpx/unpack_lib_posix.sh',
-                '-d', '<(INTERMEDIATE_DIR)',
-                '-a', '<(PRODUCT_DIR)/libvpx_asm_offsets_vp8.a',
-                '-a', '<(LIB_DIR)/third_party/libvpx/libvpx_asm_offsets_vp8.a',
-                '-a', '<(LIB_DIR)/Source/WebKit/chromium/third_party/libvpx/libvpx_asm_offsets_vp8.a',
-                '-a', '<(lib_intermediate_path)',
-                '-f', 'vp8_asm_enc_offsets.o',
-              ],
-              'process_output_as_sources': 1,
-            },
-          ],
+          'variables': {
+            'unpack_lib_search_path_list': [
+              '-a', '<(PRODUCT_DIR)/libvpx_asm_offsets_vp8.a',
+              '-a', '<(LIB_DIR)/third_party/libvpx/libvpx_asm_offsets_vp8.a',
+              '-a', '<(LIB_DIR)/Source/WebKit/chromium/third_party/libvpx/libvpx_asm_offsets_vp8.a',
+              '-a', '<(lib_intermediate_name)',
+            ],
+            'unpack_lib_output_dir':'<(INTERMEDIATE_DIR)',
+            'unpack_lib_name':'vp8_asm_enc_offsets.o'
+          },
+          'includes': ['unpack_lib_posix.gypi'],
           # Need this otherwise gyp won't run the rule on them.
           'sources': [
             '<(INTERMEDIATE_DIR)/vp8_asm_enc_offsets.o',
           ],
         }],
       ],
-      'rules': [
-        {
-          # Rule to extract integer values for each symbol from an object file.
-          'rule_name': 'obj_int_extract',
-          'extension': '<(asm_obj_extension)',
-          'inputs': [
-            '<(PRODUCT_DIR)/libvpx_obj_int_extract',
-            'obj_int_extract.py',
-          ],
-          'outputs': [
-            '<(shared_generated_dir)/<(RULE_INPUT_ROOT).asm',
-          ],
-          'variables': {
-            'conditions': [
-              ['(target_arch=="arm" or target_arch=="armv7")', {
-                'asm_format': 'gas',
-              }, {
-                'asm_format': 'rvds',
-              }],
-            ],
-          },
-          'action': [
-            'python',
-            '<(DEPTH)/third_party/libvpx/obj_int_extract.py',
-            '-e', '<(PRODUCT_DIR)/libvpx_obj_int_extract',
-            '-f', '<(asm_format)',
-            '-b', '<(RULE_INPUT_PATH)',
-            '-o', '<(shared_generated_dir)/<(RULE_INPUT_ROOT).asm',
-          ],
-          'message': 'Generate assembly offsets <(RULE_INPUT_PATH)',
-        },
-      ],
+      'includes': ['obj_int_extract.gypi'],
     },
     {
       # A target that takes assembly offsets library and generate the
@@ -502,10 +467,17 @@
         'libvpx_obj_int_extract#host',
       ],
       'variables' : {
-        'lib_intermediate_path' : '',
+        'lib_intermediate_name' : '',
+        'output_format':'',
+        'output_dir': '<(shared_generated_dir)',
         'conditions' : [
           ['android_webview_build==1', {
-            'lib_intermediate_path' : '<(android_src)/$(call intermediates-dir-for, STATIC_LIBRARIES, libvpx_asm_offsets_vpx_scale)/libvpx_asm_offsets_vpx_scale.a',
+            'lib_intermediate_name' : '<(android_src)/$(call intermediates-dir-for, STATIC_LIBRARIES, libvpx_asm_offsets_vpx_scale)/libvpx_asm_offsets_vpx_scale.a',
+          }],
+          ['(target_arch=="arm" or target_arch=="armv7")', {
+            'output_format': 'gas',
+          }, {
+            'output_format': 'rvds',
           }],
         ],
       },
@@ -534,66 +506,24 @@
             '<(INTERMEDIATE_DIR)/vpx_scale_asm_offsets.obj',
           ],
         }, {
-          'actions': [
-            {
-              # Take archived .a file and unpack it unto .o files.
-              'action_name': 'unpack_lib_posix',
-              'inputs': [
-                'unpack_lib_posix.sh',
-              ],
-              'outputs': [
-                '<(INTERMEDIATE_DIR)/vpx_scale_asm_offsets.o',
-              ],
-              'action': [
-                '<(DEPTH)/third_party/libvpx/unpack_lib_posix.sh',
-                '-d', '<(INTERMEDIATE_DIR)',
-                '-a', '<(PRODUCT_DIR)/libvpx_asm_offsets_vpx_scale.a',
-                '-a', '<(LIB_DIR)/third_party/libvpx/libvpx_asm_offsets_vpx_scale.a',
-                '-a', '<(LIB_DIR)/Source/WebKit/chromium/third_party/libvpx/libvpx_asm_offsets_vpx_scale.a',
-                '-a', '<(lib_intermediate_path)',
-                '-f', 'vpx_scale_asm_offsets.o',
-              ],
-              'process_output_as_sources': 1,
-            },
-          ],
-          # Need this otherwise gyp won't run the rule on them.
+          'variables': {
+            'unpack_lib_search_path_list': [
+              '-a', '<(PRODUCT_DIR)/libvpx_asm_offsets_vpx_scale.a',
+              '-a', '<(LIB_DIR)/third_party/libvpx/libvpx_asm_offsets_vpx_scale.a',
+              '-a', '<(LIB_DIR)/Source/WebKit/chromium/third_party/libvpx/libvpx_asm_offsets_vpx_scale.a',
+              '-a', '<(lib_intermediate_name)',
+            ],
+            'unpack_lib_output_dir':'<(INTERMEDIATE_DIR)',
+            'unpack_lib_name':'vpx_scale_asm_offsets.o'
+          },
+          'includes': ['unpack_lib_posix.gypi'],
+         # Need this otherwise gyp won't run the rule on them.
           'sources': [
             '<(INTERMEDIATE_DIR)/vpx_scale_asm_offsets.o',
           ],
         }],
       ],
-      'rules': [
-        {
-          # Rule to extract integer values for each symbol from an object file.
-          'rule_name': 'obj_int_extract',
-          'extension': '<(asm_obj_extension)',
-          'inputs': [
-            '<(PRODUCT_DIR)/libvpx_obj_int_extract',
-            'obj_int_extract.py',
-          ],
-          'outputs': [
-            '<(shared_generated_dir)/<(RULE_INPUT_ROOT).asm',
-          ],
-          'variables': {
-            'conditions': [
-              ['(target_arch=="arm" or target_arch=="armv7")', {
-                'asm_format': 'gas',
-              }, {
-                'asm_format': 'rvds',
-              }],
-            ],
-          },
-          'action': [
-            'python',
-            '<(DEPTH)/third_party/libvpx/obj_int_extract.py',
-            '-e', '<(PRODUCT_DIR)/libvpx_obj_int_extract',
-            '-f', '<(asm_format)',
-            '-b', '<(RULE_INPUT_PATH)',
-            '-o', '<(shared_generated_dir)/<(RULE_INPUT_ROOT).asm',
-          ],
-          'message': 'Generate assembly offsets <(RULE_INPUT_PATH)',
-        },
-      ],
+      'includes': ['obj_int_extract.gypi'],
     },
     {
       'target_name': 'simple_encoder',
