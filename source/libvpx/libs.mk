@@ -183,7 +183,6 @@ CODEC_EXPORTS-$(CONFIG_DECODERS) += vpx/exports_dec
 
 INSTALL-LIBS-yes += include/vpx/vpx_codec.h
 INSTALL-LIBS-yes += include/vpx/vpx_image.h
-INSTALL-LIBS-yes += include/vpx/vpx_external_frame_buffer.h
 INSTALL-LIBS-yes += include/vpx/vpx_integer.h
 INSTALL-LIBS-$(CONFIG_DECODERS) += include/vpx/vpx_decoder.h
 INSTALL-LIBS-$(CONFIG_ENCODERS) += include/vpx/vpx_encoder.h
@@ -471,11 +470,6 @@ $(LIBVPX_TEST_OBJS) $(LIBVPX_TEST_OBJS:.o=.d): CXXFLAGS += -I$(SRC_PATH_BARE)/th
 OBJS-$(BUILD_LIBVPX) += $(LIBVPX_TEST_OBJS)
 BINS-$(BUILD_LIBVPX) += $(LIBVPX_TEST_BINS)
 
-# Install test sources only if codec source is included
-INSTALL-SRCS-$(CONFIG_CODEC_SRCS) += $(patsubst $(SRC_PATH_BARE)/%,%,\
-    $(shell find $(SRC_PATH_BARE)/third_party/googletest -type f))
-INSTALL-SRCS-$(CONFIG_CODEC_SRCS) += $(LIBVPX_TEST_SRCS)
-
 CODEC_LIB=$(if $(CONFIG_DEBUG_LIBS),vpx_g,vpx)
 CODEC_LIB_SUF=$(if $(CONFIG_SHARED),.so,.a)
 $(foreach bin,$(LIBVPX_TEST_BINS),\
@@ -488,6 +482,11 @@ $(foreach bin,$(LIBVPX_TEST_BINS),\
     $(if $(LIPO_LIBS),$(eval $(call lipo_bin_template,$(bin))))\
 
 endif
+
+# Install test sources only if codec source is included
+INSTALL-SRCS-$(CONFIG_CODEC_SRCS) += $(patsubst $(SRC_PATH_BARE)/%,%,\
+    $(shell find $(SRC_PATH_BARE)/third_party/googletest -type f))
+INSTALL-SRCS-$(CONFIG_CODEC_SRCS) += $(LIBVPX_TEST_SRCS)
 
 define test_shard_template
 test:: test_shard.$(1)

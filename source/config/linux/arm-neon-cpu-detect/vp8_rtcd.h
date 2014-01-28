@@ -7,6 +7,10 @@
 #define RTCD_EXTERN extern
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * VP8
  */
@@ -414,7 +418,8 @@ void vp8_yv12_copy_partial_frame_neon(struct yv12_buffer_config *src_ybc, struct
 RTCD_EXTERN void (*vp8_yv12_copy_partial_frame)(struct yv12_buffer_config *src_ybc, struct yv12_buffer_config *dst_ybc);
 
 int vp8_denoiser_filter_c(struct yv12_buffer_config* mc_running_avg, struct yv12_buffer_config* running_avg, struct macroblock* signal, unsigned int motion_magnitude2, int y_offset, int uv_offset);
-#define vp8_denoiser_filter vp8_denoiser_filter_c
+int vp8_denoiser_filter_neon(struct yv12_buffer_config* mc_running_avg, struct yv12_buffer_config* running_avg, struct macroblock* signal, unsigned int motion_magnitude2, int y_offset, int uv_offset);
+RTCD_EXTERN int (*vp8_denoiser_filter)(struct yv12_buffer_config* mc_running_avg, struct yv12_buffer_config* running_avg, struct macroblock* signal, unsigned int motion_magnitude2, int y_offset, int uv_offset);
 
 void vp8_rtcd(void);
 #include "vpx_config.h"
@@ -676,6 +681,14 @@ static void setup_rtcd_internal(void)
 
     vp8_yv12_copy_partial_frame = vp8_yv12_copy_partial_frame_c;
     if (flags & HAS_NEON) vp8_yv12_copy_partial_frame = vp8_yv12_copy_partial_frame_neon;
+
+    vp8_denoiser_filter = vp8_denoiser_filter_c;
+    if (flags & HAS_NEON) vp8_denoiser_filter = vp8_denoiser_filter_neon;
 }
 #endif
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
 #endif

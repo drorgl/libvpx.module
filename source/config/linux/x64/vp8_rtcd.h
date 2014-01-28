@@ -7,6 +7,10 @@
 #define RTCD_EXTERN extern
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * VP8
  */
@@ -648,4 +652,9 @@ static void setup_rtcd_internal(void)
     if (flags & HAS_SSE3) vp8_diamond_search_sad = vp8_diamond_search_sadx4;
 }
 #endif
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
 #endif

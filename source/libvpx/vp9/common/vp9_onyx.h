@@ -11,16 +11,15 @@
 #ifndef VP9_COMMON_VP9_ONYX_H_
 #define VP9_COMMON_VP9_ONYX_H_
 
-#ifdef __cplusplus
-extern "C"
-{ // NOLINT
-#endif
-
 #include "./vpx_config.h"
 #include "vpx/internal/vpx_codec_internal.h"
 #include "vpx/vp8cx.h"
 #include "vpx_scale/yv12config.h"
 #include "vp9/common/vp9_ppflags.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define MAX_SEGMENTS 8
 
@@ -43,8 +42,8 @@ extern "C"
 
 
   typedef enum {
-    USAGE_STREAM_FROM_SERVER    = 0x0,
-    USAGE_LOCAL_FILE_PLAYBACK   = 0x1,
+    USAGE_LOCAL_FILE_PLAYBACK   = 0x0,
+    USAGE_STREAM_FROM_SERVER    = 0x1,
     USAGE_CONSTRAINED_QUALITY   = 0x2,
     USAGE_CONSTANT_QUALITY      = 0x3,
   } END_USAGE;
@@ -81,7 +80,7 @@ extern "C"
     int64_t target_bandwidth;  // bandwidth to be used in kilobits per second
 
     int noise_sensitivity;  // pre processing blur: recommendation 0
-    int Sharpness;  // sharpening output: recommendation 0:
+    int sharpness;  // sharpening output: recommendation 0:
     int cpu_used;
     unsigned int rc_max_intra_bitrate_pct;
 
@@ -106,7 +105,7 @@ extern "C"
     //     were generated in the first encoding pass to create the compressed
     //     output using the highest possible quality, and taking a
     //    longer amount of time to encode.. ( speed setting ignored )
-    int Mode;
+    int mode;
 
     // Key Framing Operations
     int auto_key;  // autodetect cut scenes and set the keyframes
@@ -237,7 +236,7 @@ extern "C"
   int vp9_get_quantizer(VP9_PTR c);
 
 #ifdef __cplusplus
-}
+}  // extern "C"
 #endif
 
 #endif  // VP9_COMMON_VP9_ONYX_H_

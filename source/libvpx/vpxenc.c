@@ -26,7 +26,6 @@
 
 #include "third_party/libyuv/include/libyuv/scale.h"
 #include "./args.h"
-#include "./ivfdec.h"
 #include "./ivfenc.h"
 
 #if CONFIG_VP8_ENCODER || CONFIG_VP9_ENCODER
@@ -126,13 +125,19 @@ int read_frame(struct VpxInputContext *input_ctx, vpx_image_t *img) {
   return !shortread;
 }
 
-int file_is_y4m(FILE *infile, y4m_input *y4m, const char detect[4]) {
+int file_is_y4m(const char detect[4]) {
   if (memcmp(detect, "YUV4", 4) == 0) {
     return 1;
   }
   return 0;
 }
 
+int fourcc_is_ivf(const char detect[4]) {
+  if (memcmp(detect, "DKIF", 4) == 0) {
+    return 1;
+  }
+  return 0;
+}
 
 /* Murmur hash derived from public domain reference implementation at
  *   http:// sites.google.com/site/murmurhash/
@@ -357,12 +362,6 @@ static const arg_def_t static_thresh = ARG_DEF(NULL, "static-thresh", 1,
                                                "Motion detection threshold");
 static const arg_def_t cpu_used = ARG_DEF(NULL, "cpu-used", 1,
                                           "CPU Used (-16..16)");
-static const arg_def_t token_parts = ARG_DEF(NULL, "token-parts", 1,
-                                     "Number of token partitions to use, log2");
-static const arg_def_t tile_cols = ARG_DEF(NULL, "tile-columns", 1,
-                                         "Number of tile columns to use, log2");
-static const arg_def_t tile_rows = ARG_DEF(NULL, "tile-rows", 1,
-                                           "Number of tile rows to use, log2");
 static const arg_def_t auto_altref = ARG_DEF(NULL, "auto-alt-ref", 1,
                                              "Enable automatic alt reference frames");
 static const arg_def_t arnr_maxframes = ARG_DEF(NULL, "arnr-maxframes", 1,
@@ -382,16 +381,10 @@ static const arg_def_t cq_level = ARG_DEF(NULL, "cq-level", 1,
                                           "Constant/Constrained Quality level");
 static const arg_def_t max_intra_rate_pct = ARG_DEF(NULL, "max-intra-rate", 1,
                                                     "Max I-frame bitrate (pct)");
-static const arg_def_t lossless = ARG_DEF(NULL, "lossless", 1, "Lossless mode");
-#if CONFIG_VP9_ENCODER
-static const arg_def_t frame_parallel_decoding  = ARG_DEF(
-    NULL, "frame-parallel", 1, "Enable frame parallel decodability features");
-static const arg_def_t aq_mode  = ARG_DEF(
-    NULL, "aq-mode", 1,
-    "Adaptive q mode (0: off (by default), 1: variance 2: complexity)");
-#endif
 
 #if CONFIG_VP8_ENCODER
+static const arg_def_t token_parts =
+    ARG_DEF(NULL, "token-parts", 1, "Number of token partitions to use, log2");
 static const arg_def_t *vp8_args[] = {
   &cpu_used, &auto_altref, &noise_sens, &sharpness, &static_thresh,
   &token_parts, &arnr_maxframes, &arnr_strength, &arnr_type,
@@ -409,6 +402,17 @@ static const int vp8_arg_ctrl_map[] = {
 #endif
 
 #if CONFIG_VP9_ENCODER
+static const arg_def_t tile_cols =
+    ARG_DEF(NULL, "tile-columns", 1, "Number of tile columns to use, log2");
+static const arg_def_t tile_rows =
+    ARG_DEF(NULL, "tile-rows", 1, "Number of tile rows to use, log2");
+static const arg_def_t lossless = ARG_DEF(NULL, "lossless", 1, "Lossless mode");
+static const arg_def_t frame_parallel_decoding = ARG_DEF(
+    NULL, "frame-parallel", 1, "Enable frame parallel decodability features");
+static const arg_def_t aq_mode = ARG_DEF(
+    NULL, "aq-mode", 1,
+    "Adaptive q mode (0: off (by default), 1: variance 2: complexity)");
+
 static const arg_def_t *vp9_args[] = {
   &cpu_used, &auto_altref, &noise_sens, &sharpness, &static_thresh,
   &tile_cols, &tile_rows, &arnr_maxframes, &arnr_strength, &arnr_type,
@@ -829,8 +833,8 @@ static int compare_img(vpx_image_t *img1, vpx_image_t *img2)
   unsigned int i;
 
   match &= (img1->fmt == img2->fmt);
-  match &= (img1->w == img2->w);
-  match &= (img1->h == img2->h);
+  match &= (img1->d_w == img2->d_w);
+  match &= (img1->d_h == img2->d_h);
 
   for (i = 0; i < img1->d_h; i++)
     match &= (memcmp(img1->planes[VPX_PLANE_Y]+i*img1->stride[VPX_PLANE_Y],
@@ -1044,7 +1048,7 @@ void open_input_file(struct VpxInputContext *input) {
   input->detect.position = 0;
 
   if (input->detect.buf_read == 4
-      && file_is_y4m(input->file, &input->y4m, input->detect.buf)) {
+      && file_is_y4m(input->detect.buf)) {
     if (y4m_input_open(&input->y4m, input->file, input->detect.buf, 4,
                        input->only_i420) >= 0) {
       input->file_type = FILE_TYPE_Y4M;
@@ -1055,7 +1059,7 @@ void open_input_file(struct VpxInputContext *input) {
       input->use_i420 = 0;
     } else
       fatal("Unsupported Y4M stream.");
-  } else if (input->detect.buf_read == 4 && file_is_ivf(input)) {
+  } else if (input->detect.buf_read == 4 && fourcc_is_ivf(input->detect.buf)) {
     fatal("IVF is not supported as input.");
   } else {
     input->file_type = FILE_TYPE_RAW;
@@ -1388,6 +1392,10 @@ static void show_stream_config(struct stream_state *stream,
 static void open_output_file(struct stream_state *stream,
                              struct VpxEncoderConfig *global) {
   const char *fn = stream->config.out_fn;
+  const struct vpx_codec_enc_cfg *const cfg = &stream->config.cfg;
+
+  if (cfg->g_pass == VPX_RC_FIRST_PASS)
+    return;
 
   stream->file = strcmp(fn, "-") ? fopen(fn, "wb") : set_binary_mode(stdout);
 
@@ -1399,18 +1407,23 @@ static void open_output_file(struct stream_state *stream,
 
   if (stream->config.write_webm) {
     stream->ebml.stream = stream->file;
-    write_webm_file_header(&stream->ebml, &stream->config.cfg,
+    write_webm_file_header(&stream->ebml, cfg,
                            &global->framerate,
                            stream->config.stereo_fmt,
                            global->codec->fourcc);
-  } else
-    ivf_write_file_header(stream->file, &stream->config.cfg,
-                          global->codec->fourcc, 0);
+  } else {
+    ivf_write_file_header(stream->file, cfg, global->codec->fourcc, 0);
+  }
 }
 
 
 static void close_output_file(struct stream_state *stream,
-                              unsigned int         fourcc) {
+                              unsigned int fourcc) {
+  const struct vpx_codec_enc_cfg *const cfg = &stream->config.cfg;
+
+  if (cfg->g_pass == VPX_RC_FIRST_PASS)
+    return;
+
   if (stream->config.write_webm) {
     write_webm_file_footer(&stream->ebml, stream->hash);
     free(stream->ebml.cue_list);

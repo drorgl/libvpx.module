@@ -71,19 +71,19 @@ static int continue_prompt(int num_warnings) {
   return c == 'y';
 }
 
+static void check_quantizer(int min_q, int max_q,
+                            struct WarningList *warning_list) {
+  const int lossless = min_q == 0 && max_q == 0;
+  if (!lossless && (min_q == max_q || abs(max_q - min_q) < 8))
+    add_warning(quantizer_warning_string, warning_list);
+}
+
 static void check_lag_in_frames_realtime_deadline(
     int lag_in_frames,
     int deadline,
     struct WarningList *warning_list) {
   if (deadline == VPX_DL_REALTIME && lag_in_frames != 0)
     add_warning(lag_in_frames_with_realtime, warning_list);
-}
-
-static void check_quantizer(int min_q, int max_q,
-                            struct WarningList *warning_list) {
-  const int lossless = min_q == 0 && max_q == 0;
-  if (!lossless && (min_q == max_q || abs(max_q - min_q) < 8))
-    add_warning(quantizer_warning_string, warning_list);
 }
 
 void check_encoder_config(int disable_prompt,
@@ -99,7 +99,6 @@ void check_encoder_config(int disable_prompt,
   check_lag_in_frames_realtime_deadline(stream_config->g_lag_in_frames,
                                         global_config->deadline,
                                         &warning_list);
-
   /* Count and print warnings. */
   for (warning = warning_list.warning_node;
        warning != NULL;

@@ -8,23 +8,39 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include "./ivfdec.h"
-
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include "./ivfdec.h"
+
+static const char *IVF_SIGNATURE = "DKIF";
+
+static void fix_framerate(int *num, int *den) {
+  // Some versions of vpxenc used 1/(2*fps) for the timebase, so
+  // we can guess the framerate using only the timebase in this
+  // case. Other files would require reading ahead to guess the
+  // timebase, like we do for webm.
+  if (*num < 1000) {
+    // Correct for the factor of 2 applied to the timebase in the encoder.
+    if (*num & 1)
+      *den *= 2;
+    else
+      *num /= 2;
+  } else {
+    // Don't know FPS for sure, and don't have readahead code
+    // (yet?), so just default to 30fps.
+    *num = 30;
+    *den = 1;
+  }
+}
 
 int file_is_ivf(struct VpxInputContext *input_ctx) {
   char raw_hdr[32];
   int is_ivf = 0;
 
-  // TODO(tomfinegan): This can eventually go away, but for now it's required
-  // because the means by which file types are detected differ in vpxdec and
-  // vpxenc.
-  rewind(input_ctx->file);
-
   if (fread(raw_hdr, 1, 32, input_ctx->file) == 32) {
-    if (raw_hdr[0] == 'D' && raw_hdr[1] == 'K' &&
-        raw_hdr[2] == 'I' && raw_hdr[3] == 'F') {
+    if (memcmp(IVF_SIGNATURE, raw_hdr, 4) == 0) {
       is_ivf = 1;
 
       if (mem_get_le16(raw_hdr + 4) != 0) {
@@ -37,27 +53,8 @@ int file_is_ivf(struct VpxInputContext *input_ctx) {
       input_ctx->height = mem_get_le16(raw_hdr + 14);
       input_ctx->framerate.numerator = mem_get_le32(raw_hdr + 16);
       input_ctx->framerate.denominator = mem_get_le32(raw_hdr + 20);
-
-      /* Some versions of vpxenc used 1/(2*fps) for the timebase, so
-       * we can guess the framerate using only the timebase in this
-       * case. Other files would require reading ahead to guess the
-       * timebase, like we do for webm.
-       */
-      if (input_ctx->framerate.numerator < 1000) {
-        /* Correct for the factor of 2 applied to the timebase in the
-         * encoder.
-         */
-        if (input_ctx->framerate.numerator & 1)
-          input_ctx->framerate.denominator <<= 1;
-        else
-          input_ctx->framerate.numerator >>= 1;
-      } else {
-        /* Don't know FPS for sure, and don't have readahead code
-         * (yet?), so just default to 30fps.
-         */
-        input_ctx->framerate.numerator = 30;
-        input_ctx->framerate.denominator = 1;
-      }
+      fix_framerate(&input_ctx->framerate.numerator,
+                    &input_ctx->framerate.denominator);
     }
   }
 
@@ -70,16 +67,10 @@ int file_is_ivf(struct VpxInputContext *input_ctx) {
   return is_ivf;
 }
 
-int ivf_read_frame(struct VpxInputContext *input_ctx,
-                   uint8_t **buffer,
-                   size_t *bytes_read,
-                   size_t *buffer_size) {
+int ivf_read_frame(FILE *infile, uint8_t **buffer,
+                   size_t *bytes_read, size_t *buffer_size) {
   char raw_header[IVF_FRAME_HDR_SZ] = {0};
   size_t frame_size = 0;
-  FILE *infile = input_ctx->file;
-
-  if (input_ctx->file_type != FILE_TYPE_IVF)
-    return 0;
 
   if (fread(raw_header, IVF_FRAME_HDR_SZ, 1, infile) != 1) {
     if (!feof(infile))
@@ -116,4 +107,69 @@ int ivf_read_frame(struct VpxInputContext *input_ctx,
   }
 
   return 1;
+}
+
+struct vpx_video {
+  FILE *file;
+  unsigned char *buffer;
+  size_t buffer_size;
+  size_t frame_size;
+  unsigned int fourcc;
+  int width;
+  int height;
+};
+
+vpx_video_t *vpx_video_open_file(FILE *file) {
+  char raw_hdr[32];
+  vpx_video_t *video;
+
+  if (fread(raw_hdr, 1, 32, file) != 32)
+    return NULL;  // Can't read file header;
+
+  if (memcmp(IVF_SIGNATURE, raw_hdr, 4) != 0)
+    return NULL;  // Wrong IVF signature
+
+  if (mem_get_le16(raw_hdr + 4) != 0)
+    return NULL;  // Wrong IVF version
+
+  video = (vpx_video_t *)malloc(sizeof(*video));
+  video->file = file;
+  video->buffer = NULL;
+  video->buffer_size = 0;
+  video->frame_size = 0;
+  video->fourcc = mem_get_le32(raw_hdr + 8);
+  video->width = mem_get_le16(raw_hdr + 12);
+  video->height = mem_get_le16(raw_hdr + 14);
+  return video;
+}
+
+void vpx_video_close(vpx_video_t *video) {
+  if (video) {
+    free(video->buffer);
+    free(video);
+  }
+}
+
+int vpx_video_get_width(vpx_video_t *video) {
+  return video->width;
+}
+
+int vpx_video_get_height(vpx_video_t *video) {
+  return video->height;
+}
+
+unsigned int vpx_video_get_fourcc(vpx_video_t *video) {
+  return video->fourcc;
+}
+
+int vpx_video_read_frame(vpx_video_t *video) {
+  return !ivf_read_frame(video->file, &video->buffer, &video->frame_size,
+                         &video->buffer_size);
+}
+
+const unsigned char *vpx_video_get_frame(vpx_video_t *video, size_t *size) {
+  if (size)
+    *size = video->frame_size;
+
+  return video->buffer;
 }

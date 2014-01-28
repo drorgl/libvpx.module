@@ -14,7 +14,10 @@
 #include "vpx/vpx_integer.h"
 #include "vp9/common/vp9_onyxc_int.h"
 
-struct subpix_fn_table;
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void vp9_build_inter_predictors_sby(MACROBLOCKD *xd, int mi_row, int mi_col,
                                     BLOCK_SIZE bsize);
 
@@ -32,7 +35,7 @@ void vp9_build_inter_predictor(const uint8_t *src, int src_stride,
                                const MV *mv_q3,
                                const struct scale_factors *sf,
                                int w, int h, int do_avg,
-                               const struct subpix_fn_table *subpix,
+                               const interp_kernel *kernel,
                                enum mv_precision precision,
                                int x, int y);
 
@@ -58,44 +61,40 @@ static void setup_pred_plane(struct buf_2d *dst,
 static void setup_dst_planes(MACROBLOCKD *xd,
                              const YV12_BUFFER_CONFIG *src,
                              int mi_row, int mi_col) {
-  uint8_t *buffers[4] = {src->y_buffer, src->u_buffer, src->v_buffer,
-                         src->alpha_buffer};
-  int strides[4] = {src->y_stride, src->uv_stride, src->uv_stride,
-                    src->alpha_stride};
+  uint8_t *const buffers[4] = {src->y_buffer, src->u_buffer, src->v_buffer,
+                               src->alpha_buffer};
+  const int strides[4] = {src->y_stride, src->uv_stride, src->uv_stride,
+                          src->alpha_stride};
   int i;
 
   for (i = 0; i < MAX_MB_PLANE; ++i) {
-    struct macroblockd_plane *pd = &xd->plane[i];
+    struct macroblockd_plane *const pd = &xd->plane[i];
     setup_pred_plane(&pd->dst, buffers[i], strides[i], mi_row, mi_col, NULL,
                      pd->subsampling_x, pd->subsampling_y);
   }
 }
 
-static void setup_pre_planes(MACROBLOCKD *xd, int i,
+static void setup_pre_planes(MACROBLOCKD *xd, int idx,
                              const YV12_BUFFER_CONFIG *src,
                              int mi_row, int mi_col,
                              const struct scale_factors *sf) {
-  if (src) {
-    int j;
-    uint8_t* buffers[4] = {src->y_buffer, src->u_buffer, src->v_buffer,
-                           src->alpha_buffer};
-    int strides[4] = {src->y_stride, src->uv_stride, src->uv_stride,
-                      src->alpha_stride};
+  if (src != NULL) {
+    int i;
+    uint8_t *const buffers[4] = {src->y_buffer, src->u_buffer, src->v_buffer,
+                                 src->alpha_buffer};
+    const int strides[4] = {src->y_stride, src->uv_stride, src->uv_stride,
+                            src->alpha_stride};
 
-    for (j = 0; j < MAX_MB_PLANE; ++j) {
-      struct macroblockd_plane *pd = &xd->plane[j];
-      setup_pred_plane(&pd->pre[i], buffers[j], strides[j],
-                     mi_row, mi_col, sf, pd->subsampling_x, pd->subsampling_y);
+    for (i = 0; i < MAX_MB_PLANE; ++i) {
+      struct macroblockd_plane *const pd = &xd->plane[i];
+      setup_pred_plane(&pd->pre[idx], buffers[i], strides[i], mi_row, mi_col,
+                       sf, pd->subsampling_x, pd->subsampling_y);
     }
   }
 }
 
-static void set_scale_factors(VP9_COMMON *cm, MACROBLOCKD *xd,
-                              int ref0, int ref1) {
-  xd->scale_factors[0] = &cm->active_ref_scale[ref0 >= 0 ? ref0 : 0];
-  xd->scale_factors[1] = &cm->active_ref_scale[ref1 >= 0 ? ref1 : 0];
-}
-
-void vp9_setup_scale_factors(VP9_COMMON *cm, int i);
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif  // VP9_COMMON_VP9_RECONINTER_H_

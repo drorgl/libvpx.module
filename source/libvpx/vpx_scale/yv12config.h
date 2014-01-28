@@ -15,13 +15,13 @@
 extern "C" {
 #endif
 
-#include "vpx/vpx_external_frame_buffer.h"
 #include "vpx/vpx_integer.h"
 
-#define VP8BORDERINPIXELS       32
-#define VP9INNERBORDERINPIXELS  96
-#define VP9BORDERINPIXELS      160
-#define VP9_INTERP_EXTEND        4
+#define VP8BORDERINPIXELS           32
+#define VP9INNERBORDERINPIXELS      96
+#define VP9_INTERP_EXTEND           4
+#define VP9_ENC_BORDER_IN_PIXELS    160
+#define VP9_DEC_BORDER_IN_PIXELS    32
 
   typedef struct yv12_buffer_config {
     int   y_width;
@@ -65,20 +65,9 @@ extern "C" {
   int vp9_alloc_frame_buffer(YV12_BUFFER_CONFIG *ybf,
                              int width, int height, int ss_x, int ss_y,
                              int border);
-
-  // Updates the yv12 buffer config with the frame buffer. If ext_fb is not
-  // NULL then libvpx is using external frame buffers. The function will
-  // check if the frame buffer is big enough to fit the decoded frame and
-  // try to reallocate the frame buffer. If ext_fb is not NULL and the frame
-  // buffer is not big enough libvpx will call cb with minimum size in bytes.
-  //
-  // Returns 0 on success. Returns < 0 on failure.
   int vp9_realloc_frame_buffer(YV12_BUFFER_CONFIG *ybf,
                                int width, int height, int ss_x, int ss_y,
-                               int border,
-                               vpx_codec_frame_buffer_t *ext_fb,
-                               vpx_realloc_frame_buffer_cb_fn_t cb,
-                               void *user_priv);
+                               int border);
   int vp9_free_frame_buffer(YV12_BUFFER_CONFIG *ybf);
 
 #ifdef __cplusplus

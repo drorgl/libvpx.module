@@ -20,9 +20,6 @@ void ivf_write_file_header(FILE *outfile,
                            int frame_cnt) {
   char header[32];
 
-  if (cfg->g_pass != VPX_RC_ONE_PASS && cfg->g_pass != VPX_RC_LAST_PASS)
-    return;
-
   header[0] = 'D';
   header[1] = 'K';
   header[2] = 'I';
@@ -43,9 +40,6 @@ void ivf_write_file_header(FILE *outfile,
 void ivf_write_frame_header(FILE *outfile, const struct vpx_codec_cx_pkt *pkt) {
   char header[12];
   vpx_codec_pts_t pts;
-
-  if (pkt->kind != VPX_CODEC_CX_FRAME_PKT)
-    return;
 
   pts = pkt->data.frame.pts;
   mem_put_le32(header, (int)pkt->data.frame.sz);

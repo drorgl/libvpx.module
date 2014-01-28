@@ -17,6 +17,10 @@
 #include "vpx_ports/mem.h"
 #include "vp9/common/vp9_onyxc_int.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // motion search site
 typedef struct {
   MV mv;
@@ -41,8 +45,7 @@ typedef struct {
   int is_coded;
   int num_4x4_blk;
   int skip;
-  int_mv best_ref_mv;
-  int_mv second_best_ref_mv;
+  int_mv best_ref_mv[2];
   int_mv ref_mvs[MAX_REF_FRAMES][MAX_MV_REF_CANDIDATES];
   int rate;
   int distortion;
@@ -59,13 +62,10 @@ typedef struct {
   // motion vector cache for adaptive motion search control in partition
   // search loop
   int_mv pred_mv[MAX_REF_FRAMES];
-  int pred_filter_type;
+  INTERP_FILTER pred_interp_filter;
 
   // Bit flag for each mode whether it has high error in comparison to others.
   unsigned int modes_with_high_error;
-
-  // Bit flag for each ref frame whether it has high error compared to others.
-  unsigned int frames_with_high_error;
 } PICK_MODE_CONTEXT;
 
 struct macroblock_plane {
@@ -118,7 +118,9 @@ struct macroblock {
   int mv_best_ref_index[MAX_REF_FRAMES];
   unsigned int max_mv_context[MAX_REF_FRAMES];
   unsigned int source_variance;
-  unsigned int pred_sse;
+  unsigned int pred_sse[MAX_REF_FRAMES];
+  int pred_mv_sad[MAX_REF_FRAMES];
+  int mode_sad[MAX_REF_FRAMES][INTER_MODES + 1];
 
   int nmvjointcost[MV_JOINTS];
   int nmvcosts[2][MV_VALS];
@@ -255,5 +257,9 @@ struct rdcost_block_args {
   int skip;
   const int16_t *scan, *nb;
 };
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif  // VP9_ENCODER_VP9_BLOCK_H_

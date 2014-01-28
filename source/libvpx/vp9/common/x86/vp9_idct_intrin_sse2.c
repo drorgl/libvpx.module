@@ -180,7 +180,7 @@ static INLINE void transpose_4x4(__m128i *res) {
   res[1] = _mm_unpackhi_epi16(tr0_0, tr0_1);
 }
 
-static void idct4_1d_sse2(__m128i *in) {
+static void idct4_sse2(__m128i *in) {
   const __m128i k__cospi_p16_p16 = pair_set_epi16(cospi_16_64, cospi_16_64);
   const __m128i k__cospi_p16_m16 = pair_set_epi16(cospi_16_64, -cospi_16_64);
   const __m128i k__cospi_p24_m08 = pair_set_epi16(cospi_24_64, -cospi_8_64);
@@ -216,7 +216,7 @@ static void idct4_1d_sse2(__m128i *in) {
   in[1] = _mm_shuffle_epi32(in[1], 0x4E);
 }
 
-static void iadst4_1d_sse2(__m128i *in) {
+static void iadst4_sse2(__m128i *in) {
   const __m128i k__sinpi_p01_p04 = pair_set_epi16(sinpi_1_9, sinpi_4_9);
   const __m128i k__sinpi_p03_p02 = pair_set_epi16(sinpi_3_9, sinpi_2_9);
   const __m128i k__sinpi_p02_m01 = pair_set_epi16(sinpi_2_9, -sinpi_1_9);
@@ -276,20 +276,20 @@ void vp9_iht4x4_16_add_sse2(const int16_t *input, uint8_t *dest, int stride,
 
   switch (tx_type) {
     case 0:  // DCT_DCT
-      idct4_1d_sse2(in);
-      idct4_1d_sse2(in);
+      idct4_sse2(in);
+      idct4_sse2(in);
       break;
     case 1:  // ADST_DCT
-      idct4_1d_sse2(in);
-      iadst4_1d_sse2(in);
+      idct4_sse2(in);
+      iadst4_sse2(in);
       break;
     case 2:  // DCT_ADST
-      iadst4_1d_sse2(in);
-      idct4_1d_sse2(in);
+      iadst4_sse2(in);
+      idct4_sse2(in);
       break;
     case 3:  // ADST_ADST
-      iadst4_1d_sse2(in);
-      iadst4_1d_sse2(in);
+      iadst4_sse2(in);
+      iadst4_sse2(in);
       break;
     default:
       assert(0);
@@ -361,37 +361,40 @@ void vp9_iht4x4_16_add_sse2(const int16_t *input, uint8_t *dest, int stride,
     out7 = _mm_unpackhi_epi64(tr1_3, tr1_7); \
   }
 
-#define TRANSPOSE_4X8(in0, in1, in2, in3, in4, in5, in6, in7, \
-                      out0, out1, out2, out3, out4, out5, out6, out7) \
-  {                                                     \
-    const __m128i tr0_0 = _mm_unpacklo_epi16(in0, in1); \
-    const __m128i tr0_1 = _mm_unpacklo_epi16(in2, in3); \
-    const __m128i tr0_4 = _mm_unpacklo_epi16(in4, in5); \
-    const __m128i tr0_5 = _mm_unpacklo_epi16(in6, in7); \
-                                                        \
+#define TRANSPOSE_4X8_10(tmp0, tmp1, tmp2, tmp3, \
+                         out0, out1, out2, out3) \
+  {                                              \
+    const __m128i tr0_0 = _mm_unpackhi_epi16(tmp0, tmp1); \
+    const __m128i tr0_1 = _mm_unpacklo_epi16(tmp1, tmp0); \
+    const __m128i tr0_4 = _mm_unpacklo_epi16(tmp2, tmp3); \
+    const __m128i tr0_5 = _mm_unpackhi_epi16(tmp3, tmp2); \
+    \
     const __m128i tr1_0 = _mm_unpacklo_epi32(tr0_0, tr0_1); \
     const __m128i tr1_2 = _mm_unpackhi_epi32(tr0_0, tr0_1); \
     const __m128i tr1_4 = _mm_unpacklo_epi32(tr0_4, tr0_5); \
     const __m128i tr1_6 = _mm_unpackhi_epi32(tr0_4, tr0_5); \
-                                                            \
+    \
     out0 = _mm_unpacklo_epi64(tr1_0, tr1_4); \
     out1 = _mm_unpackhi_epi64(tr1_0, tr1_4); \
     out2 = _mm_unpacklo_epi64(tr1_2, tr1_6); \
     out3 = _mm_unpackhi_epi64(tr1_2, tr1_6); \
-    out4 = out5 = out6 = out7 = zero; \
   }
 
-#define TRANSPOSE_8X4(in0, in1, in2, in3, out0, out1, out2, out3) \
+#define TRANSPOSE_8X4(in0, in1, in2, in3, out0, out1) \
   {                                                     \
     const __m128i tr0_0 = _mm_unpacklo_epi16(in0, in1); \
     const __m128i tr0_1 = _mm_unpacklo_epi16(in2, in3); \
-    const __m128i tr0_2 = _mm_unpackhi_epi16(in0, in1); \
-    const __m128i tr0_3 = _mm_unpackhi_epi16(in2, in3); \
                                                         \
     in0 = _mm_unpacklo_epi32(tr0_0, tr0_1);  /* i1 i0 */  \
     in1 = _mm_unpackhi_epi32(tr0_0, tr0_1);  /* i3 i2 */  \
-    in2 = _mm_unpacklo_epi32(tr0_2, tr0_3);  /* i5 i4 */  \
-    in3 = _mm_unpackhi_epi32(tr0_2, tr0_3);  /* i7 i6 */  \
+  }
+
+#define TRANSPOSE_8X8_10(in0, in1, in2, in3, out0, out1) \
+  {                                            \
+    const __m128i tr0_0 = _mm_unpacklo_epi16(in0, in1); \
+    const __m128i tr0_1 = _mm_unpacklo_epi16(in2, in3); \
+    out0 = _mm_unpacklo_epi32(tr0_0, tr0_1); \
+    out1 = _mm_unpackhi_epi32(tr0_0, tr0_1); \
   }
 
 // Define Macro for multiplying elements by constants and adding them together.
@@ -452,7 +455,9 @@ void vp9_iht4x4_16_add_sse2(const int16_t *input, uint8_t *dest, int stride,
       res1 = _mm_packs_epi32(tmp2, tmp3); \
   }
 
-#define IDCT8_1D  \
+#define IDCT8(in0, in1, in2, in3, in4, in5, in6, in7, \
+                 out0, out1, out2, out3, out4, out5, out6, out7)  \
+  { \
   /* Stage1 */      \
   { \
     const __m128i lo_17 = _mm_unpacklo_epi16(in1, in7); \
@@ -512,14 +517,15 @@ void vp9_iht4x4_16_add_sse2(const int16_t *input, uint8_t *dest, int stride,
   } \
   \
   /* Stage4  */ \
-  in0 = _mm_adds_epi16(stp1_0, stp2_7); \
-  in1 = _mm_adds_epi16(stp1_1, stp1_6); \
-  in2 = _mm_adds_epi16(stp1_2, stp1_5); \
-  in3 = _mm_adds_epi16(stp1_3, stp2_4); \
-  in4 = _mm_subs_epi16(stp1_3, stp2_4); \
-  in5 = _mm_subs_epi16(stp1_2, stp1_5); \
-  in6 = _mm_subs_epi16(stp1_1, stp1_6); \
-  in7 = _mm_subs_epi16(stp1_0, stp2_7);
+  out0 = _mm_adds_epi16(stp1_0, stp2_7); \
+  out1 = _mm_adds_epi16(stp1_1, stp1_6); \
+  out2 = _mm_adds_epi16(stp1_2, stp1_5); \
+  out3 = _mm_adds_epi16(stp1_3, stp2_4); \
+  out4 = _mm_subs_epi16(stp1_3, stp2_4); \
+  out5 = _mm_subs_epi16(stp1_2, stp1_5); \
+  out6 = _mm_subs_epi16(stp1_1, stp1_6); \
+  out7 = _mm_subs_epi16(stp1_0, stp2_7); \
+  }
 
 #define RECON_AND_STORE(dest, in_x) \
   {                                                     \
@@ -563,11 +569,12 @@ void vp9_idct8x8_64_add_sse2(const int16_t *input, uint8_t *dest, int stride) {
   // 2-D
   for (i = 0; i < 2; i++) {
     // 8x8 Transpose is copied from vp9_fdct8x8_sse2()
-    TRANSPOSE_8X8(in0, in1, in2, in3, in4, in5, in6, in7, in0, in1, in2, in3,
-                  in4, in5, in6, in7);
+    TRANSPOSE_8X8(in0, in1, in2, in3, in4, in5, in6, in7,
+                  in0, in1, in2, in3, in4, in5, in6, in7);
 
     // 4-stage 1D idct8x8
-    IDCT8_1D
+    IDCT8(in0, in1, in2, in3, in4, in5, in6, in7,
+             in0, in1, in2, in3, in4, in5, in6, in7);
   }
 
   // Final rounding and shift
@@ -651,7 +658,6 @@ static INLINE void array_transpose_8x8(__m128i *in, __m128i *res) {
 }
 
 static INLINE void array_transpose_4X8(__m128i *in, __m128i * out) {
-  const __m128i zero = _mm_setzero_si128();
   const __m128i tr0_0 = _mm_unpacklo_epi16(in[0], in[1]);
   const __m128i tr0_1 = _mm_unpacklo_epi16(in[2], in[3]);
   const __m128i tr0_4 = _mm_unpacklo_epi16(in[4], in[5]);
@@ -666,10 +672,9 @@ static INLINE void array_transpose_4X8(__m128i *in, __m128i * out) {
   out[1] = _mm_unpackhi_epi64(tr1_0, tr1_4);
   out[2] = _mm_unpacklo_epi64(tr1_2, tr1_6);
   out[3] = _mm_unpackhi_epi64(tr1_2, tr1_6);
-  out[4] = out[5] = out[6] = out[7] = zero;
 }
 
-static void idct8_1d_sse2(__m128i *in) {
+static void idct8_sse2(__m128i *in) {
   const __m128i rounding = _mm_set1_epi32(DCT_CONST_ROUNDING);
   const __m128i stg1_0 = pair_set_epi16(cospi_28_64, -cospi_4_64);
   const __m128i stg1_1 = pair_set_epi16(cospi_4_64, cospi_28_64);
@@ -685,32 +690,16 @@ static void idct8_1d_sse2(__m128i *in) {
   __m128i stp2_0, stp2_1, stp2_2, stp2_3, stp2_4, stp2_5, stp2_6, stp2_7;
   __m128i tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7;
 
-  in0 = in[0];
-  in1 = in[1];
-  in2 = in[2];
-  in3 = in[3];
-  in4 = in[4];
-  in5 = in[5];
-  in6 = in[6];
-  in7 = in[7];
-
   // 8x8 Transpose is copied from vp9_fdct8x8_sse2()
-  TRANSPOSE_8X8(in0, in1, in2, in3, in4, in5, in6, in7, in0, in1, in2, in3,
-                in4, in5, in6, in7);
+  TRANSPOSE_8X8(in[0], in[1], in[2], in[3], in[4], in[5], in[6], in[7],
+                in0, in1, in2, in3, in4, in5, in6, in7);
 
   // 4-stage 1D idct8x8
-  IDCT8_1D
-  in[0] = in0;
-  in[1] = in1;
-  in[2] = in2;
-  in[3] = in3;
-  in[4] = in4;
-  in[5] = in5;
-  in[6] = in6;
-  in[7] = in7;
+  IDCT8(in0, in1, in2, in3, in4, in5, in6, in7,
+           in[0], in[1], in[2], in[3], in[4], in[5], in[6], in[7]);
 }
 
-static void iadst8_1d_sse2(__m128i *in) {
+static void iadst8_sse2(__m128i *in) {
   const __m128i k__cospi_p02_p30 = pair_set_epi16(cospi_2_64, cospi_30_64);
   const __m128i k__cospi_p30_m02 = pair_set_epi16(cospi_30_64, -cospi_2_64);
   const __m128i k__cospi_p10_p22 = pair_set_epi16(cospi_10_64, cospi_22_64);
@@ -957,20 +946,20 @@ void vp9_iht8x8_64_add_sse2(const int16_t *input, uint8_t *dest, int stride,
 
   switch (tx_type) {
     case 0:  // DCT_DCT
-      idct8_1d_sse2(in);
-      idct8_1d_sse2(in);
+      idct8_sse2(in);
+      idct8_sse2(in);
       break;
     case 1:  // ADST_DCT
-      idct8_1d_sse2(in);
-      iadst8_1d_sse2(in);
+      idct8_sse2(in);
+      iadst8_sse2(in);
       break;
     case 2:  // DCT_ADST
-      iadst8_1d_sse2(in);
-      idct8_1d_sse2(in);
+      iadst8_sse2(in);
+      idct8_sse2(in);
       break;
     case 3:  // ADST_ADST
-      iadst8_1d_sse2(in);
-      iadst8_1d_sse2(in);
+      iadst8_sse2(in);
+      iadst8_sse2(in);
       break;
     default:
       assert(0);
@@ -1032,12 +1021,11 @@ void vp9_idct8x8_10_add_sse2(const int16_t *input, uint8_t *dest, int stride) {
   in3 = _mm_load_si128((const __m128i *)(input + 8 * 3));
 
   // 8x4 Transpose
-  TRANSPOSE_8X4(in0, in1, in2, in3, in0, in1, in2, in3)
-
+  TRANSPOSE_8X8_10(in0, in1, in2, in3, in0, in1);
   // Stage1
   { //NOLINT
-    const __m128i lo_17 = _mm_unpackhi_epi16(in0, in3);
-    const __m128i lo_35 = _mm_unpackhi_epi16(in1, in2);
+    const __m128i lo_17 = _mm_unpackhi_epi16(in0, zero);
+    const __m128i lo_35 = _mm_unpackhi_epi16(in1, zero);
 
     tmp0 = _mm_madd_epi16(lo_17, stg1_0);
     tmp2 = _mm_madd_epi16(lo_17, stg1_1);
@@ -1053,16 +1041,14 @@ void vp9_idct8x8_10_add_sse2(const int16_t *input, uint8_t *dest, int stride) {
     tmp4 = _mm_srai_epi32(tmp4, DCT_CONST_BITS);
     tmp6 = _mm_srai_epi32(tmp6, DCT_CONST_BITS);
 
-    stp1_4 = _mm_packs_epi32(tmp0, zero);
-    stp1_7 = _mm_packs_epi32(tmp2, zero);
-    stp1_5 = _mm_packs_epi32(tmp4, zero);
-    stp1_6 = _mm_packs_epi32(tmp6, zero);
+    stp1_4 = _mm_packs_epi32(tmp0, tmp2);
+    stp1_5 = _mm_packs_epi32(tmp4, tmp6);
   }
 
   // Stage2
   { //NOLINT
-    const __m128i lo_04 = _mm_unpacklo_epi16(in0, in2);
-    const __m128i lo_26 = _mm_unpacklo_epi16(in1, in3);
+    const __m128i lo_04 = _mm_unpacklo_epi16(in0, zero);
+    const __m128i lo_26 = _mm_unpacklo_epi16(in1, zero);
 
     tmp0 = _mm_madd_epi16(lo_04, stg2_0);
     tmp2 = _mm_madd_epi16(lo_04, stg2_1);
@@ -1078,24 +1064,26 @@ void vp9_idct8x8_10_add_sse2(const int16_t *input, uint8_t *dest, int stride) {
     tmp4 = _mm_srai_epi32(tmp4, DCT_CONST_BITS);
     tmp6 = _mm_srai_epi32(tmp6, DCT_CONST_BITS);
 
-    stp2_0 = _mm_packs_epi32(tmp0, zero);
-    stp2_1 = _mm_packs_epi32(tmp2, zero);
-    stp2_2 = _mm_packs_epi32(tmp4, zero);
-    stp2_3 = _mm_packs_epi32(tmp6, zero);
+    stp2_0 = _mm_packs_epi32(tmp0, tmp2);
+    stp2_2 = _mm_packs_epi32(tmp6, tmp4);
 
-    stp2_4 = _mm_adds_epi16(stp1_4, stp1_5);
-    stp2_5 = _mm_subs_epi16(stp1_4, stp1_5);
-    stp2_6 = _mm_subs_epi16(stp1_7, stp1_6);
-    stp2_7 = _mm_adds_epi16(stp1_7, stp1_6);
+    tmp0 = _mm_adds_epi16(stp1_4, stp1_5);
+    tmp1 = _mm_subs_epi16(stp1_4, stp1_5);
+
+    stp2_4 = tmp0;
+    stp2_5 = _mm_unpacklo_epi64(tmp1, zero);
+    stp2_6 = _mm_unpackhi_epi64(tmp1, zero);
   }
 
   // Stage3
   { //NOLINT
     const __m128i lo_56 = _mm_unpacklo_epi16(stp2_5, stp2_6);
-    stp1_0 = _mm_adds_epi16(stp2_0, stp2_3);
-    stp1_1 = _mm_adds_epi16(stp2_1, stp2_2);
-    stp1_2 = _mm_subs_epi16(stp2_1, stp2_2);
-    stp1_3 = _mm_subs_epi16(stp2_0, stp2_3);
+
+    tmp4 = _mm_adds_epi16(stp2_0, stp2_2);
+    tmp6 = _mm_subs_epi16(stp2_0, stp2_2);
+
+    stp1_2 = _mm_unpackhi_epi64(tmp6, tmp4);
+    stp1_3 = _mm_unpacklo_epi64(tmp6, tmp4);
 
     tmp0 = _mm_madd_epi16(lo_56, stg3_0);
     tmp2 = _mm_madd_epi16(lo_56, stg2_0);  // stg3_1 = stg2_0
@@ -1105,27 +1093,19 @@ void vp9_idct8x8_10_add_sse2(const int16_t *input, uint8_t *dest, int stride) {
     tmp0 = _mm_srai_epi32(tmp0, DCT_CONST_BITS);
     tmp2 = _mm_srai_epi32(tmp2, DCT_CONST_BITS);
 
-    stp1_5 = _mm_packs_epi32(tmp0, zero);
-    stp1_6 = _mm_packs_epi32(tmp2, zero);
+    stp1_5 = _mm_packs_epi32(tmp0, tmp2);
   }
 
   // Stage4
-  in0 = _mm_adds_epi16(stp1_0, stp2_7);
-  in1 = _mm_adds_epi16(stp1_1, stp1_6);
-  in2 = _mm_adds_epi16(stp1_2, stp1_5);
-  in3 = _mm_adds_epi16(stp1_3, stp2_4);
-  in4 = _mm_subs_epi16(stp1_3, stp2_4);
-  in5 = _mm_subs_epi16(stp1_2, stp1_5);
-  in6 = _mm_subs_epi16(stp1_1, stp1_6);
-  in7 = _mm_subs_epi16(stp1_0, stp2_7);
+  tmp0 = _mm_adds_epi16(stp1_3, stp2_4);
+  tmp1 = _mm_adds_epi16(stp1_2, stp1_5);
+  tmp2 = _mm_subs_epi16(stp1_3, stp2_4);
+  tmp3 = _mm_subs_epi16(stp1_2, stp1_5);
 
-  // Columns. 4x8 Transpose
-  TRANSPOSE_4X8(in0, in1, in2, in3, in4, in5, in6, in7, in0, in1, in2, in3,
-                in4, in5, in6, in7)
+  TRANSPOSE_4X8_10(tmp0, tmp1, tmp2, tmp3, in0, in1, in2, in3)
 
-  // 1D idct8x8
-  IDCT8_1D
-
+  IDCT8(in0, in1, in2, in3, zero, zero, zero, zero,
+           in0, in1, in2, in3, in4, in5, in6, in7);
   // Final rounding and shift
   in0 = _mm_adds_epi16(in0, final_rounding);
   in1 = _mm_adds_epi16(in1, final_rounding);
@@ -1155,7 +1135,7 @@ void vp9_idct8x8_10_add_sse2(const int16_t *input, uint8_t *dest, int stride) {
   RECON_AND_STORE(dest, in7);
 }
 
-#define IDCT16_1D \
+#define IDCT16 \
   /* Stage2 */ \
   { \
     const __m128i lo_1_15 = _mm_unpacklo_epi16(in[1], in[15]); \
@@ -1284,6 +1264,114 @@ void vp9_idct8x8_10_add_sse2(const int16_t *input, uint8_t *dest, int stride) {
                            stp2_10, stp2_13, stp2_11, stp2_12) \
   }
 
+#define IDCT16_10 \
+    /* Stage2 */ \
+    { \
+      const __m128i lo_1_15 = _mm_unpacklo_epi16(in[1], zero); \
+      const __m128i hi_1_15 = _mm_unpackhi_epi16(in[1], zero); \
+      const __m128i lo_13_3 = _mm_unpacklo_epi16(zero, in[3]); \
+      const __m128i hi_13_3 = _mm_unpackhi_epi16(zero, in[3]); \
+      \
+      MULTIPLICATION_AND_ADD(lo_1_15, hi_1_15, lo_13_3, hi_13_3, \
+                             stg2_0, stg2_1, stg2_6, stg2_7, \
+                             stp1_8_0, stp1_15, stp1_11, stp1_12_0) \
+    } \
+      \
+    /* Stage3 */ \
+    { \
+      const __m128i lo_2_14 = _mm_unpacklo_epi16(in[2], zero); \
+      const __m128i hi_2_14 = _mm_unpackhi_epi16(in[2], zero); \
+      \
+      MULTIPLICATION_AND_ADD_2(lo_2_14, hi_2_14, \
+                               stg3_0, stg3_1,  \
+                               stp2_4, stp2_7) \
+      \
+      stp1_9  =  stp1_8_0; \
+      stp1_10 =  stp1_11;  \
+      \
+      stp1_13 = stp1_12_0; \
+      stp1_14 = stp1_15;   \
+    } \
+    \
+    /* Stage4 */ \
+    { \
+      const __m128i lo_0_8 = _mm_unpacklo_epi16(in[0], zero); \
+      const __m128i hi_0_8 = _mm_unpackhi_epi16(in[0], zero); \
+      \
+      const __m128i lo_9_14 = _mm_unpacklo_epi16(stp1_9, stp1_14); \
+      const __m128i hi_9_14 = _mm_unpackhi_epi16(stp1_9, stp1_14); \
+      const __m128i lo_10_13 = _mm_unpacklo_epi16(stp1_10, stp1_13); \
+      const __m128i hi_10_13 = _mm_unpackhi_epi16(stp1_10, stp1_13); \
+      \
+      MULTIPLICATION_AND_ADD_2(lo_0_8, hi_0_8, \
+                               stg4_0, stg4_1, \
+                               stp1_0, stp1_1) \
+      stp2_5 = stp2_4; \
+      stp2_6 = stp2_7; \
+      \
+      MULTIPLICATION_AND_ADD(lo_9_14, hi_9_14, lo_10_13, hi_10_13, \
+                             stg4_4, stg4_5, stg4_6, stg4_7, \
+                             stp2_9, stp2_14, stp2_10, stp2_13) \
+    } \
+      \
+    /* Stage5 */ \
+    { \
+      const __m128i lo_6_5 = _mm_unpacklo_epi16(stp2_6, stp2_5); \
+      const __m128i hi_6_5 = _mm_unpackhi_epi16(stp2_6, stp2_5); \
+      \
+      stp1_2 = stp1_1; \
+      stp1_3 = stp1_0; \
+      \
+      tmp0 = _mm_madd_epi16(lo_6_5, stg4_1); \
+      tmp1 = _mm_madd_epi16(hi_6_5, stg4_1); \
+      tmp2 = _mm_madd_epi16(lo_6_5, stg4_0); \
+      tmp3 = _mm_madd_epi16(hi_6_5, stg4_0); \
+      \
+      tmp0 = _mm_add_epi32(tmp0, rounding); \
+      tmp1 = _mm_add_epi32(tmp1, rounding); \
+      tmp2 = _mm_add_epi32(tmp2, rounding); \
+      tmp3 = _mm_add_epi32(tmp3, rounding); \
+      \
+      tmp0 = _mm_srai_epi32(tmp0, DCT_CONST_BITS); \
+      tmp1 = _mm_srai_epi32(tmp1, DCT_CONST_BITS); \
+      tmp2 = _mm_srai_epi32(tmp2, DCT_CONST_BITS); \
+      tmp3 = _mm_srai_epi32(tmp3, DCT_CONST_BITS); \
+      \
+      stp1_5 = _mm_packs_epi32(tmp0, tmp1); \
+      stp1_6 = _mm_packs_epi32(tmp2, tmp3); \
+      \
+      stp1_8 = _mm_add_epi16(stp1_8_0, stp1_11);  \
+      stp1_9 = _mm_add_epi16(stp2_9, stp2_10);    \
+      stp1_10 = _mm_sub_epi16(stp2_9, stp2_10);   \
+      stp1_11 = _mm_sub_epi16(stp1_8_0, stp1_11); \
+      \
+      stp1_12 = _mm_sub_epi16(stp1_15, stp1_12_0); \
+      stp1_13 = _mm_sub_epi16(stp2_14, stp2_13);   \
+      stp1_14 = _mm_add_epi16(stp2_14, stp2_13);   \
+      stp1_15 = _mm_add_epi16(stp1_15, stp1_12_0); \
+    } \
+      \
+    /* Stage6 */ \
+    { \
+      const __m128i lo_10_13 = _mm_unpacklo_epi16(stp1_10, stp1_13); \
+      const __m128i hi_10_13 = _mm_unpackhi_epi16(stp1_10, stp1_13); \
+      const __m128i lo_11_12 = _mm_unpacklo_epi16(stp1_11, stp1_12); \
+      const __m128i hi_11_12 = _mm_unpackhi_epi16(stp1_11, stp1_12); \
+      \
+      stp2_0 = _mm_add_epi16(stp1_0, stp2_7); \
+      stp2_1 = _mm_add_epi16(stp1_1, stp1_6); \
+      stp2_2 = _mm_add_epi16(stp1_2, stp1_5); \
+      stp2_3 = _mm_add_epi16(stp1_3, stp2_4); \
+      stp2_4 = _mm_sub_epi16(stp1_3, stp2_4); \
+      stp2_5 = _mm_sub_epi16(stp1_2, stp1_5); \
+      stp2_6 = _mm_sub_epi16(stp1_1, stp1_6); \
+      stp2_7 = _mm_sub_epi16(stp1_0, stp2_7); \
+      \
+      MULTIPLICATION_AND_ADD(lo_10_13, hi_10_13, lo_11_12, hi_11_12, \
+                             stg6_0, stg4_0, stg6_0, stg4_0, \
+                             stp2_10, stp2_13, stp2_11, stp2_12) \
+    }
+
 void vp9_idct16x16_256_add_sse2(const int16_t *input, uint8_t *dest,
                                 int stride) {
   const __m128i rounding = _mm_set1_epi32(DCT_CONST_ROUNDING);
@@ -1349,7 +1437,7 @@ void vp9_idct16x16_256_add_sse2(const int16_t *input, uint8_t *dest,
       array_transpose_8x8(in, in);
       array_transpose_8x8(in+8, in+8);
 
-      IDCT16_1D
+      IDCT16
 
       // Stage7
       curr1[0] = _mm_add_epi16(stp2_0, stp1_15);
@@ -1377,7 +1465,7 @@ void vp9_idct16x16_256_add_sse2(const int16_t *input, uint8_t *dest,
       array_transpose_8x8(l+i*8, in);
       array_transpose_8x8(r+i*8, in+8);
 
-      IDCT16_1D
+      IDCT16
 
       // 2-D
       in[0] = _mm_add_epi16(stp2_0, stp1_15);
@@ -1502,7 +1590,7 @@ static INLINE void array_transpose_16x16(__m128i *res0, __m128i *res1) {
   res0[15] = tbuf[7];
 }
 
-static void iadst16_1d_8col(__m128i *in) {
+static void iadst16_8col(__m128i *in) {
   // perform 16x16 1-D ADST for 8 columns
   __m128i s[16], x[16], u[32], v[32];
   const __m128i k__cospi_p01_p31 = pair_set_epi16(cospi_1_64, cospi_31_64);
@@ -1972,7 +2060,7 @@ static void iadst16_1d_8col(__m128i *in) {
   in[15] = _mm_sub_epi16(kZero, s[1]);
 }
 
-static void idct16_1d_8col(__m128i *in) {
+static void idct16_8col(__m128i *in) {
   const __m128i k__cospi_p30_m02 = pair_set_epi16(cospi_30_64, -cospi_2_64);
   const __m128i k__cospi_p02_p30 = pair_set_epi16(cospi_2_64, cospi_30_64);
   const __m128i k__cospi_p14_m18 = pair_set_epi16(cospi_14_64, -cospi_18_64);
@@ -2316,16 +2404,16 @@ static void idct16_1d_8col(__m128i *in) {
   in[15] = _mm_sub_epi16(s[0], s[15]);
 }
 
-static void idct16_1d_sse2(__m128i *in0, __m128i *in1) {
+static void idct16_sse2(__m128i *in0, __m128i *in1) {
   array_transpose_16x16(in0, in1);
-  idct16_1d_8col(in0);
-  idct16_1d_8col(in1);
+  idct16_8col(in0);
+  idct16_8col(in1);
 }
 
-static void iadst16_1d_sse2(__m128i *in0, __m128i *in1) {
+static void iadst16_sse2(__m128i *in0, __m128i *in1) {
   array_transpose_16x16(in0, in1);
-  iadst16_1d_8col(in0);
-  iadst16_1d_8col(in1);
+  iadst16_8col(in0);
+  iadst16_8col(in1);
 }
 
 static INLINE void load_buffer_8x16(const int16_t *input, __m128i *in) {
@@ -2414,20 +2502,20 @@ void vp9_iht16x16_256_add_sse2(const int16_t *input, uint8_t *dest, int stride,
 
   switch (tx_type) {
     case 0:  // DCT_DCT
-      idct16_1d_sse2(in0, in1);
-      idct16_1d_sse2(in0, in1);
+      idct16_sse2(in0, in1);
+      idct16_sse2(in0, in1);
       break;
     case 1:  // ADST_DCT
-      idct16_1d_sse2(in0, in1);
-      iadst16_1d_sse2(in0, in1);
+      idct16_sse2(in0, in1);
+      iadst16_sse2(in0, in1);
       break;
     case 2:  // DCT_ADST
-      iadst16_1d_sse2(in0, in1);
-      idct16_1d_sse2(in0, in1);
+      iadst16_sse2(in0, in1);
+      idct16_sse2(in0, in1);
       break;
     case 3:  // ADST_ADST
-      iadst16_1d_sse2(in0, in1);
-      iadst16_1d_sse2(in0, in1);
+      iadst16_sse2(in0, in1);
+      iadst16_sse2(in0, in1);
       break;
     default:
       assert(0);
@@ -2447,22 +2535,14 @@ void vp9_idct16x16_10_add_sse2(const int16_t *input, uint8_t *dest,
 
   const __m128i stg2_0 = pair_set_epi16(cospi_30_64, -cospi_2_64);
   const __m128i stg2_1 = pair_set_epi16(cospi_2_64, cospi_30_64);
-  const __m128i stg2_2 = pair_set_epi16(cospi_14_64, -cospi_18_64);
-  const __m128i stg2_3 = pair_set_epi16(cospi_18_64, cospi_14_64);
-  const __m128i stg2_4 = pair_set_epi16(cospi_22_64, -cospi_10_64);
-  const __m128i stg2_5 = pair_set_epi16(cospi_10_64, cospi_22_64);
   const __m128i stg2_6 = pair_set_epi16(cospi_6_64, -cospi_26_64);
   const __m128i stg2_7 = pair_set_epi16(cospi_26_64, cospi_6_64);
 
   const __m128i stg3_0 = pair_set_epi16(cospi_28_64, -cospi_4_64);
   const __m128i stg3_1 = pair_set_epi16(cospi_4_64, cospi_28_64);
-  const __m128i stg3_2 = pair_set_epi16(cospi_12_64, -cospi_20_64);
-  const __m128i stg3_3 = pair_set_epi16(cospi_20_64, cospi_12_64);
 
   const __m128i stg4_0 = pair_set_epi16(cospi_16_64, cospi_16_64);
   const __m128i stg4_1 = pair_set_epi16(cospi_16_64, -cospi_16_64);
-  const __m128i stg4_2 = pair_set_epi16(cospi_24_64, -cospi_8_64);
-  const __m128i stg4_3 = pair_set_epi16(cospi_8_64, cospi_24_64);
   const __m128i stg4_4 = pair_set_epi16(-cospi_8_64, cospi_24_64);
   const __m128i stg4_5 = pair_set_epi16(cospi_24_64, cospi_8_64);
   const __m128i stg4_6 = pair_set_epi16(-cospi_24_64, -cospi_8_64);
@@ -2470,119 +2550,72 @@ void vp9_idct16x16_10_add_sse2(const int16_t *input, uint8_t *dest,
 
   const __m128i stg6_0 = pair_set_epi16(-cospi_16_64, cospi_16_64);
   __m128i in[16], l[16];
-  __m128i stp1_0, stp1_1, stp1_2, stp1_3, stp1_4, stp1_5, stp1_6, stp1_7,
+  __m128i stp1_0, stp1_1, stp1_2, stp1_3, stp1_4, stp1_5, stp1_6,
           stp1_8, stp1_9, stp1_10, stp1_11, stp1_12, stp1_13, stp1_14, stp1_15,
           stp1_8_0, stp1_12_0;
   __m128i stp2_0, stp2_1, stp2_2, stp2_3, stp2_4, stp2_5, stp2_6, stp2_7,
-          stp2_8, stp2_9, stp2_10, stp2_11, stp2_12, stp2_13, stp2_14, stp2_15;
+          stp2_8, stp2_9, stp2_10, stp2_11, stp2_12, stp2_13, stp2_14;
   __m128i tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7;
   int i;
-  in[4] = in[5] = in[6] = in[7] = in[12] = in[13] = in[14] = in[15] = zero;
-  // 1-D idct. Load input data.
+  // First 1-D inverse DCT
+  // Load input data.
   in[0] = _mm_load_si128((const __m128i *)input);
-  in[8] = _mm_load_si128((const __m128i *)(input + 8 * 1));
   in[1] = _mm_load_si128((const __m128i *)(input + 8 * 2));
-  in[9] = _mm_load_si128((const __m128i *)(input + 8 * 3));
   in[2] = _mm_load_si128((const __m128i *)(input + 8 * 4));
-  in[10] = _mm_load_si128((const __m128i *)(input + 8 * 5));
   in[3] = _mm_load_si128((const __m128i *)(input + 8 * 6));
-  in[11] = _mm_load_si128((const __m128i *)(input + 8 * 7));
 
-  TRANSPOSE_8X4(in[0], in[1], in[2], in[3], in[0], in[1], in[2], in[3]);
-  TRANSPOSE_8X4(in[8], in[9], in[10], in[11], in[8], in[9], in[10], in[11]);
+  TRANSPOSE_8X4(in[0], in[1], in[2], in[3], in[0], in[1]);
 
   // Stage2
   {
-    const __m128i lo_1_15 = _mm_unpackhi_epi16(in[0], in[11]);
-    const __m128i lo_9_7 = _mm_unpackhi_epi16(in[8], in[3]);
-    const __m128i lo_5_11 = _mm_unpackhi_epi16(in[2], in[9]);
-    const __m128i lo_13_3 = _mm_unpackhi_epi16(in[10], in[1]);
+    const __m128i lo_1_15 = _mm_unpackhi_epi16(in[0], zero);
+    const __m128i lo_13_3 =  _mm_unpackhi_epi16(zero, in[1]);
 
     tmp0 = _mm_madd_epi16(lo_1_15, stg2_0);
     tmp2 = _mm_madd_epi16(lo_1_15, stg2_1);
-    tmp4 = _mm_madd_epi16(lo_9_7, stg2_2);
-    tmp6 = _mm_madd_epi16(lo_9_7, stg2_3);
-    tmp1 = _mm_madd_epi16(lo_5_11, stg2_4);
-    tmp3 = _mm_madd_epi16(lo_5_11, stg2_5);
     tmp5 = _mm_madd_epi16(lo_13_3, stg2_6);
     tmp7 = _mm_madd_epi16(lo_13_3, stg2_7);
 
     tmp0 = _mm_add_epi32(tmp0, rounding);
     tmp2 = _mm_add_epi32(tmp2, rounding);
-    tmp4 = _mm_add_epi32(tmp4, rounding);
-    tmp6 = _mm_add_epi32(tmp6, rounding);
-    tmp1 = _mm_add_epi32(tmp1, rounding);
-    tmp3 = _mm_add_epi32(tmp3, rounding);
     tmp5 = _mm_add_epi32(tmp5, rounding);
     tmp7 = _mm_add_epi32(tmp7, rounding);
 
     tmp0 = _mm_srai_epi32(tmp0, DCT_CONST_BITS);
     tmp2 = _mm_srai_epi32(tmp2, DCT_CONST_BITS);
-    tmp4 = _mm_srai_epi32(tmp4, DCT_CONST_BITS);
-    tmp6 = _mm_srai_epi32(tmp6, DCT_CONST_BITS);
-    tmp1 = _mm_srai_epi32(tmp1, DCT_CONST_BITS);
-    tmp3 = _mm_srai_epi32(tmp3, DCT_CONST_BITS);
     tmp5 = _mm_srai_epi32(tmp5, DCT_CONST_BITS);
     tmp7 = _mm_srai_epi32(tmp7, DCT_CONST_BITS);
 
-    stp2_8 = _mm_packs_epi32(tmp0, zero);
-    stp2_15 = _mm_packs_epi32(tmp2, zero);
-    stp2_9 = _mm_packs_epi32(tmp4, zero);
-    stp2_14 = _mm_packs_epi32(tmp6, zero);
-
-    stp2_10 = _mm_packs_epi32(tmp1, zero);
-    stp2_13 = _mm_packs_epi32(tmp3, zero);
-    stp2_11 = _mm_packs_epi32(tmp5, zero);
-    stp2_12 = _mm_packs_epi32(tmp7, zero);
+    stp2_8  = _mm_packs_epi32(tmp0, tmp2);
+    stp2_11 = _mm_packs_epi32(tmp5, tmp7);
   }
 
   // Stage3
   {
-    const __m128i lo_2_14 = _mm_unpacklo_epi16(in[1], in[11]);
-    const __m128i lo_10_6 = _mm_unpacklo_epi16(in[9], in[3]);
+    const __m128i lo_2_14 = _mm_unpacklo_epi16(in[1], zero);
 
     tmp0 = _mm_madd_epi16(lo_2_14, stg3_0);
     tmp2 = _mm_madd_epi16(lo_2_14, stg3_1);
-    tmp4 = _mm_madd_epi16(lo_10_6, stg3_2);
-    tmp6 = _mm_madd_epi16(lo_10_6, stg3_3);
 
     tmp0 = _mm_add_epi32(tmp0, rounding);
     tmp2 = _mm_add_epi32(tmp2, rounding);
-    tmp4 = _mm_add_epi32(tmp4, rounding);
-    tmp6 = _mm_add_epi32(tmp6, rounding);
-
     tmp0 = _mm_srai_epi32(tmp0, DCT_CONST_BITS);
     tmp2 = _mm_srai_epi32(tmp2, DCT_CONST_BITS);
-    tmp4 = _mm_srai_epi32(tmp4, DCT_CONST_BITS);
-    tmp6 = _mm_srai_epi32(tmp6, DCT_CONST_BITS);
 
-    stp1_4 = _mm_packs_epi32(tmp0, zero);
-    stp1_7 = _mm_packs_epi32(tmp2, zero);
-    stp1_5 = _mm_packs_epi32(tmp4, zero);
-    stp1_6 = _mm_packs_epi32(tmp6, zero);
+    stp1_13 = _mm_unpackhi_epi64(stp2_11, zero);
+    stp1_14 = _mm_unpackhi_epi64(stp2_8, zero);
 
-    stp1_8_0 = _mm_add_epi16(stp2_8, stp2_9);
-    stp1_9 = _mm_sub_epi16(stp2_8, stp2_9);
-    stp1_10 = _mm_sub_epi16(stp2_11, stp2_10);
-    stp1_11 = _mm_add_epi16(stp2_11, stp2_10);
-
-    stp1_12_0 = _mm_add_epi16(stp2_12, stp2_13);
-    stp1_13 = _mm_sub_epi16(stp2_12, stp2_13);
-    stp1_14 = _mm_sub_epi16(stp2_15, stp2_14);
-    stp1_15 = _mm_add_epi16(stp2_15, stp2_14);
+    stp1_4 = _mm_packs_epi32(tmp0, tmp2);
   }
 
   // Stage4
   {
-    const __m128i lo_0_8 = _mm_unpacklo_epi16(in[0], in[8]);
-    const __m128i lo_4_12 = _mm_unpacklo_epi16(in[2], in[10]);
-    const __m128i lo_9_14 = _mm_unpacklo_epi16(stp1_9, stp1_14);
-    const __m128i lo_10_13 = _mm_unpacklo_epi16(stp1_10, stp1_13);
+    const __m128i lo_0_8 = _mm_unpacklo_epi16(in[0], zero);
+    const __m128i lo_9_14 = _mm_unpacklo_epi16(stp2_8, stp1_14);
+    const __m128i lo_10_13 = _mm_unpacklo_epi16(stp2_11, stp1_13);
 
     tmp0 = _mm_madd_epi16(lo_0_8, stg4_0);
     tmp2 = _mm_madd_epi16(lo_0_8, stg4_1);
-    tmp4 = _mm_madd_epi16(lo_4_12, stg4_2);
-    tmp6 = _mm_madd_epi16(lo_4_12, stg4_3);
     tmp1 = _mm_madd_epi16(lo_9_14, stg4_4);
     tmp3 = _mm_madd_epi16(lo_9_14, stg4_5);
     tmp5 = _mm_madd_epi16(lo_10_13, stg4_6);
@@ -2590,8 +2623,6 @@ void vp9_idct16x16_10_add_sse2(const int16_t *input, uint8_t *dest,
 
     tmp0 = _mm_add_epi32(tmp0, rounding);
     tmp2 = _mm_add_epi32(tmp2, rounding);
-    tmp4 = _mm_add_epi32(tmp4, rounding);
-    tmp6 = _mm_add_epi32(tmp6, rounding);
     tmp1 = _mm_add_epi32(tmp1, rounding);
     tmp3 = _mm_add_epi32(tmp3, rounding);
     tmp5 = _mm_add_epi32(tmp5, rounding);
@@ -2599,49 +2630,40 @@ void vp9_idct16x16_10_add_sse2(const int16_t *input, uint8_t *dest,
 
     tmp0 = _mm_srai_epi32(tmp0, DCT_CONST_BITS);
     tmp2 = _mm_srai_epi32(tmp2, DCT_CONST_BITS);
-    tmp4 = _mm_srai_epi32(tmp4, DCT_CONST_BITS);
-    tmp6 = _mm_srai_epi32(tmp6, DCT_CONST_BITS);
     tmp1 = _mm_srai_epi32(tmp1, DCT_CONST_BITS);
     tmp3 = _mm_srai_epi32(tmp3, DCT_CONST_BITS);
     tmp5 = _mm_srai_epi32(tmp5, DCT_CONST_BITS);
     tmp7 = _mm_srai_epi32(tmp7, DCT_CONST_BITS);
 
-    stp2_0 = _mm_packs_epi32(tmp0, zero);
-    stp2_1 = _mm_packs_epi32(tmp2, zero);
-    stp2_2 = _mm_packs_epi32(tmp4, zero);
-    stp2_3 = _mm_packs_epi32(tmp6, zero);
-    stp2_9 = _mm_packs_epi32(tmp1, zero);
-    stp2_14 = _mm_packs_epi32(tmp3, zero);
-    stp2_10 = _mm_packs_epi32(tmp5, zero);
-    stp2_13 = _mm_packs_epi32(tmp7, zero);
+    stp1_0 = _mm_packs_epi32(tmp0, tmp0);
+    stp1_1 = _mm_packs_epi32(tmp2, tmp2);
+    stp2_9 = _mm_packs_epi32(tmp1, tmp3);
+    stp2_10 = _mm_packs_epi32(tmp5, tmp7);
 
-    stp2_4 = _mm_add_epi16(stp1_4, stp1_5);
-    stp2_5 = _mm_sub_epi16(stp1_4, stp1_5);
-    stp2_6 = _mm_sub_epi16(stp1_7, stp1_6);
-    stp2_7 = _mm_add_epi16(stp1_7, stp1_6);
+    stp2_6 = _mm_unpackhi_epi64(stp1_4, zero);
   }
 
   // Stage5 and Stage6
   {
-    stp1_0 = _mm_add_epi16(stp2_0, stp2_3);
-    stp1_1 = _mm_add_epi16(stp2_1, stp2_2);
-    stp1_2 = _mm_sub_epi16(stp2_1, stp2_2);
-    stp1_3 = _mm_sub_epi16(stp2_0, stp2_3);
+    tmp0 = _mm_add_epi16(stp2_8, stp2_11);
+    tmp1 = _mm_sub_epi16(stp2_8, stp2_11);
+    tmp2 = _mm_add_epi16(stp2_9, stp2_10);
+    tmp3 = _mm_sub_epi16(stp2_9, stp2_10);
 
-    stp1_8 = _mm_add_epi16(stp1_8_0, stp1_11);
-    stp1_9 = _mm_add_epi16(stp2_9, stp2_10);
-    stp1_10 = _mm_sub_epi16(stp2_9, stp2_10);
-    stp1_11 = _mm_sub_epi16(stp1_8_0, stp1_11);
+    stp1_9  = _mm_unpacklo_epi64(tmp2, zero);
+    stp1_10 = _mm_unpacklo_epi64(tmp3, zero);
+    stp1_8  = _mm_unpacklo_epi64(tmp0, zero);
+    stp1_11 = _mm_unpacklo_epi64(tmp1, zero);
 
-    stp1_12 = _mm_sub_epi16(stp1_15, stp1_12_0);
-    stp1_13 = _mm_sub_epi16(stp2_14, stp2_13);
-    stp1_14 = _mm_add_epi16(stp2_14, stp2_13);
-    stp1_15 = _mm_add_epi16(stp1_15, stp1_12_0);
+    stp1_13 = _mm_unpackhi_epi64(tmp3, zero);
+    stp1_14 = _mm_unpackhi_epi64(tmp2, zero);
+    stp1_12 = _mm_unpackhi_epi64(tmp1, zero);
+    stp1_15 = _mm_unpackhi_epi64(tmp0, zero);
   }
 
   // Stage6
   {
-    const __m128i lo_6_5 = _mm_unpacklo_epi16(stp2_6, stp2_5);
+    const __m128i lo_6_5 = _mm_unpacklo_epi16(stp2_6, stp1_4);
     const __m128i lo_10_13 = _mm_unpacklo_epi16(stp1_10, stp1_13);
     const __m128i lo_11_12 = _mm_unpacklo_epi16(stp1_11, stp1_12);
 
@@ -2666,21 +2688,26 @@ void vp9_idct16x16_10_add_sse2(const int16_t *input, uint8_t *dest,
     tmp4 = _mm_srai_epi32(tmp4, DCT_CONST_BITS);
     tmp6 = _mm_srai_epi32(tmp6, DCT_CONST_BITS);
 
-    stp1_5 = _mm_packs_epi32(tmp1, zero);
-    stp1_6 = _mm_packs_epi32(tmp3, zero);
+    stp1_6 = _mm_packs_epi32(tmp3, tmp1);
+
     stp2_10 = _mm_packs_epi32(tmp0, zero);
     stp2_13 = _mm_packs_epi32(tmp2, zero);
     stp2_11 = _mm_packs_epi32(tmp4, zero);
     stp2_12 = _mm_packs_epi32(tmp6, zero);
 
-    stp2_0 = _mm_add_epi16(stp1_0, stp2_7);
-    stp2_1 = _mm_add_epi16(stp1_1, stp1_6);
-    stp2_2 = _mm_add_epi16(stp1_2, stp1_5);
-    stp2_3 = _mm_add_epi16(stp1_3, stp2_4);
-    stp2_4 = _mm_sub_epi16(stp1_3, stp2_4);
-    stp2_5 = _mm_sub_epi16(stp1_2, stp1_5);
-    stp2_6 = _mm_sub_epi16(stp1_1, stp1_6);
-    stp2_7 = _mm_sub_epi16(stp1_0, stp2_7);
+    tmp0 = _mm_add_epi16(stp1_0, stp1_4);
+    tmp1 = _mm_sub_epi16(stp1_0, stp1_4);
+    tmp2 = _mm_add_epi16(stp1_1, stp1_6);
+    tmp3 = _mm_sub_epi16(stp1_1, stp1_6);
+
+    stp2_0 = _mm_unpackhi_epi64(tmp0, zero);
+    stp2_1 = _mm_unpacklo_epi64(tmp2, zero);
+    stp2_2 = _mm_unpackhi_epi64(tmp2, zero);
+    stp2_3 = _mm_unpacklo_epi64(tmp0, zero);
+    stp2_4 = _mm_unpacklo_epi64(tmp1, zero);
+    stp2_5 = _mm_unpackhi_epi64(tmp3, zero);
+    stp2_6 = _mm_unpacklo_epi64(tmp3, zero);
+    stp2_7 = _mm_unpackhi_epi64(tmp1, zero);
   }
 
   // Stage7. Left 8x16 only.
@@ -2701,12 +2728,11 @@ void vp9_idct16x16_10_add_sse2(const int16_t *input, uint8_t *dest,
   l[14] = _mm_sub_epi16(stp2_1, stp1_14);
   l[15] = _mm_sub_epi16(stp2_0, stp1_15);
 
-  // 2-D idct. We do 2 8x16 blocks.
+  // Second 1-D inverse transform, performed per 8x16 block
   for (i = 0; i < 2; i++) {
     array_transpose_4X8(l + 8*i, in);
-    in[8] = in[9] = in[10] = in[11] = in[12] = in[13] = in[14] = in[15] = zero;
 
-    IDCT16_1D
+    IDCT16_10
 
     // Stage7
     in[0] = _mm_add_epi16(stp2_0, stp1_15);
@@ -2788,7 +2814,7 @@ void vp9_idct16x16_10_add_sse2(const int16_t *input, uint8_t *dest,
     input += 8; \
   }  \
 
-#define IDCT32_1D_34 \
+#define IDCT32_34 \
 /* Stage1 */ \
 { \
   const __m128i zero = _mm_setzero_si128();\
@@ -3089,7 +3115,7 @@ void vp9_idct16x16_10_add_sse2(const int16_t *input, uint8_t *dest,
 }
 
 
-#define IDCT32_1D \
+#define IDCT32 \
 /* Stage1 */ \
 { \
   const __m128i lo_1_31 = _mm_unpacklo_epi16(in[1], in[31]); \
@@ -3528,7 +3554,7 @@ void vp9_idct32x32_34_add_sse2(const int16_t *input, uint8_t *dest,
   array_transpose_8x8(in+16, in+16);
   array_transpose_8x8(in+24, in+24);
 
-  IDCT32_1D
+  IDCT32
 
   // 1_D: Store 32 intermediate results for each 8x32 block.
   col[0] = _mm_add_epi16(stp1_0, stp1_31);
@@ -3567,7 +3593,7 @@ void vp9_idct32x32_34_add_sse2(const int16_t *input, uint8_t *dest,
       const __m128i zero = _mm_setzero_si128();
       // Transpose 32x8 block to 8x32 block
       array_transpose_8x8(col+i*8, in);
-      IDCT32_1D_34
+      IDCT32_34
 
       // 2_D: Calculate the results and store them to destination.
       in[0] = _mm_add_epi16(stp1_0, stp1_31);
@@ -3896,7 +3922,7 @@ void vp9_idct32x32_1024_add_sse2(const int16_t *input, uint8_t *dest,
       array_transpose_8x8(in+16, in+16);
       array_transpose_8x8(in+24, in+24);
 
-      IDCT32_1D
+      IDCT32
 
       // 1_D: Store 32 intermediate results for each 8x32 block.
       col[i32 + 0] = _mm_add_epi16(stp1_0, stp1_31);
@@ -3943,7 +3969,7 @@ void vp9_idct32x32_1024_add_sse2(const int16_t *input, uint8_t *dest,
       array_transpose_8x8(col+j+64, in+16);
       array_transpose_8x8(col+j+96, in+24);
 
-      IDCT32_1D
+      IDCT32
 
       // 2_D: Calculate the results and store them to destination.
       in[0] = _mm_add_epi16(stp1_0, stp1_31);

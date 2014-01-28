@@ -14,6 +14,10 @@
 
 #include "vp9/encoder/vp9_onyx_int.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define FRAME_OVERHEAD_BITS 200
 
 void vp9_save_coding_context(VP9_COMP *cpi);
@@ -52,6 +56,8 @@ int vp9_rc_regulate_q(const VP9_COMP *cpi, int target_bits_per_frame,
 // on bytes used
 void vp9_rc_postencode_update(VP9_COMP *cpi,
                               uint64_t bytes_used);
+// for dropped frames
+void vp9_rc_postencode_update_drop_frame(VP9_COMP *cpi);
 
 // estimates bits per mb for a given qindex and correction factor
 int vp9_rc_bits_per_mb(FRAME_TYPE frame_type, int qindex,
@@ -66,5 +72,9 @@ int vp9_drop_frame(VP9_COMP *cpi);
 
 // Update the buffer level.
 void vp9_update_buffer_level(VP9_COMP *cpi, int encoded_frame_size);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif  // VP9_ENCODER_VP9_RATECTRL_H_

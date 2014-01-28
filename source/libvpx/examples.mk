@@ -26,6 +26,7 @@ vpxdec.SRCS                 += args.c args.h
 vpxdec.SRCS                 += ivfdec.c ivfdec.h
 vpxdec.SRCS                 += tools_common.c tools_common.h
 vpxdec.SRCS                 += webmdec.c webmdec.h
+vpxdec.SRCS                 += y4menc.c y4menc.h
 vpxdec.SRCS                 += nestegg/halloc/halloc.h
 vpxdec.SRCS                 += nestegg/halloc/src/align.h
 vpxdec.SRCS                 += nestegg/halloc/src/halloc.c
@@ -63,21 +64,29 @@ vp9_spatial_scalable_encoder.SRCS += tools_common.c tools_common.h
 vp9_spatial_scalable_encoder.GUID   = 4A38598D-627D-4505-9C7B-D4020C84100D
 vp9_spatial_scalable_encoder.DESCRIPTION = Spatial Scalable Encoder
 
+ifeq ($(CONFIG_SHARED),no)
+UTILS-$(CONFIG_VP9_ENCODER)    += resize_util.c
+endif
+
 # XMA example disabled for now, not used in VP8
 #UTILS-$(CONFIG_DECODERS)    += example_xma.c
 #example_xma.GUID             = A955FC4A-73F1-44F7-135E-30D84D32F022
 #example_xma.DESCRIPTION      = External Memory Allocation mode usage
 
 GEN_EXAMPLES-$(CONFIG_VP8_DECODER) += simple_decoder.c
-simple_decoder.GUID              = D3BBF1E9-2427-450D-BBFF-B2843C1D44CC
-simple_decoder.DESCRIPTION       = Simplified decoder loop
+simple_decoder.GUID                = D3BBF1E9-2427-450D-BBFF-B2843C1D44CC
+simple_decoder.SRCS                += ivfdec.h ivfdec.c
+simple_decoder.SRCS                += tools_common.h tools_common.c
+simple_decoder.DESCRIPTION         = Simplified decoder loop
 GEN_EXAMPLES-$(CONFIG_VP8_DECODER) += postproc.c
 postproc.GUID                    = 65E33355-F35E-4088-884D-3FD4905881D7
 postproc.DESCRIPTION             = Decoder postprocessor control
 GEN_EXAMPLES-$(CONFIG_VP8_DECODER) += decode_to_md5.c
-decode_to_md5.SRCS              += md5_utils.h md5_utils.c
-decode_to_md5.GUID               = 59120B9B-2735-4BFE-B022-146CA340FE42
-decode_to_md5.DESCRIPTION        = Frame by frame MD5 checksum
+decode_to_md5.SRCS                 += md5_utils.h md5_utils.c
+decode_to_md5.SRCS                 += ivfdec.h ivfdec.c
+decode_to_md5.SRCS                 += tools_common.h tools_common.c
+decode_to_md5.GUID                 = 59120B9B-2735-4BFE-B022-146CA340FE42
+decode_to_md5.DESCRIPTION          = Frame by frame MD5 checksum
 
 GEN_EXAMPLES-$(CONFIG_VP8_ENCODER) += simple_encoder.c
 simple_encoder.GUID              = 4607D299-8A71-4D2C-9B1D-071899B6FBFD
@@ -109,11 +118,13 @@ GEN_EXAMPLES-$(CONFIG_VP8_ENCODER) += vp8cx_set_ref.c
 vp8cx_set_ref.GUID                  = C5E31F7F-96F6-48BD-BD3E-10EBF6E8057A
 vp8cx_set_ref.DESCRIPTION           = VP8 set encoder reference frame
 
-# C file is provided, not generated automatically.
-UTILS-$(CONFIG_MULTI_RES_ENCODING) += vp8_multi_resolution_encoder.c
-vp8_multi_resolution_encoder.SRCS         += $(LIBYUV_SRCS)
-vp8_multi_resolution_encoder.GUID         = 04f8738e-63c8-423b-90fa-7c2703a374de
-vp8_multi_resolution_encoder.DESCRIPTION  = VP8 Multiple-resolution Encoding
+
+ifeq ($(CONFIG_MULTI_RES_ENCODING),yes)
+GEN_EXAMPLES-$(CONFIG_VP8_DECODER) += vp8_multi_resolution_encoder.c
+vp8_multi_resolution_encoder.SRCS       += $(LIBYUV_SRCS)
+vp8_multi_resolution_encoder.GUID        = 04f8738e-63c8-423b-90fa-7c2703a374de
+vp8_multi_resolution_encoder.DESCRIPTION = VP8 Multiple-resolution Encoding
+endif
 
 # Handle extra library flags depending on codec configuration
 
@@ -205,9 +216,9 @@ $(foreach bin,$(BINS-yes),\
 # Rules to generate the GEN_EXAMPLES sources
 .PRECIOUS: %.c
 CLEAN-OBJS += $(GEN_EXAMPLES)
-%.c: examples/%.txt
+%.c: examples/%.c
 	@echo "    [EXAMPLE] $@"
-	@$(SRC_PATH_BARE)/examples/gen_example_code.sh $< > $@
+	@cp $< $@
 
 
 # The following pairs define a mapping of locations in the distribution
@@ -252,45 +263,3 @@ INSTALL-BINS-$(CONFIG_MSVS) += $(foreach p,$(VS_PLATFORMS),\
                                $(addprefix bin/$(p)/,$(ALL_EXAMPLES:.c=.exe)))
 $(foreach proj,$(call enabled,PROJECTS),\
     $(eval $(call vcproj_template,$(proj))))
-
-
-
-#
-# Documentation Rules
-#
-%.dox: examples/%.txt
-	@echo "    [DOXY] $@"
-	@$(SRC_PATH_BARE)/examples/gen_example_text.sh $< | \
-         $(SRC_PATH_BARE)/examples/gen_example_doxy.php \
-             example_$(@:.dox=)  $(@:.dox=.c) > $@
-
-%.dox: %.c
-	@echo "    [DOXY] $@"
-	@echo "/*!\page example_$(@:.dox=) $(@:.dox=)" > $@
-	@echo "   \includelineno $(notdir $<)" >> $@
-	@echo "*/" >> $@
-
-samples.dox: examples.mk
-	@echo "    [DOXY] $@"
-	@echo "/*!\page samples Sample Code" > $@
-	@echo "    This SDK includes a number of sample applications."\
-	      "each sample documents a feature of the SDK in both prose"\
-	      "and the associated C code. In general, later samples"\
-	      "build upon prior samples, so it is best to work through the"\
-	      "list in order. The following samples are included: ">>$@
-	@$(foreach ex,$(GEN_EXAMPLES:.c=),\
-	   echo "     - \subpage example_$(ex) $($(ex).DESCRIPTION)" >> $@;)
-	@echo >> $@
-	@echo "    In addition, the SDK contains a number of utilities."\
-              "Since these utilities are built upon the concepts described"\
-              "in the sample code listed above, they are not documented in"\
-              "pieces like the samples are. Thir sourcre is included here"\
-              "for reference. The following utilities are included:" >> $@
-	@$(foreach ex,$(UTILS:.c=),\
-	   echo "     - \subpage example_$(ex) $($(ex).DESCRIPTION)" >> $@;)
-	@echo "*/" >> $@
-
-CLEAN-OBJS += examples.doxy samples.dox $(ALL_EXAMPLES:.c=.dox)
-DOCS-yes += examples.doxy samples.dox $(ALL_EXAMPLES:.c=.dox)
-examples.doxy: samples.dox $(ALL_EXAMPLES:.c=.dox)
-	@echo "INPUT += $^" > $@

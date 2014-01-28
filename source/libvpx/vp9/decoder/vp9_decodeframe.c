@@ -378,18 +378,13 @@ static void set_offsets(VP9_COMMON *const cm, MACROBLOCKD *const xd,
 static void set_ref(VP9_COMMON *const cm, MACROBLOCKD *const xd,
                     int idx, int mi_row, int mi_col) {
   MB_MODE_INFO *const mbmi = &xd->mi_8x8[0]->mbmi;
-  const int ref = mbmi->ref_frame[idx] - LAST_FRAME;
-  const YV12_BUFFER_CONFIG *cfg = get_frame_ref_buffer(cm, ref);
-  const struct scale_factors *sf = &cm->active_ref_scale[ref];
-
-  xd->ref_buf[idx] = cfg;
-  if (!vp9_is_valid_scale(sf))
+  RefBuffer *ref_buffer = &cm->frame_refs[mbmi->ref_frame[idx] - LAST_FRAME];
+  xd->block_refs[idx] = ref_buffer;
+  if (!vp9_is_valid_scale(&ref_buffer->sf))
     vpx_internal_error(&cm->error, VPX_CODEC_UNSUP_BITSTREAM,
                        "Invalid scale factors");
-
-  xd->scale_factors[idx] = sf;
-  setup_pre_planes(xd, idx, cfg, mi_row, mi_col, xd->scale_factors[idx]);
-  xd->corrupted |= cfg->corrupted;
+  setup_pre_planes(xd, idx, ref_buffer->buf, mi_row, mi_col, &ref_buffer->sf);
+  xd->corrupted |= ref_buffer->buf->corrupted;
 }
 
 static void decode_modes_b(VP9_COMMON *const cm, MACROBLOCKD *const xd,
@@ -426,8 +421,7 @@ static void decode_modes_b(VP9_COMMON *const cm, MACROBLOCKD *const xd,
     if (has_second_ref(mbmi))
       set_ref(cm, xd, 1, mi_row, mi_col);
 
-    xd->subpix.filter_x = xd->subpix.filter_y =
-        vp9_get_filter_kernel(mbmi->interp_filter);
+    xd->interp_kernel = vp9_get_interp_kernel(mbmi->interp_filter);
 
     // Prediction
     vp9_dec_build_inter_predictors_sb(xd, mi_row, mi_col, bsize);
@@ -660,14 +654,13 @@ static void setup_quantization(VP9_COMMON *const cm, MACROBLOCKD *const xd,
   xd->itxm_add = xd->lossless ? vp9_iwht4x4_add : vp9_idct4x4_add;
 }
 
-static INTERPOLATION_TYPE read_interp_filter_type(
-                              struct vp9_read_bit_buffer *rb) {
-  const INTERPOLATION_TYPE literal_to_type[] = { EIGHTTAP_SMOOTH,
-                                                 EIGHTTAP,
-                                                 EIGHTTAP_SHARP,
-                                                 BILINEAR };
+static INTERP_FILTER read_interp_filter(struct vp9_read_bit_buffer *rb) {
+  const INTERP_FILTER literal_to_filter[] = { EIGHTTAP_SMOOTH,
+                                              EIGHTTAP,
+                                              EIGHTTAP_SHARP,
+                                              BILINEAR };
   return vp9_rb_read_bit(rb) ? SWITCHABLE
-                             : literal_to_type[vp9_rb_read_literal(rb, 2)];
+                             : literal_to_filter[vp9_rb_read_literal(rb, 2)];
 }
 
 static void read_frame_size(struct vp9_read_bit_buffer *rb,
@@ -704,21 +697,9 @@ static void apply_frame_size(VP9D_COMP *pbi, int width, int height) {
     vp9_update_frame_size(cm);
   }
 
-  if (cm->fb_list != NULL) {
-    vpx_codec_frame_buffer_t *const ext_fb = &cm->fb_list[cm->new_fb_idx];
-    if (vp9_realloc_frame_buffer(get_frame_new_buffer(cm),
-                                 cm->width, cm->height,
-                                 cm->subsampling_x, cm->subsampling_y,
-                                 VP9BORDERINPIXELS, ext_fb,
-                                 cm->realloc_fb_cb, cm->user_priv)) {
-      vpx_internal_error(&cm->error, VPX_CODEC_MEM_ERROR,
-                         "Failed to allocate external frame buffer");
-    }
-  } else {
-    vp9_realloc_frame_buffer(get_frame_new_buffer(cm), cm->width, cm->height,
-                             cm->subsampling_x, cm->subsampling_y,
-                             VP9BORDERINPIXELS, NULL, NULL, NULL);
-  }
+  vp9_realloc_frame_buffer(get_frame_new_buffer(cm), cm->width, cm->height,
+                           cm->subsampling_x, cm->subsampling_y,
+                           VP9_DEC_BORDER_IN_PIXELS);
 }
 
 static void setup_frame_size(VP9D_COMP *pbi,
@@ -737,9 +718,9 @@ static void setup_frame_size_with_refs(VP9D_COMP *pbi,
   int found = 0, i;
   for (i = 0; i < REFS_PER_FRAME; ++i) {
     if (vp9_rb_read_bit(rb)) {
-      YV12_BUFFER_CONFIG *const cfg = get_frame_ref_buffer(cm, i);
-      width = cfg->y_crop_width;
-      height = cfg->y_crop_height;
+      YV12_BUFFER_CONFIG *const buf = cm->frame_refs[i].buf;
+      width = buf->y_crop_width;
+      height = buf->y_crop_height;
       found = 1;
       break;
     }
@@ -748,7 +729,7 @@ static void setup_frame_size_with_refs(VP9D_COMP *pbi,
   if (!found)
     read_frame_size(rb, &width, &height);
 
-  if (!width || !height)
+  if (width <= 0 || height <= 0)
     vpx_internal_error(&cm->error, VPX_CODEC_CORRUPT_FRAME,
                        "Referenced frame with invalid size");
 
@@ -1132,12 +1113,14 @@ static size_t read_uncompressed_header(VP9D_COMP *pbi,
   cm->version = vp9_rb_read_bit(rb);
   RESERVED;
 
-  if (vp9_rb_read_bit(rb)) {
-    // show an existing frame directly
+  cm->show_existing_frame = vp9_rb_read_bit(rb);
+  if (cm->show_existing_frame) {
+    // Show an existing frame directly.
     int frame_to_show = cm->ref_frame_map[vp9_rb_read_literal(rb, 3)];
     ref_cnt_fb(cm->fb_idx_ref_cnt, &cm->new_fb_idx, frame_to_show);
     pbi->refresh_frame_flags = 0;
     cm->lf.filter_level = 0;
+    cm->show_frame = 1;
     return 0;
   }
 
@@ -1170,8 +1153,10 @@ static size_t read_uncompressed_header(VP9D_COMP *pbi,
 
     pbi->refresh_frame_flags = (1 << REF_FRAMES) - 1;
 
-    for (i = 0; i < REFS_PER_FRAME; ++i)
-      cm->active_ref_idx[i] = cm->new_fb_idx;
+    for (i = 0; i < REFS_PER_FRAME; ++i) {
+      cm->frame_refs[i].idx = cm->new_fb_idx;
+      cm->frame_refs[i].buf = get_frame_new_buffer(cm);
+    }
 
     setup_frame_size(pbi, rb);
   } else {
@@ -1190,19 +1175,25 @@ static size_t read_uncompressed_header(VP9D_COMP *pbi,
 
       for (i = 0; i < REFS_PER_FRAME; ++i) {
         const int ref = vp9_rb_read_literal(rb, REF_FRAMES_LOG2);
-        cm->active_ref_idx[i] = cm->ref_frame_map[ref];
+        const int idx = cm->ref_frame_map[ref];
+        cm->frame_refs[i].idx = idx;
+        cm->frame_refs[i].buf = &cm->yv12_fb[idx];
         cm->ref_frame_sign_bias[LAST_FRAME + i] = vp9_rb_read_bit(rb);
       }
 
       setup_frame_size_with_refs(pbi, rb);
 
       cm->allow_high_precision_mv = vp9_rb_read_bit(rb);
-      cm->mcomp_filter_type = read_interp_filter_type(rb);
+      cm->interp_filter = read_interp_filter(rb);
 
       for (i = 0; i < REFS_PER_FRAME; ++i) {
-        vp9_setup_scale_factors(cm, i);
-        if (vp9_is_scaled(&cm->active_ref_scale[i]))
-          vp9_extend_frame_borders(&cm->yv12_fb[cm->active_ref_idx[i]],
+        RefBuffer *const ref_buf = &cm->frame_refs[i];
+        vp9_setup_scale_factors_for_frame(&ref_buf->sf,
+                                          ref_buf->buf->y_crop_width,
+                                          ref_buf->buf->y_crop_height,
+                                          cm->width, cm->height);
+        if (vp9_is_scaled(&ref_buf->sf))
+          vp9_extend_frame_borders(ref_buf->buf,
                                    cm->subsampling_x, cm->subsampling_y);
       }
     }
@@ -1263,7 +1254,7 @@ static int read_compressed_header(VP9D_COMP *pbi, const uint8_t *data,
 
     read_inter_mode_probs(fc, &r);
 
-    if (cm->mcomp_filter_type == SWITCHABLE)
+    if (cm->interp_filter == SWITCHABLE)
       read_switchable_interp_probs(fc, &r);
 
     for (i = 0; i < INTRA_INTER_CONTEXTS; i++)

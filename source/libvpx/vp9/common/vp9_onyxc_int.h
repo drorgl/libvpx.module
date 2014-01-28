@@ -25,6 +25,10 @@
 #include "vp9/common/vp9_postproc.h"
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define REFS_PER_FRAME 3
 
 #define REF_FRAMES_LOG2 3
@@ -113,16 +117,16 @@ typedef struct VP9Common {
 
   YV12_BUFFER_CONFIG *frame_to_show;
 
-  YV12_BUFFER_CONFIG *yv12_fb;
-  int *fb_idx_ref_cnt; /* reference counts */
+  YV12_BUFFER_CONFIG yv12_fb[FRAME_BUFFERS];
+  int fb_idx_ref_cnt[FRAME_BUFFERS]; /* reference counts */
   int ref_frame_map[REF_FRAMES]; /* maps fb_idx to reference slot */
 
   // TODO(jkoleszar): could expand active_ref_idx to 4, with 0 as intra, and
   // roll new_fb_idx into it.
 
   // Each frame can reference REFS_PER_FRAME buffers
-  int active_ref_idx[REFS_PER_FRAME];
-  struct scale_factors active_ref_scale[REFS_PER_FRAME];
+  RefBuffer frame_refs[REFS_PER_FRAME];
+
   int new_fb_idx;
 
   YV12_BUFFER_CONFIG post_proc_buffer;
@@ -132,6 +136,7 @@ typedef struct VP9Common {
 
   int show_frame;
   int last_show_frame;
+  int show_existing_frame;
 
   // Flag signaling that the frame is encoded using only INTRA modes.
   int intra_only;
@@ -179,7 +184,7 @@ typedef struct VP9Common {
   // Persistent mb segment id map used in prediction.
   unsigned char *last_frame_seg_map;
 
-  INTERPOLATION_TYPE mcomp_filter_type;
+  INTERP_FILTER interp_filter;
 
   loop_filter_info_n lf_info;
 
@@ -212,23 +217,7 @@ typedef struct VP9Common {
   int frame_parallel_decoding_mode;
 
   int log2_tile_cols, log2_tile_rows;
-
-  vpx_codec_frame_buffer_t *fb_list;  // External frame buffers
-  int fb_count;  // Total number of frame buffers
-  vpx_realloc_frame_buffer_cb_fn_t realloc_fb_cb;
-  void *user_priv;  // Private data associated with the external frame buffers.
-
-  int fb_lru;  // Flag telling if lru is on/off
-  uint32_t *fb_idx_ref_lru;  // Frame buffer lru cache
-  uint32_t fb_idx_ref_lru_count;
 } VP9_COMMON;
-
-// ref == 0 => LAST_FRAME
-// ref == 1 => GOLDEN_FRAME
-// ref == 2 => ALTREF_FRAME
-static YV12_BUFFER_CONFIG *get_frame_ref_buffer(VP9_COMMON *cm, int ref) {
-  return &cm->yv12_fb[cm->active_ref_idx[ref]];
-}
 
 static YV12_BUFFER_CONFIG *get_frame_new_buffer(VP9_COMMON *cm) {
   return &cm->yv12_fb[cm->new_fb_idx];
@@ -236,27 +225,13 @@ static YV12_BUFFER_CONFIG *get_frame_new_buffer(VP9_COMMON *cm) {
 
 static int get_free_fb(VP9_COMMON *cm) {
   int i;
-  uint32_t lru_count = cm->fb_idx_ref_lru_count + 1;
-  int free_buffer_idx = cm->fb_count;
-  for (i = 0; i < cm->fb_count; i++) {
-    if (!cm->fb_lru) {
-      if (cm->fb_idx_ref_cnt[i] == 0) {
-        free_buffer_idx = i;
-        break;
-      }
-    } else {
-      if (cm->fb_idx_ref_cnt[i] == 0 && cm->fb_idx_ref_lru[i] < lru_count) {
-        free_buffer_idx = i;
-        lru_count = cm->fb_idx_ref_lru[i];
-      }
-    }
-  }
+  for (i = 0; i < FRAME_BUFFERS; i++)
+    if (cm->fb_idx_ref_cnt[i] == 0)
+      break;
 
-  assert(free_buffer_idx < cm->fb_count);
-  cm->fb_idx_ref_cnt[free_buffer_idx] = 1;
-  if (cm->fb_lru)
-    cm->fb_idx_ref_lru[free_buffer_idx] = ++cm->fb_idx_ref_lru_count;
-  return free_buffer_idx;
+  assert(i < FRAME_BUFFERS);
+  cm->fb_idx_ref_cnt[i] = 1;
+  return i;
 }
 
 static void ref_cnt_fb(int *buf, int *idx, int new_idx) {
@@ -352,7 +327,7 @@ static INLINE int partition_plane_context(
   const int bs = 1 << bsl;
   int above = 0, left = 0, i;
 
-  assert(mi_width_log2(bsize) == mi_height_log2(bsize));
+  assert(b_width_log2(bsize) == b_height_log2(bsize));
   assert(bsl >= 0);
 
   for (i = 0; i < bs; i++) {
@@ -364,5 +339,9 @@ static INLINE int partition_plane_context(
 
   return (left * 2 + above) + bsl * PARTITION_PLOFFSET;
 }
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif  // VP9_COMMON_VP9_ONYXC_INT_H_

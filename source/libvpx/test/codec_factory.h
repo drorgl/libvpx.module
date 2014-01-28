@@ -10,7 +10,6 @@
 #ifndef TEST_CODEC_FACTORY_H_
 #define TEST_CODEC_FACTORY_H_
 
-extern "C" {
 #include "./vpx_config.h"
 #include "vpx/vpx_decoder.h"
 #include "vpx/vpx_encoder.h"
@@ -20,13 +19,10 @@ extern "C" {
 #if CONFIG_VP8_DECODER || CONFIG_VP9_DECODER
 #include "vpx/vp8dx.h"
 #endif
-}
 
 #include "test/decode_test_driver.h"
 #include "test/encode_test_driver.h"
 namespace libvpx_test {
-
-const int kCodecFactoryParam = 0;
 
 class CodecFactory {
  public:

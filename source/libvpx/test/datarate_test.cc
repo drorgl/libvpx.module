@@ -7,11 +7,13 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
+#include "./vpx_config.h"
 #include "third_party/googletest/src/include/gtest/gtest.h"
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
 #include "test/i420_video_source.h"
 #include "test/util.h"
+#include "test/y4m_video_source.h"
 
 namespace {
 
@@ -55,21 +57,22 @@ class DatarateTest : public ::libvpx_test::EncoderTest,
       duration = 1;
 
     // Add to the buffer the bits we'd expect from a constant bitrate server.
-    bits_in_buffer_model_ += duration * timebase_ * cfg_.rc_target_bitrate
-        * 1000;
+    bits_in_buffer_model_ += static_cast<int64_t>(
+        duration * timebase_ * cfg_.rc_target_bitrate * 1000);
 
     /* Test the buffer model here before subtracting the frame. Do so because
      * the way the leaky bucket model works in libvpx is to allow the buffer to
      * empty - and then stop showing frames until we've got enough bits to
      * show one. As noted in comment below (issue 495), this does not currently
      * apply to key frames. For now exclude key frames in condition below. */
-    bool key_frame = (pkt->data.frame.flags & VPX_FRAME_IS_KEY) ? true: false;
+    const bool key_frame = (pkt->data.frame.flags & VPX_FRAME_IS_KEY)
+                         ? true: false;
     if (!key_frame) {
       ASSERT_GE(bits_in_buffer_model_, 0) << "Buffer Underrun at frame "
           << pkt->data.frame.pts;
     }
 
-    const int frame_size_in_bits = pkt->data.frame.sz * 8;
+    const size_t frame_size_in_bits = pkt->data.frame.sz * 8;
 
     // Subtract from the buffer the bits associated with a played back frame.
     bits_in_buffer_model_ -= frame_size_in_bits;
@@ -93,7 +96,7 @@ class DatarateTest : public ::libvpx_test::EncoderTest,
 
   virtual void EndPassHook(void) {
     if (bits_total_) {
-      const double file_size_in_kb = bits_total_ / 1000;  /* bits per kilobit */
+      const double file_size_in_kb = bits_total_ / 1000.;  // bits per kilobit
 
       duration_ = (last_pts_ + 1) * timebase_;
 
@@ -106,7 +109,7 @@ class DatarateTest : public ::libvpx_test::EncoderTest,
   }
 
   vpx_codec_pts_t last_pts_;
-  int bits_in_buffer_model_;
+  int64_t bits_in_buffer_model_;
   double timebase_;
   int frame_number_;
   vpx_codec_pts_t first_drop_;
@@ -114,7 +117,7 @@ class DatarateTest : public ::libvpx_test::EncoderTest,
   double duration_;
   double file_datarate_;
   double effective_datarate_;
-  int bits_in_last_frame_;
+  size_t bits_in_last_frame_;
 };
 
 TEST_P(DatarateTest, BasicBufferModel) {
@@ -216,14 +219,14 @@ class DatarateTestVP9 : public ::libvpx_test::EncoderTest,
     vpx_codec_pts_t duration = pkt->data.frame.pts - last_pts_;
 
     // Add to the buffer the bits we'd expect from a constant bitrate server.
-    bits_in_buffer_model_ += duration * timebase_ * cfg_.rc_target_bitrate
-        * 1000;
+    bits_in_buffer_model_ += static_cast<int64_t>(
+        duration * timebase_ * cfg_.rc_target_bitrate * 1000);
 
     // Buffer should not go negative.
     ASSERT_GE(bits_in_buffer_model_, 0) << "Buffer Underrun at frame "
         << pkt->data.frame.pts;
 
-    const int frame_size_in_bits = pkt->data.frame.sz * 8;
+    const size_t frame_size_in_bits = pkt->data.frame.sz * 8;
     bits_total_ += frame_size_in_bits;
 
     // If first drop not set and we have a drop set it to this time.
@@ -232,7 +235,7 @@ class DatarateTestVP9 : public ::libvpx_test::EncoderTest,
 
     // Update the number of frame drops.
     if (duration > 1) {
-      num_drops_+= (duration - 1);
+      num_drops_ += static_cast<int>(duration - 1);
     }
 
     // Update the most recent pts.
@@ -255,8 +258,8 @@ class DatarateTestVP9 : public ::libvpx_test::EncoderTest,
   double duration_;
   double effective_datarate_;
   int set_cpu_used_;
-  int bits_in_buffer_model_;
-  int first_drop_;
+  int64_t bits_in_buffer_model_;
+  vpx_codec_pts_t first_drop_;
   int num_drops_;
 };
 
@@ -285,6 +288,37 @@ TEST_P(DatarateTestVP9, BasicRateTargeting) {
   }
 }
 
+#if CONFIG_NON420
+// Check basic rate targeting,
+TEST_P(DatarateTestVP9, BasicRateTargeting444) {
+  ::libvpx_test::Y4mVideoSource video("rush_hour_444.y4m", 0, 140);
+
+  cfg_.g_profile = 1;
+  cfg_.g_timebase = video.timebase();
+
+  cfg_.rc_buf_initial_sz = 500;
+  cfg_.rc_buf_optimal_sz = 500;
+  cfg_.rc_buf_sz = 1000;
+  cfg_.rc_dropframe_thresh = 1;
+  cfg_.rc_min_quantizer = 0;
+  cfg_.rc_max_quantizer = 63;
+  cfg_.rc_end_usage = VPX_CBR;
+
+  for (int i = 250; i < 900; i += 200) {
+    cfg_.rc_target_bitrate = i;
+    ResetModel();
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+    ASSERT_GE(static_cast<double>(cfg_.rc_target_bitrate),
+              effective_datarate_ * 0.85)
+        << " The datarate for the file exceeds the target by too much!";
+    ASSERT_LE(static_cast<double>(cfg_.rc_target_bitrate),
+              effective_datarate_ * 1.15)
+        << " The datarate for the file missed the target!"
+        << cfg_.rc_target_bitrate << " "<< effective_datarate_;
+  }
+}
+#endif
+
 // Check that (1) the first dropped frame gets earlier and earlier
 // as the drop frame threshold is increased, and (2) that the total number of
 // frame drops does not decrease as we increase frame drop threshold.
@@ -305,7 +339,7 @@ TEST_P(DatarateTestVP9, ChangingDropFrameThresh) {
                                        30, 1, 0, 140);
 
   const int kDropFrameThreshTestStep = 30;
-  int last_drop = 140;
+  vpx_codec_pts_t last_drop = 140;
   int last_num_drops = 0;
   for (int i = 10; i < 100; i += kDropFrameThreshTestStep) {
     cfg_.rc_dropframe_thresh = i;

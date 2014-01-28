@@ -7,6 +7,10 @@
 #define RTCD_EXTERN extern
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * VP8
  */
@@ -331,4 +335,9 @@ static void setup_rtcd_internal(void)
 
 }
 #endif
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
 #endif

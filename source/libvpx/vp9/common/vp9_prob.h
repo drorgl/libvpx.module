@@ -18,6 +18,10 @@
 
 #include "vp9/common/vp9_common.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef uint8_t vp9_prob;
 
 #define MAX_PROB 255
@@ -39,17 +43,12 @@ typedef int8_t vp9_tree_index;
 
 typedef const vp9_tree_index vp9_tree[];
 
-/* Convert array of token occurrence counts into a table of probabilities
-   for the associated binary encoding tree.  Also writes count of branches
-   taken for each node on the tree; this facilitiates decisions as to
-   probability updates. */
-
 static INLINE vp9_prob clip_prob(int p) {
   return (p > 255) ? 255u : (p < 1) ? 1u : p;
 }
 
 // int64 is not needed for normal frame level calculations.
-// However when outputing entropy stats accumulated over many frames
+// However when outputting entropy stats accumulated over many frames
 // or even clips we can overflow int math.
 #ifdef ENTROPY_STATS
 static INLINE vp9_prob get_prob(int num, int den) {
@@ -65,7 +64,7 @@ static INLINE vp9_prob get_binary_prob(int n0, int n1) {
   return get_prob(n0, n0 + n1);
 }
 
-/* this function assumes prob1 and prob2 are already within [1,255] range */
+/* This function assumes prob1 and prob2 are already within [1,255] range. */
 static INLINE vp9_prob weighted_prob(int prob1, int prob2, int factor) {
   return ROUND_POWER_OF_TWO(prob1 * (256 - factor) + prob2 * factor, 8);
 }
@@ -113,5 +112,9 @@ static void tree_merge_probs(const vp9_tree_index *tree,
 }
 
 DECLARE_ALIGNED(16, extern const uint8_t, vp9_norm[256]);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif  // VP9_COMMON_VP9_PROB_H_

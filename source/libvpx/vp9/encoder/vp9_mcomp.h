@@ -15,6 +15,10 @@
 #include "vp9/encoder/vp9_block.h"
 #include "vp9/encoder/vp9_variance.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // The maximum number of steps in a step search given the largest
 // allowed initial step
 #define MAX_MVSEARCH_STEPS 11
@@ -28,7 +32,7 @@
 #define BORDER_MV_PIXELS_B16 (16 + VP9_INTERP_EXTEND)
 
 
-void vp9_set_mv_search_range(MACROBLOCK *x, MV *mv);
+void vp9_set_mv_search_range(MACROBLOCK *x, const MV *mv);
 int vp9_mv_bit_cost(const MV *mv, const MV *ref,
                     const int *mvjcost, int *mvcost[2], int weight);
 void vp9_init_dsmotion_compensation(MACROBLOCK *x, int stride);
@@ -39,10 +43,10 @@ int vp9_init_search_range(struct VP9_COMP *cpi, int size);
 
 // Runs sequence of diamond searches in smaller steps for RD
 int vp9_full_pixel_diamond(struct VP9_COMP *cpi, MACROBLOCK *x,
-                           int_mv *mvp_full, int step_param,
+                           MV *mvp_full, int step_param,
                            int sadpb, int further_steps, int do_refine,
                            vp9_variance_fn_ptr_t *fn_ptr,
-                           int_mv *ref_mv, int_mv *dst_mv);
+                           const MV *ref_mv, int_mv *dst_mv);
 
 int vp9_hex_search(MACROBLOCK *x,
                    MV *ref_mv,
@@ -84,7 +88,7 @@ typedef int (fractional_mv_step_fp) (
     int *mvcost[2],
     int *distortion,
     unsigned int *sse);
-extern fractional_mv_step_fp vp9_find_best_sub_pixel_iterative;
+
 extern fractional_mv_step_fp vp9_find_best_sub_pixel_tree;
 
 typedef int (fractional_mv_step_comp_fp) (
@@ -99,7 +103,7 @@ typedef int (fractional_mv_step_comp_fp) (
     int *distortion, unsigned int *sse1,
     const uint8_t *second_pred,
     int w, int h);
-extern fractional_mv_step_comp_fp vp9_find_best_sub_pixel_comp_iterative;
+
 extern fractional_mv_step_comp_fp vp9_find_best_sub_pixel_comp_tree;
 
 typedef int (*vp9_full_search_fn_t)(MACROBLOCK *x,
@@ -108,7 +112,7 @@ typedef int (*vp9_full_search_fn_t)(MACROBLOCK *x,
                                     int *mvjcost, int *mvcost[2],
                                     const MV *center_mv, int n);
 
-typedef int (*vp9_refining_search_fn_t)(MACROBLOCK *x,
+typedef int (*vp9_refining_search_fn_t)(const MACROBLOCK *x,
                                         MV *ref_mv, int sad_per_bit,
                                         int distance,
                                         vp9_variance_fn_ptr_t *fn_ptr,
@@ -123,10 +127,14 @@ typedef int (*vp9_diamond_search_fn_t)(MACROBLOCK *x,
                                        int *mvjcost, int *mvcost[2],
                                        const MV *center_mv);
 
-int vp9_refining_search_8p_c(MACROBLOCK *x,
+int vp9_refining_search_8p_c(const MACROBLOCK *x,
                              MV *ref_mv, int error_per_bit,
                              int search_range, vp9_variance_fn_ptr_t *fn_ptr,
                              int *mvjcost, int *mvcost[2],
                              const MV *center_mv, const uint8_t *second_pred,
                              int w, int h);
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
 #endif  // VP9_ENCODER_VP9_MCOMP_H_

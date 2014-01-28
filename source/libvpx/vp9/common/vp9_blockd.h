@@ -25,6 +25,10 @@
 #include "vp9/common/vp9_scale.h"
 #include "vp9/common/vp9_seg_common.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define BLOCK_SIZE_GROUPS 4
 #define MBSKIP_CONTEXTS 3
 #define INTER_MODE_CONTEXTS 7
@@ -115,10 +119,6 @@ static INLINE int mi_width_log2(BLOCK_SIZE sb_type) {
   return mi_width_log2_lookup[sb_type];
 }
 
-static INLINE int mi_height_log2(BLOCK_SIZE sb_type) {
-  return mi_height_log2_lookup[sb_type];
-}
-
 // This structure now relates to 8x8 block regions.
 typedef struct {
   MB_PREDICTION_MODE mode, uv_mode;
@@ -126,7 +126,6 @@ typedef struct {
   TX_SIZE tx_size;
   int_mv mv[2];                // for each reference frame used
   int_mv ref_mvs[MAX_REF_FRAMES][MAX_MV_REF_CANDIDATES];
-  int_mv best_mv[2];
 
   uint8_t mode_context[MAX_REF_FRAMES];
 
@@ -136,7 +135,7 @@ typedef struct {
   // Flags used for prediction status of various bit-stream signals
   unsigned char seg_id_predicted;
 
-  INTERPOLATION_TYPE interp_filter;
+  INTERP_FILTER interp_filter;
 
   BLOCK_SIZE sb_type;
 } MB_MODE_INFO;
@@ -212,10 +211,16 @@ struct macroblockd_plane {
 
 #define BLOCK_OFFSET(x, i) ((x) + (i) * 16)
 
+typedef struct RefBuffer {
+  // TODO(dkovalev): idx is not really required and should be removed, now it
+  // is used in vp9_onyxd_if.c
+  int idx;
+  YV12_BUFFER_CONFIG *buf;
+  struct scale_factors sf;
+} RefBuffer;
+
 typedef struct macroblockd {
   struct macroblockd_plane plane[MAX_MB_PLANE];
-
-  const struct scale_factors *scale_factors[2];
 
   MODE_INFO *last_mi;
   int mode_info_stride;
@@ -235,16 +240,19 @@ typedef struct macroblockd {
   int mb_to_bottom_edge;
 
   /* pointers to reference frames */
-  const YV12_BUFFER_CONFIG *ref_buf[2];
+  RefBuffer *block_refs[2];
 
   /* pointer to current frame */
   const YV12_BUFFER_CONFIG *cur_buf;
+
+  /* mc buffer */
+  DECLARE_ALIGNED(16, uint8_t, mc_buf[80 * 2 * 80 * 2]);
 
   int lossless;
   /* Inverse transform function pointers. */
   void (*itxm_add)(const int16_t *input, uint8_t *dest, int stride, int eob);
 
-  struct subpix_fn_table  subpix;
+  const interp_kernel *interp_kernel;
 
   int corrupted;
 
@@ -458,5 +466,9 @@ static int get_tx_eob(const struct segmentation *seg, int segment_id,
   const int eob_max = 16 << (tx_size << 1);
   return vp9_segfeature_active(seg, segment_id, SEG_LVL_SKIP) ? 0 : eob_max;
 }
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif  // VP9_COMMON_VP9_BLOCKD_H_

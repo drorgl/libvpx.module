@@ -16,16 +16,9 @@
 #include "vp9/encoder/vp9_onyx_int.h"
 #include "vp9/common/vp9_onyxc_int.h"
 
-typedef struct {
-  MB_PREDICTION_MODE mode;
-  MV_REFERENCE_FRAME ref_frame;
-  MV_REFERENCE_FRAME second_ref_frame;
-} MODE_DEFINITION;
-
-typedef struct {
-  MV_REFERENCE_FRAME ref_frame;
-  MV_REFERENCE_FRAME second_ref_frame;
-} REF_DEFINITION;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct optimize_ctx {
   ENTROPY_CONTEXT ta[MAX_MB_PLANE][16];
@@ -35,6 +28,7 @@ struct optimize_ctx {
 struct encode_b_args {
   MACROBLOCK *x;
   struct optimize_ctx *ctx;
+  unsigned char *skip_coeff;
 };
 
 void vp9_encode_sb(MACROBLOCK *x, BLOCK_SIZE bsize);
@@ -54,7 +48,10 @@ void vp9_encode_intra_block_y(MACROBLOCK *x, BLOCK_SIZE bsize);
 void vp9_encode_intra_block_uv(MACROBLOCK *x, BLOCK_SIZE bsize);
 
 int vp9_encode_intra(MACROBLOCK *x, int use_16x16_pred);
-void vp9_setup_interp_filters(MACROBLOCKD *xd,
-                              INTERPOLATION_TYPE mcomp_filter_type,
+void vp9_setup_interp_filters(MACROBLOCKD *xd, INTERP_FILTER filter,
                               VP9_COMMON *cm);
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
 #endif  // VP9_ENCODER_VP9_ENCODEMB_H_
