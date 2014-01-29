@@ -48,6 +48,7 @@
         '<(output_dir)/<(RULE_INPUT_ROOT).<(output_extension)',
       ],
       'action': [
+	'python',
         '<(DEPTH)/third_party/libvpx/obj_int_extract.py',
         '-e', '<(PRODUCT_DIR)/libvpx_obj_int_extract',
         '-f', '<(output_format)',
