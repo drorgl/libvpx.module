@@ -49,6 +49,11 @@
     ['target_arch=="x64"', {
       'includes': ['libvpx_srcs_x86_64_intrinsics.gypi', ],
     }],
+    [ '(target_arch=="arm" or target_arch=="armv7") and arm_neon==0 and OS=="android"', {
+      # When building for targets which may not have NEON (but may!), include
+      # support for neon and hide it behind Android cpu-features.
+      'includes': ['libvpx_srcs_arm_neon_cpu_detect_intrinsics.gypi', ],
+    }],
     [ '(target_arch != "arm" and target_arch != "armv7") and target_arch != "mipsel"', {
       'targets': [
         {
@@ -286,6 +291,9 @@
                   'includes': [
                     'libvpx_srcs_arm_neon_cpu_detect.gypi',
                   ],
+                  'dependencies': [
+                    'libvpx_intrinsics_neon',
+		  ],
                   'cflags': [
                     '-Wa,-mfpu=neon',
                   ],

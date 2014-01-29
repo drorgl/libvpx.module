@@ -79,6 +79,7 @@ function write_target_definition {
   echo "      ]," >> $2
   echo "      'conditions': [" >> $2
   echo "        ['os_posix==1 and OS!=\"mac\"', {" >> $2
+  echo "          'cflags!': [ '-mfpu=vfpv3-d16' ]," >> $2
   echo "          'cflags': [ '-m$4', ]," >> $2
   echo "        }]," >> $2
   echo "        ['OS==\"mac\"', {" >> $2
@@ -106,53 +107,51 @@ function write_special_flags {
   local avx_sources=$(echo "$file_list" | grep '_avx\.c$')
   local avx2_sources=$(echo "$file_list" | grep '_avx2\.c$')
 
+  local neon_sources=$(echo "$file_list" | grep '_neon\.c$')
+
   # Intrinsic functions and files are in flux. We can selectively generate them
-  # but we can not selectively include them in libvpx.gyp. Throw some warnings
-  # when the expected output changes.
-
-  # Expect output for these:
-  if [ 0 -eq ${#mmx_sources} ]; then
-    echo "ERROR: Comment mmx sections in libvpx.gyp"
-    exit 1
-  fi
-  if [ 0 -eq ${#sse2_sources} ]; then
-    echo "ERROR: Comment sse2 sections in libvpx.gyp"
-    exit 1
-  fi
-  if [ 0 -eq ${#ssse3_sources} ]; then
-    echo "ERROR: Comment ssse3 sections in libvpx.gyp"
-    exit 1
-  fi
-
-  # Do not expect output for these:
-  if [ 0 -ne ${#sse3_sources} ]; then
-    echo "ERROR: Uncomment sse3 sections in libvpx.gyp"
-    exit 1
-  fi
-  if [ 0 -ne ${#sse4_1_sources} ]; then
-    echo "ERROR: Uncomment sse4_1 sections in libvpx.gyp"
-    exit 1
-  fi
-  if [ 0 -ne ${#avx_sources} ]; then
-    echo "ERROR: Uncomment avx sections in libvpx.gyp"
-    exit 1
-  fi
-  if [ 0 -ne ${#avx2_sources} ]; then
-    echo "ERROR: Uncomment avx2 sections in libvpx.gyp"
-    exit 1
-  fi
+  # but we can not selectively include them in libvpx.gyp. Throw some errors
+  # when new targets are needed.
 
   write_gypi_header $2
 
   echo "  'targets': [" >> $2
 
-  write_target_definition mmx_sources[@] $2 libvpx_intrinsics_mmx mmx
-  write_target_definition sse2_sources[@] $2 libvpx_intrinsics_sse2 sse2
-  #write_target_definition sse3_sources[@] $2 libvpx_intrinsics_sse3 sse3
-  write_target_definition ssse3_sources[@] $2 libvpx_intrinsics_ssse3 ssse3
-  #write_target_definition sse4_1_sources[@] $2 libvpx_intrinsics_sse4_1 sse4.1
-  #write_target_definition avx_sources[@] $2 libvpx_intrinsics_avx avx
-  #write_target_definition avx2_sources[@] $2 libvpx_intrinsics_avx2 avx2
+  # x86[_64]
+  if [ 0 -ne ${#mmx_sources} ]; then
+    write_target_definition mmx_sources[@] $2 libvpx_intrinsics_mmx mmx
+  fi
+  if [ 0 -ne ${#sse2_sources} ]; then
+    write_target_definition sse2_sources[@] $2 libvpx_intrinsics_sse2 sse2
+  fi
+  if [ 0 -ne ${#sse3_sources} ]; then
+    #write_target_definition sse3_sources[@] $2 libvpx_intrinsics_sse3 sse3
+    echo "ERROR: Uncomment sse3 sections in libvpx.gyp"
+    exit 1
+  fi
+  if [ 0 -ne ${#ssse3_sources} ]; then
+    write_target_definition ssse3_sources[@] $2 libvpx_intrinsics_ssse3 ssse3
+  fi
+  if [ 0 -ne ${#sse4_1_sources} ]; then
+    #write_target_definition sse4_1_sources[@] $2 libvpx_intrinsics_sse4_1 sse4.1
+    echo "ERROR: Uncomment sse4_1 sections in libvpx.gyp"
+    exit 1
+  fi
+  if [ 0 -ne ${#avx_sources} ]; then
+    #write_target_definition avx_sources[@] $2 libvpx_intrinsics_avx avx
+    echo "ERROR: Uncomment avx sections in libvpx.gyp"
+    exit 1
+  fi
+  if [ 0 -ne ${#avx2_sources} ]; then
+    #write_target_definition avx2_sources[@] $2 libvpx_intrinsics_avx2 avx2
+    echo "ERROR: Uncomment avx2 sections in libvpx.gyp"
+    exit 1
+  fi
+
+  # arm neon
+  if [ 0 -ne ${#neon_sources} ]; then
+    write_target_definition neon_sources[@] $2 libvpx_intrinsics_neon fpu=neon
+  fi
 
   echo "  ]," >> $2
 
@@ -183,19 +182,28 @@ function convert_srcs_to_gypi {
   source_list=$(echo "$source_list" | sed s/\.asm\.s$/.asm/)
 
   # Select all x86 files ending with .c
-  local x86_intrinsic_list=$(echo "$source_list" | \
+  local intrinsic_list=$(echo "$source_list" | \
     egrep 'vp[89]/(encoder|decoder|common)/x86/'  | \
     egrep '(mmx|sse2|sse3|ssse3|sse4|avx|avx2).c$')
 
+  # Select all neon files ending in C but only when building in RTCD mode
+  if [ "libvpx_srcs_arm_neon_cpu_detect" == "$2" ]; then
+    # Select all arm neon files ending in _neon.c
+    # the pattern may need to be updated if vpx_scale gets intrinics
+    local intrinsic_list=$(echo "$source_list" | \
+      egrep 'vp[89]/(encoder|decoder|common)/arm/neon/'  | \
+      egrep '_neon.c$')
+  fi
+
   # Remove these files from the main list.
-  source_list=$(comm -23 <(echo "$source_list") <(echo "$x86_intrinsic_list"))
+  source_list=$(comm -23 <(echo "$source_list") <(echo "$intrinsic_list"))
 
   write_file_list source_list $BASE_DIR/$2.gypi
 
   # All the files are in a single "element." Check if the first element has
   # length 0.
-  if [ 0 -ne ${#x86_intrinsic_list} ]; then
-    write_special_flags x86_intrinsic_list[@] $BASE_DIR/$2_intrinsics.gypi
+  if [ 0 -ne ${#intrinsic_list} ]; then
+    write_special_flags intrinsic_list[@] $BASE_DIR/$2_intrinsics.gypi
   fi
 
 }

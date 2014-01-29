@@ -20,6 +20,7 @@
       ],
       'conditions': [
         ['os_posix==1 and OS!="mac"', {
+          'cflags!': [ '-mfpu=vfpv3-d16' ],
           'cflags': [ '-mmmx', ],
         }],
         ['OS=="mac"', {
@@ -51,6 +52,7 @@
       ],
       'conditions': [
         ['os_posix==1 and OS!="mac"', {
+          'cflags!': [ '-mfpu=vfpv3-d16' ],
           'cflags': [ '-msse2', ],
         }],
         ['OS=="mac"', {
@@ -72,6 +74,7 @@
       ],
       'conditions': [
         ['os_posix==1 and OS!="mac"', {
+          'cflags!': [ '-mfpu=vfpv3-d16' ],
           'cflags': [ '-mssse3', ],
         }],
         ['OS=="mac"', {
