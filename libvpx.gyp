@@ -66,7 +66,7 @@
             'OS_CATEGORY%': '<(OS_CATEGORY)',
             'yasm_flags': [
               '-D', 'CHROMIUM',
-              '-I', 'source/config/<(OS_CATEGORY)/<(target_arch)',
+              '-I', 'source/config/<(OS_CATEGORY)/<(target_arch_full)',
               '-I', 'source/config',
               '-I', '<(libvpx_source)',
               '-I', '<(shared_generated_dir)', # Generated assembly offsets
@@ -79,7 +79,7 @@
             '../yasm/yasm_compile.gypi'
           ],
           'include_dirs': [
-            'source/config/<(OS_CATEGORY)/<(target_arch)',
+            'source/config/<(OS_CATEGORY)/<(target_arch_full)',
             'source/config',
             '<(libvpx_source)',
             '<(libvpx_source)/vp8/common',
@@ -179,7 +179,7 @@
             '-EL -static -mips32',
           ],
           'include_dirs': [
-            'source/config/<(OS_CATEGORY)/<(target_arch)',
+            'source/config/<(OS_CATEGORY)/<(target_arch_full)',
             'source/config',
             '<(libvpx_source)',
             '<(libvpx_source)/vp8/common',
@@ -192,7 +192,7 @@
             ],
           },
           'sources': [
-            'source/config/<(OS_CATEGORY)/<(target_arch)/vpx_config.c',
+            'source/config/<(OS_CATEGORY)/<(target_arch_full)/vpx_config.c',
           ],
         },
       ],

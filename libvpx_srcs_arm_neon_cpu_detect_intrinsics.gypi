@@ -9,7 +9,7 @@
       'target_name': 'libvpx_intrinsics_neon',
       'type': 'static_library',
       'include_dirs': [
-        'source/config/<(OS_CATEGORY)/<(target_arch)',
+        'source/config/<(OS_CATEGORY)/<(target_arch_full)',
         '<(libvpx_source)',
       ],
       'sources': [

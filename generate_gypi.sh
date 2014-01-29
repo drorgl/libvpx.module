@@ -68,7 +68,7 @@ function write_target_definition {
   echo "      'target_name': '$3'," >> $2
   echo "      'type': 'static_library'," >> $2
   echo "      'include_dirs': [" >> $2
-  echo "        'source/config/<(OS_CATEGORY)/<(target_arch)'," >> $2
+  echo "        'source/config/<(OS_CATEGORY)/<(target_arch_full)'," >> $2
   echo "        '<(libvpx_source)'," >> $2
   echo "      ]," >> $2
   echo "      'sources': [" >> $2
