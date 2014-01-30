@@ -17,7 +17,7 @@
         'target_arch_full': 'arm-neon',
       }, {
         'conditions': [
-          ['OS=="android"', {
+          ['OS=="android" and ((target_arch=="arm" or target_arch=="armv7") and arm_neon==0)', {
             'target_arch_full': 'arm-neon-cpu-detect',
           }, {
            'target_arch_full': '<(target_arch)',
