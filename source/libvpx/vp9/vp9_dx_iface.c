@@ -15,6 +15,7 @@
 #include "vpx/vp8dx.h"
 #include "vpx/internal/vpx_codec_internal.h"
 #include "./vpx_version.h"
+#include "vp9/common/vp9_frame_buffers.h"
 #include "vp9/decoder/vp9_onyxd.h"
 #include "vp9/decoder/vp9_onyxd_int.h"
 #include "vp9/decoder/vp9_read_bit_buffer.h"
@@ -59,6 +60,11 @@ struct vpx_codec_alg_priv {
   int                     img_setup;
   int                     img_avail;
   int                     invert_tile_order;
+
+  // External frame buffer info to save for VP9 common.
+  void *ext_priv;  // Private data associated with the external frame buffers.
+  vpx_get_frame_buffer_cb_fn_t get_ext_fb_cb;
+  vpx_release_frame_buffer_cb_fn_t release_ext_fb_cb;
 };
 
 static unsigned long priv_sz(const vpx_codec_dec_cfg_t *si,
@@ -148,7 +154,9 @@ static vpx_codec_err_t vp9_peek_si(const uint8_t *data, unsigned int data_sz,
   {
     struct vp9_read_bit_buffer rb = { data, data + data_sz, 0, NULL, NULL };
     const int frame_marker = vp9_rb_read_literal(&rb, 2);
-    const int version = vp9_rb_read_bit(&rb) | (vp9_rb_read_bit(&rb) << 1);
+    const int version = vp9_rb_read_bit(&rb);
+    (void) vp9_rb_read_bit(&rb);  // unused version bit
+
     if (frame_marker != VP9_FRAME_MARKER)
       return VPX_CODEC_UNSUP_BITSTREAM;
 #if CONFIG_NON420
@@ -206,7 +214,7 @@ static vpx_codec_err_t vp9_get_si(vpx_codec_alg_priv_t    *ctx,
                        ? sizeof(vp9_stream_info_t)
                        : sizeof(vpx_codec_stream_info_t);
   memcpy(si, &ctx->si, sz);
-  si->sz = (unsigned int)sz;
+  si->sz = sz;
 
   return VPX_CODEC_OK;
 }
@@ -291,10 +299,31 @@ static vpx_codec_err_t decode_one(vpx_codec_alg_priv_t *ctx,
         ctx->postproc_cfg.noise_level = 0;
       }
 
-      if (!optr)
+      if (!optr) {
         res = VPX_CODEC_ERROR;
-      else
+      } else {
+        VP9D_COMP *const pbi = (VP9D_COMP*)optr;
+        VP9_COMMON *const cm = &pbi->common;
+
+        // Set index to not initialized.
+        cm->new_fb_idx = -1;
+
+        if (ctx->get_ext_fb_cb != NULL && ctx->release_ext_fb_cb != NULL) {
+          cm->get_fb_cb = ctx->get_ext_fb_cb;
+          cm->release_fb_cb = ctx->release_ext_fb_cb;
+          cm->cb_priv = ctx->ext_priv;
+        } else {
+          cm->get_fb_cb = vp9_get_frame_buffer;
+          cm->release_fb_cb = vp9_release_frame_buffer;
+
+          if (vp9_alloc_internal_frame_buffers(&cm->int_frame_buffers))
+            vpx_internal_error(&cm->error, VPX_CODEC_MEM_ERROR,
+                               "Failed to initialize internal frame buffers");
+          cm->cb_priv = &cm->int_frame_buffers;
+        }
+
         ctx->pbi = optr;
+      }
     }
 
     ctx->decoder_init = 1;
@@ -332,7 +361,11 @@ static vpx_codec_err_t decode_one(vpx_codec_alg_priv_t *ctx,
 
     if (!res && 0 == vp9_get_raw_frame(ctx->pbi, &sd, &time_stamp,
                                        &time_end_stamp, &flags)) {
+      VP9D_COMP *const pbi = (VP9D_COMP*)ctx->pbi;
+      VP9_COMMON *const cm = &pbi->common;
       yuvconfig2image(&ctx->img, &sd, user_priv);
+
+      ctx->img.fb_priv = cm->frame_bufs[cm->new_fb_idx].raw_frame_buffer.priv;
       ctx->img_avail = 1;
     }
   }
@@ -450,6 +483,24 @@ static vpx_image_t *vp9_get_frame(vpx_codec_alg_priv_t  *ctx,
   ctx->img_avail = 0;
 
   return img;
+}
+
+static vpx_codec_err_t vp9_set_fb_fn(
+    vpx_codec_alg_priv_t *ctx,
+    vpx_get_frame_buffer_cb_fn_t cb_get,
+    vpx_release_frame_buffer_cb_fn_t cb_release, void *cb_priv) {
+  if (cb_get == NULL || cb_release == NULL) {
+    return VPX_CODEC_INVALID_PARAM;
+  } else if (ctx->pbi == NULL) {
+    // If the decoder has already been initialized, do not accept changes to
+    // the frame buffer functions.
+    ctx->get_ext_fb_cb = cb_get;
+    ctx->release_ext_fb_cb = cb_release;
+    ctx->ext_priv = cb_priv;
+    return VPX_CODEC_OK;
+  }
+
+  return VPX_CODEC_ERROR;
 }
 
 static vpx_codec_err_t vp9_xma_get_mmap(const vpx_codec_ctx_t *ctx,
@@ -685,7 +736,8 @@ static vpx_codec_ctrl_fn_map_t ctf_maps[] = {
 CODEC_INTERFACE(vpx_codec_vp9_dx) = {
   "WebM Project VP9 Decoder" VERSION_STRING,
   VPX_CODEC_INTERNAL_ABI_VERSION,
-  VPX_CODEC_CAP_DECODER | VP9_CAP_POSTPROC,
+  VPX_CODEC_CAP_DECODER | VP9_CAP_POSTPROC |
+      VPX_CODEC_CAP_EXTERNAL_FRAME_BUFFER,
   /* vpx_codec_caps_t          caps; */
   vp9_init,         /* vpx_codec_init_fn_t       init; */
   vp9_destroy,      /* vpx_codec_destroy_fn_t    destroy; */
@@ -697,6 +749,7 @@ CODEC_INTERFACE(vpx_codec_vp9_dx) = {
     vp9_get_si,       /* vpx_codec_get_si_fn_t     get_si; */
     vp9_decode,       /* vpx_codec_decode_fn_t     decode; */
     vp9_get_frame,    /* vpx_codec_frame_get_fn_t  frame_get; */
+    vp9_set_fb_fn,    /* vpx_codec_set_fb_fn_t     set_fb_fn; */
   },
   { // NOLINT
     /* encoder functions */

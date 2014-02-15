@@ -18,6 +18,7 @@
 #include "vp9/common/vp9_entropymv.h"
 #include "vp9/common/vp9_entropy.h"
 #include "vp9/common/vp9_entropymode.h"
+#include "vp9/common/vp9_frame_buffers.h"
 #include "vp9/common/vp9_quant_common.h"
 #include "vp9/common/vp9_tile_common.h"
 
@@ -60,7 +61,7 @@ typedef struct frame_contexts {
   vp9_prob single_ref_prob[REF_CONTEXTS][2];
   vp9_prob comp_ref_prob[REF_CONTEXTS];
   struct tx_probs tx_probs;
-  vp9_prob mbskip_probs[MBSKIP_CONTEXTS];
+  vp9_prob skip_probs[SKIP_CONTEXTS];
   nmv_context nmvc;
 } FRAME_CONTEXT;
 
@@ -79,7 +80,7 @@ typedef struct {
   unsigned int single_ref[REF_CONTEXTS][2][2];
   unsigned int comp_ref[REF_CONTEXTS][2];
   struct tx_counts tx;
-  unsigned int mbskip[MBSKIP_CONTEXTS][2];
+  unsigned int skip[SKIP_CONTEXTS][2];
   nmv_context_counts mv;
 } FRAME_COUNTS;
 
@@ -90,6 +91,13 @@ typedef enum {
   REFERENCE_MODE_SELECT = 2,
   REFERENCE_MODES       = 3,
 } REFERENCE_MODE;
+
+
+typedef struct {
+  int ref_count;
+  vpx_codec_frame_buffer_t raw_frame_buffer;
+  YV12_BUFFER_CONFIG buf;
+} RefCntBuffer;
 
 typedef struct VP9Common {
   struct vpx_internal_error_info  error;
@@ -117,8 +125,8 @@ typedef struct VP9Common {
 
   YV12_BUFFER_CONFIG *frame_to_show;
 
-  YV12_BUFFER_CONFIG yv12_fb[FRAME_BUFFERS];
-  int fb_idx_ref_cnt[FRAME_BUFFERS]; /* reference counts */
+  RefCntBuffer frame_bufs[FRAME_BUFFERS];
+
   int ref_frame_map[REF_FRAMES]; /* maps fb_idx to reference slot */
 
   // TODO(jkoleszar): could expand active_ref_idx to 4, with 0 as intra, and
@@ -217,35 +225,43 @@ typedef struct VP9Common {
   int frame_parallel_decoding_mode;
 
   int log2_tile_cols, log2_tile_rows;
+
+  // Private data associated with the frame buffer callbacks.
+  void *cb_priv;
+  vpx_get_frame_buffer_cb_fn_t get_fb_cb;
+  vpx_release_frame_buffer_cb_fn_t release_fb_cb;
+
+  // Handles memory for the codec.
+  InternalFrameBufferList int_frame_buffers;
 } VP9_COMMON;
 
-static YV12_BUFFER_CONFIG *get_frame_new_buffer(VP9_COMMON *cm) {
-  return &cm->yv12_fb[cm->new_fb_idx];
+static INLINE YV12_BUFFER_CONFIG *get_frame_new_buffer(VP9_COMMON *cm) {
+  return &cm->frame_bufs[cm->new_fb_idx].buf;
 }
 
-static int get_free_fb(VP9_COMMON *cm) {
+static INLINE int get_free_fb(VP9_COMMON *cm) {
   int i;
   for (i = 0; i < FRAME_BUFFERS; i++)
-    if (cm->fb_idx_ref_cnt[i] == 0)
+    if (cm->frame_bufs[i].ref_count == 0)
       break;
 
   assert(i < FRAME_BUFFERS);
-  cm->fb_idx_ref_cnt[i] = 1;
+  cm->frame_bufs[i].ref_count = 1;
   return i;
 }
 
-static void ref_cnt_fb(int *buf, int *idx, int new_idx) {
+static INLINE void ref_cnt_fb(RefCntBuffer *bufs, int *idx, int new_idx) {
   const int ref_index = *idx;
 
-  if (ref_index >= 0 && buf[ref_index] > 0)
-    buf[ref_index]--;
+  if (ref_index >= 0 && bufs[ref_index].ref_count > 0)
+    bufs[ref_index].ref_count--;
 
   *idx = new_idx;
 
-  buf[new_idx]++;
+  bufs[new_idx].ref_count++;
 }
 
-static int mi_cols_aligned_to_sb(int n_mis) {
+static INLINE int mi_cols_aligned_to_sb(int n_mis) {
   return ALIGN_POWER_OF_TWO(n_mis, MI_BLOCK_SIZE_LOG2);
 }
 
@@ -269,10 +285,10 @@ static INLINE void set_skip_context(
   }
 }
 
-static void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
-                           int mi_row, int bh,
-                           int mi_col, int bw,
-                           int mi_rows, int mi_cols) {
+static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
+                                  int mi_row, int bh,
+                                  int mi_col, int bw,
+                                  int mi_rows, int mi_cols) {
   xd->mb_to_top_edge    = -((mi_row * MI_SIZE) * 8);
   xd->mb_to_bottom_edge = ((mi_rows - bh - mi_row) * MI_SIZE) * 8;
   xd->mb_to_left_edge   = -((mi_col * MI_SIZE) * 8);

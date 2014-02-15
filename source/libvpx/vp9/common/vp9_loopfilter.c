@@ -16,26 +16,6 @@
 
 #include "vp9/common/vp9_seg_common.h"
 
-// This structure holds bit masks for all 8x8 blocks in a 64x64 region.
-// Each 1 bit represents a position in which we want to apply the loop filter.
-// Left_ entries refer to whether we apply a filter on the border to the
-// left of the block.   Above_ entries refer to whether or not to apply a
-// filter on the above border.   Int_ entries refer to whether or not to
-// apply borders on the 4x4 edges within the 8x8 block that each bit
-// represents.
-// Since each transform is accompanied by a potentially different type of
-// loop filter there is a different entry in the array for each transform size.
-typedef struct {
-  uint64_t left_y[TX_SIZES];
-  uint64_t above_y[TX_SIZES];
-  uint64_t int_4x4_y;
-  uint16_t left_uv[TX_SIZES];
-  uint16_t above_uv[TX_SIZES];
-  uint16_t int_4x4_uv;
-  uint8_t lfl_y[64];
-  uint8_t lfl_uv[16];
-} LOOP_FILTER_MASK;
-
 // 64 bit masks for left transform size.  Each 1 represents a position where
 // we should apply a loop filter across the left border of an 8x8 block
 // boundary.
@@ -516,7 +496,7 @@ static void build_masks(const loop_filter_info_n *const lfi_n,
   const BLOCK_SIZE block_size = mi->mbmi.sb_type;
   const TX_SIZE tx_size_y = mi->mbmi.tx_size;
   const TX_SIZE tx_size_uv = get_uv_tx_size(&mi->mbmi);
-  const int skip = mi->mbmi.skip_coeff;
+  const int skip = mi->mbmi.skip;
   const int seg = mi->mbmi.segment_id;
   const int ref = mi->mbmi.ref_frame[0];
   const int filter_level = lfi_n->lvl[seg][ref][mode_lf_lut[mi->mbmi.mode]];
@@ -597,7 +577,7 @@ static void build_y_mask(const loop_filter_info_n *const lfi_n,
                          LOOP_FILTER_MASK *lfm) {
   const BLOCK_SIZE block_size = mi->mbmi.sb_type;
   const TX_SIZE tx_size_y = mi->mbmi.tx_size;
-  const int skip = mi->mbmi.skip_coeff;
+  const int skip = mi->mbmi.skip;
   const int seg = mi->mbmi.segment_id;
   const int ref = mi->mbmi.ref_frame[0];
   const int filter_level = lfi_n->lvl[seg][ref][mode_lf_lut[mi->mbmi.mode]];
@@ -638,9 +618,9 @@ static void build_y_mask(const loop_filter_info_n *const lfi_n,
 // This function sets up the bit masks for the entire 64x64 region represented
 // by mi_row, mi_col.
 // TODO(JBB): This function only works for yv12.
-static void setup_mask(VP9_COMMON *const cm, const int mi_row, const int mi_col,
-                       MODE_INFO **mi_8x8, const int mode_info_stride,
-                       LOOP_FILTER_MASK *lfm) {
+void vp9_setup_mask(VP9_COMMON *const cm, const int mi_row, const int mi_col,
+                    MODE_INFO **mi_8x8, const int mode_info_stride,
+                    LOOP_FILTER_MASK *lfm) {
   int idx_32, idx_16, idx_8;
   const loop_filter_info_n *const lfi_n = &cm->lf_info;
   MODE_INFO **mip = mi_8x8;
@@ -957,8 +937,7 @@ static void filter_block_plane_non420(VP9_COMMON *cm,
     for (c = 0; c < MI_BLOCK_SIZE && mi_col + c < cm->mi_cols; c += col_step) {
       const MODE_INFO *mi = mi_8x8[c];
       const BLOCK_SIZE sb_type = mi[0].mbmi.sb_type;
-      const int skip_this = mi[0].mbmi.skip_coeff
-                            && is_inter_block(&mi[0].mbmi);
+      const int skip_this = mi[0].mbmi.skip && is_inter_block(&mi[0].mbmi);
       // left edge of current unit is block/partition edge -> no skip
       const int block_edge_left = (num_4x4_blocks_wide_lookup[sb_type] > 1) ?
           !(c & (num_8x8_blocks_wide_lookup[sb_type] - 1)) : 1;
@@ -1069,10 +1048,10 @@ static void filter_block_plane_non420(VP9_COMMON *cm,
 }
 #endif
 
-static void filter_block_plane(VP9_COMMON *const cm,
-                               struct macroblockd_plane *const plane,
-                               int mi_row,
-                               LOOP_FILTER_MASK *lfm) {
+void vp9_filter_block_plane(VP9_COMMON *const cm,
+                            struct macroblockd_plane *const plane,
+                            int mi_row,
+                            LOOP_FILTER_MASK *lfm) {
   struct buf_2d *const dst = &plane->dst;
   uint8_t* const dst0 = dst->buf;
   int r, c;
@@ -1244,14 +1223,14 @@ void vp9_loop_filter_rows(const YV12_BUFFER_CONFIG *frame_buffer,
 #if CONFIG_NON420
       if (use_420)
 #endif
-        setup_mask(cm, mi_row, mi_col, mi_8x8 + mi_col, cm->mode_info_stride,
-                   &lfm);
+        vp9_setup_mask(cm, mi_row, mi_col, mi_8x8 + mi_col,
+                       cm->mode_info_stride, &lfm);
 
       for (plane = 0; plane < num_planes; ++plane) {
 #if CONFIG_NON420
         if (use_420)
 #endif
-          filter_block_plane(cm, &xd->plane[plane], mi_row, &lfm);
+          vp9_filter_block_plane(cm, &xd->plane[plane], mi_row, &lfm);
 #if CONFIG_NON420
         else
           filter_block_plane_non420(cm, &xd->plane[plane], mi_8x8 + mi_col,
@@ -1264,12 +1243,12 @@ void vp9_loop_filter_rows(const YV12_BUFFER_CONFIG *frame_buffer,
 
 void vp9_loop_filter_frame(VP9_COMMON *cm, MACROBLOCKD *xd,
                            int frame_filter_level,
-                           int y_only, int partial) {
+                           int y_only, int partial_frame) {
   int start_mi_row, end_mi_row, mi_rows_to_filter;
   if (!frame_filter_level) return;
   start_mi_row = 0;
   mi_rows_to_filter = cm->mi_rows;
-  if (partial && cm->mi_rows > 8) {
+  if (partial_frame && cm->mi_rows > 8) {
     start_mi_row = cm->mi_rows >> 1;
     start_mi_row &= 0xfffffff8;
     mi_rows_to_filter = MAX(cm->mi_rows / 8, 8);

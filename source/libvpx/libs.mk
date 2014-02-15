@@ -57,13 +57,6 @@ CLEAN-OBJS += $$(BUILD_PFX)$(1).h
 RTCD += $$(BUILD_PFX)$(1).h
 endef
 
-# x86inc.asm is not compatible with pic 32bit builds. Restrict
-# files which use it to 64bit builds or 32bit without pic
-USE_X86INC = no
-ifeq ($(CONFIG_USE_X86INC),yes)
-  USE_X86INC = yes
-endif
-
 CODEC_SRCS-yes += CHANGELOG
 CODEC_SRCS-yes += libs.mk
 
@@ -182,6 +175,7 @@ CODEC_EXPORTS-$(CONFIG_ENCODERS) += vpx/exports_enc
 CODEC_EXPORTS-$(CONFIG_DECODERS) += vpx/exports_dec
 
 INSTALL-LIBS-yes += include/vpx/vpx_codec.h
+INSTALL-LIBS-yes += include/vpx/vpx_frame_buffer.h
 INSTALL-LIBS-yes += include/vpx/vpx_image.h
 INSTALL-LIBS-yes += include/vpx/vpx_integer.h
 INSTALL-LIBS-$(CONFIG_DECODERS) += include/vpx/vpx_decoder.h
@@ -214,8 +208,11 @@ CLEAN-OBJS += libvpx_srcs.txt
 ifeq ($(CONFIG_EXTERNAL_BUILD),yes)
 ifeq ($(CONFIG_MSVS),yes)
 
+obj_int_extract.bat: $(SRC_PATH_BARE)/build/$(MSVS_ARCH_DIR)/obj_int_extract.bat
+	@cp $^ $@
+
+obj_int_extract.$(VCPROJ_SFX): obj_int_extract.bat
 obj_int_extract.$(VCPROJ_SFX): $(SRC_PATH_BARE)/build/make/obj_int_extract.c
-	@cp $(SRC_PATH_BARE)/build/$(MSVS_ARCH_DIR)/obj_int_extract.bat .
 	@echo "    [CREATE] $@"
 	$(qexec)$(GEN_VCPROJ) \
     --exe \

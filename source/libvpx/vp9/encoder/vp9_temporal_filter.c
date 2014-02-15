@@ -29,7 +29,6 @@
 #include "vpx_scale/vpx_scale.h"
 
 #define ALT_REF_MC_ENABLED 1    // dis/enable MC in AltRef filtering
-#define ALT_REF_SUBPEL_ENABLED 1  // dis/enable subpel in MC AltRef filtering
 
 static void temporal_filter_predictors_mb_c(MACROBLOCKD *xd,
                                             uint8_t *y_mb_ptr,
@@ -134,17 +133,16 @@ static int temporal_filter_find_matching_mb_c(VP9_COMP *cpi,
   int sadpb = x->sadperbit16;
   int bestsme = INT_MAX;
 
-  int_mv best_ref_mv1;
-  int_mv best_ref_mv1_full; /* full-pixel value of best_ref_mv1 */
-  int_mv *ref_mv;
+  MV best_ref_mv1 = {0, 0};
+  MV best_ref_mv1_full; /* full-pixel value of best_ref_mv1 */
+  MV *ref_mv = &x->e_mbd.mi_8x8[0]->bmi[0].as_mv[0].as_mv;
 
   // Save input state
   struct buf_2d src = x->plane[0].src;
   struct buf_2d pre = xd->plane[0].pre[0];
 
-  best_ref_mv1.as_int = 0;
-  best_ref_mv1_full.as_mv.col = best_ref_mv1.as_mv.col >> 3;
-  best_ref_mv1_full.as_mv.row = best_ref_mv1.as_mv.row >> 3;
+  best_ref_mv1_full.col = best_ref_mv1.col >> 3;
+  best_ref_mv1_full.row = best_ref_mv1.row >> 3;
 
   // Setup frame pointers
   x->plane[0].src.buf = arf_frame_buf;
@@ -161,21 +159,17 @@ static int temporal_filter_find_matching_mb_c(VP9_COMP *cpi,
 
   /*cpi->sf.search_method == HEX*/
   // Ignore mv costing by sending NULL pointer instead of cost arrays
-  ref_mv = &x->e_mbd.mi_8x8[0]->bmi[0].as_mv[0];
-  bestsme = vp9_hex_search(x, &best_ref_mv1_full.as_mv,
-                           step_param, sadpb, 1,
-                           &cpi->fn_ptr[BLOCK_16X16],
-                           0, &best_ref_mv1.as_mv, &ref_mv->as_mv);
+  vp9_hex_search(x, &best_ref_mv1_full, step_param, sadpb, 1,
+                 &cpi->fn_ptr[BLOCK_16X16], 0, &best_ref_mv1, ref_mv);
 
-#if ALT_REF_SUBPEL_ENABLED
   // Try sub-pixel MC?
   // if (bestsme > error_thresh && bestsme < INT_MAX)
   {
     int distortion;
     unsigned int sse;
     // Ignore mv costing by sending NULL pointer instead of cost array
-    bestsme = cpi->find_fractional_mv_step(x, &ref_mv->as_mv,
-                                           &best_ref_mv1.as_mv,
+    bestsme = cpi->find_fractional_mv_step(x, ref_mv,
+                                           &best_ref_mv1,
                                            cpi->common.allow_high_precision_mv,
                                            x->errorperbit,
                                            &cpi->fn_ptr[BLOCK_16X16],
@@ -183,7 +177,6 @@ static int temporal_filter_find_matching_mb_c(VP9_COMP *cpi,
                                            NULL, NULL,
                                            &distortion, &sse);
   }
-#endif
 
   // Restore input state
   x->plane[0].src = src;
@@ -392,7 +385,6 @@ void vp9_temporal_filter_prepare(VP9_COMP *cpi, int distance) {
   const int num_frames_backward = distance;
   const int num_frames_forward = vp9_lookahead_depth(cpi->lookahead)
                                - (num_frames_backward + 1);
-
   struct scale_factors sf;
 
   switch (blur_type) {
@@ -408,7 +400,6 @@ void vp9_temporal_filter_prepare(VP9_COMP *cpi, int distance) {
 
     case 2:
       // Forward Blur
-
       frames_to_blur_forward = num_frames_forward;
 
       if (frames_to_blur_forward >= max_frames)
@@ -471,22 +462,24 @@ void vp9_temporal_filter_prepare(VP9_COMP *cpi, int distance) {
                             strength, &sf);
 }
 
-void configure_arnr_filter(VP9_COMP *cpi, const unsigned int this_frame,
-                           const int group_boost) {
+void vp9_configure_arnr_filter(VP9_COMP *cpi,
+                               const unsigned int frames_to_arnr,
+                               const int group_boost) {
   int half_gf_int;
   int frames_after_arf;
   int frames_bwd = cpi->oxcf.arnr_max_frames - 1;
   int frames_fwd = cpi->oxcf.arnr_max_frames - 1;
   int q;
 
-  // Define the arnr filter width for this group of frames:
-  // We only filter frames that lie within a distance of half
-  // the GF interval from the ARF frame. We also have to trap
-  // cases where the filter extends beyond the end of clip.
-  // Note: this_frame->frame has been updated in the loop
-  // so it now points at the ARF frame.
+  // Define the arnr filter width for this group of frames. We only
+  // filter frames that lie within a distance of half the GF interval
+  // from the ARF frame. We also have to trap cases where the filter
+  // extends beyond the end of the lookahead buffer.
+  // Note: frames_to_arnr parameter is the offset of the arnr
+  // frame from the current frame.
   half_gf_int = cpi->rc.baseline_gf_interval >> 1;
-  frames_after_arf = (int)(cpi->twopass.total_stats.count - this_frame - 1);
+  frames_after_arf = vp9_lookahead_depth(cpi->lookahead)
+      - frames_to_arnr - 1;
 
   switch (cpi->oxcf.arnr_type) {
     case 1:  // Backward filter
@@ -523,11 +516,16 @@ void configure_arnr_filter(VP9_COMP *cpi, const unsigned int this_frame,
   cpi->active_arnr_frames = frames_bwd + 1 + frames_fwd;
 
   // Adjust the strength based on active max q
-  q = ((int)vp9_convert_qindex_to_q(cpi->rc.active_worst_quality) >> 1);
-  if (q > 8) {
+  if (cpi->common.current_video_frame > 1)
+    q = ((int)vp9_convert_qindex_to_q(
+        cpi->rc.avg_frame_qindex[INTER_FRAME]));
+  else
+    q = ((int)vp9_convert_qindex_to_q(
+        cpi->rc.avg_frame_qindex[KEY_FRAME]));
+  if (q > 16) {
     cpi->active_arnr_strength = cpi->oxcf.arnr_strength;
   } else {
-    cpi->active_arnr_strength = cpi->oxcf.arnr_strength - (8 - q);
+    cpi->active_arnr_strength = cpi->oxcf.arnr_strength - ((16 - q) / 2);
     if (cpi->active_arnr_strength < 0)
       cpi->active_arnr_strength = 0;
   }

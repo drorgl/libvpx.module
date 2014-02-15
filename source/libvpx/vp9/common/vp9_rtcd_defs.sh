@@ -264,13 +264,13 @@ prototype void vp9_convolve_avg "const uint8_t *src, ptrdiff_t src_stride, uint8
 specialize vp9_convolve_avg $sse2_x86inc neon dspr2
 
 prototype void vp9_convolve8 "const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h"
-specialize vp9_convolve8 sse2 ssse3 neon dspr2
+specialize vp9_convolve8 sse2 ssse3 avx2 neon dspr2
 
 prototype void vp9_convolve8_horiz "const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h"
-specialize vp9_convolve8_horiz sse2 ssse3 neon dspr2
+specialize vp9_convolve8_horiz sse2 ssse3 avx2 neon dspr2
 
 prototype void vp9_convolve8_vert "const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h"
-specialize vp9_convolve8_vert sse2 ssse3 neon dspr2
+specialize vp9_convolve8_vert sse2 ssse3 avx2 neon dspr2
 
 prototype void vp9_convolve8_avg "const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h"
 specialize vp9_convolve8_avg sse2 ssse3 neon dspr2
@@ -707,14 +707,14 @@ if [ "$CONFIG_INTERNAL_STATS" = "yes" ]; then
 fi
 
 # fdct functions
-prototype void vp9_short_fht4x4 "const int16_t *input, int16_t *output, int stride, int tx_type"
-specialize vp9_short_fht4x4 sse2 avx2
+prototype void vp9_fht4x4 "const int16_t *input, int16_t *output, int stride, int tx_type"
+specialize vp9_fht4x4 sse2 avx2
 
-prototype void vp9_short_fht8x8 "const int16_t *input, int16_t *output, int stride, int tx_type"
-specialize vp9_short_fht8x8 sse2 avx2
+prototype void vp9_fht8x8 "const int16_t *input, int16_t *output, int stride, int tx_type"
+specialize vp9_fht8x8 sse2 avx2
 
-prototype void vp9_short_fht16x16 "const int16_t *input, int16_t *output, int stride, int tx_type"
-specialize vp9_short_fht16x16 sse2 avx2
+prototype void vp9_fht16x16 "const int16_t *input, int16_t *output, int stride, int tx_type"
+specialize vp9_fht16x16 sse2 avx2
 
 prototype void vp9_fwht4x4 "const int16_t *input, int16_t *output, int stride"
 specialize vp9_fwht4x4
@@ -737,20 +737,20 @@ specialize vp9_fdct32x32_rd sse2 avx2
 #
 # Motion search
 #
-prototype int vp9_full_search_sad "struct macroblock *x, struct mv *ref_mv, int sad_per_bit, int distance, struct vp9_variance_vtable *fn_ptr, DEC_MVCOSTS, const struct mv *center_mv, int n"
+prototype int vp9_full_search_sad "const struct macroblock *x, const struct mv *ref_mv, int sad_per_bit, int distance, const struct vp9_variance_vtable *fn_ptr, DEC_MVCOSTS, const struct mv *center_mv, int n"
 specialize vp9_full_search_sad sse3 sse4_1
 vp9_full_search_sad_sse3=vp9_full_search_sadx3
 vp9_full_search_sad_sse4_1=vp9_full_search_sadx8
 
-prototype int vp9_refining_search_sad "const struct macroblock *x, struct mv *ref_mv, int sad_per_bit, int distance, struct vp9_variance_vtable *fn_ptr, DEC_MVCOSTS, const struct mv *center_mv"
+prototype int vp9_refining_search_sad "const struct macroblock *x, struct mv *ref_mv, int sad_per_bit, int distance, const struct vp9_variance_vtable *fn_ptr, DEC_MVCOSTS, const struct mv *center_mv"
 specialize vp9_refining_search_sad sse3
 vp9_refining_search_sad_sse3=vp9_refining_search_sadx4
 
-prototype int vp9_diamond_search_sad "struct macroblock *x, struct mv *ref_mv, struct mv *best_mv, int search_param, int sad_per_bit, int *num00, struct vp9_variance_vtable *fn_ptr, DEC_MVCOSTS, const struct mv *center_mv"
+prototype int vp9_diamond_search_sad "const struct macroblock *x, struct mv *ref_mv, struct mv *best_mv, int search_param, int sad_per_bit, int *num00, const struct vp9_variance_vtable *fn_ptr, DEC_MVCOSTS, const struct mv *center_mv"
 specialize vp9_diamond_search_sad sse3
 vp9_diamond_search_sad_sse3=vp9_diamond_search_sadx4
 
-prototype int vp9_full_range_search "struct macroblock *x, struct mv *ref_mv, struct mv *best_mv, int search_param, int sad_per_bit, int *num00, struct vp9_variance_vtable *fn_ptr, DEC_MVCOSTS, const struct mv *center_mv"
+prototype int vp9_full_range_search "const struct macroblock *x, struct mv *ref_mv, struct mv *best_mv, int search_param, int sad_per_bit, int *num00, const struct vp9_variance_vtable *fn_ptr, DEC_MVCOSTS, const struct mv *center_mv"
 specialize vp9_full_range_search
 
 prototype void vp9_temporal_filter_apply "uint8_t *frame1, unsigned int stride, uint8_t *frame2, unsigned int block_size, int strength, int filter_weight, unsigned int *accumulator, uint16_t *count"

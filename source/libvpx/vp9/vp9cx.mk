@@ -19,7 +19,6 @@ VP9_CX_SRCS-yes += vp9_cx_iface.c
 
 VP9_CX_SRCS-yes += encoder/vp9_bitstream.c
 VP9_CX_SRCS-yes += encoder/vp9_dct.c
-VP9_CX_SRCS-yes += encoder/vp9_dct.h
 VP9_CX_SRCS-yes += encoder/vp9_encodeframe.c
 VP9_CX_SRCS-yes += encoder/vp9_encodeframe.h
 VP9_CX_SRCS-yes += encoder/vp9_encodemb.c
@@ -56,7 +55,7 @@ VP9_CX_SRCS-yes += encoder/vp9_quantize.c
 VP9_CX_SRCS-yes += encoder/vp9_ratectrl.c
 VP9_CX_SRCS-yes += encoder/vp9_rdopt.c
 VP9_CX_SRCS-yes += encoder/vp9_pickmode.c
-VP9_CX_SRCS-yes += encoder/vp9_sad_c.c
+VP9_CX_SRCS-yes += encoder/vp9_sad.c
 VP9_CX_SRCS-yes += encoder/vp9_segmentation.c
 VP9_CX_SRCS-yes += encoder/vp9_segmentation.h
 VP9_CX_SRCS-yes += encoder/vp9_subexp.c
@@ -66,7 +65,7 @@ VP9_CX_SRCS-yes += encoder/vp9_resize.h
 VP9_CX_SRCS-$(CONFIG_INTERNAL_STATS) += encoder/vp9_ssim.c
 VP9_CX_SRCS-yes += encoder/vp9_tokenize.c
 VP9_CX_SRCS-yes += encoder/vp9_treewriter.c
-VP9_CX_SRCS-yes += encoder/vp9_variance_c.c
+VP9_CX_SRCS-yes += encoder/vp9_variance.c
 VP9_CX_SRCS-yes += encoder/vp9_vaq.c
 VP9_CX_SRCS-yes += encoder/vp9_vaq.h
 ifeq ($(CONFIG_VP9_POSTPROC),yes)
@@ -90,7 +89,7 @@ VP9_CX_SRCS-$(HAVE_SSE2) += encoder/x86/vp9_subpel_variance_impl_sse2.asm
 VP9_CX_SRCS-$(HAVE_SSE2) += encoder/x86/vp9_temporal_filter_apply_sse2.asm
 VP9_CX_SRCS-$(HAVE_SSE3) += encoder/x86/vp9_sad_sse3.asm
 
-ifeq ($(USE_X86INC),yes)
+ifeq ($(CONFIG_USE_X86INC),yes)
 VP9_CX_SRCS-$(HAVE_SSE2) += encoder/x86/vp9_error_sse2.asm
 VP9_CX_SRCS-$(HAVE_SSE2) += encoder/x86/vp9_sad_sse2.asm
 VP9_CX_SRCS-$(HAVE_SSE2) += encoder/x86/vp9_subtract_sse2.asm

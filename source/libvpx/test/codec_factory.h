@@ -24,6 +24,8 @@
 #include "test/encode_test_driver.h"
 namespace libvpx_test {
 
+const int kCodecFactoryParam = 0;
+
 class CodecFactory {
  public:
   CodecFactory() {}
@@ -71,7 +73,7 @@ class VP8Decoder : public Decoder {
       : Decoder(cfg, deadline) {}
 
  protected:
-  virtual const vpx_codec_iface_t* CodecInterface() const {
+  virtual vpx_codec_iface_t* CodecInterface() const {
 #if CONFIG_VP8_DECODER
     return &vpx_codec_vp8_dx_algo;
 #else
@@ -87,7 +89,7 @@ class VP8Encoder : public Encoder {
       : Encoder(cfg, deadline, init_flags, stats) {}
 
  protected:
-  virtual const vpx_codec_iface_t* CodecInterface() const {
+  virtual vpx_codec_iface_t* CodecInterface() const {
 #if CONFIG_VP8_ENCODER
     return &vpx_codec_vp8_cx_algo;
 #else
@@ -153,7 +155,7 @@ class VP9Decoder : public Decoder {
       : Decoder(cfg, deadline) {}
 
  protected:
-  virtual const vpx_codec_iface_t* CodecInterface() const {
+  virtual vpx_codec_iface_t* CodecInterface() const {
 #if CONFIG_VP9_DECODER
     return &vpx_codec_vp9_dx_algo;
 #else
@@ -169,7 +171,7 @@ class VP9Encoder : public Encoder {
       : Encoder(cfg, deadline, init_flags, stats) {}
 
  protected:
-  virtual const vpx_codec_iface_t* CodecInterface() const {
+  virtual vpx_codec_iface_t* CodecInterface() const {
 #if CONFIG_VP9_ENCODER
     return &vpx_codec_vp9_cx_algo;
 #else

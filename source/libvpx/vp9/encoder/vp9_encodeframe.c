@@ -40,14 +40,6 @@
 #include "vp9/encoder/vp9_tokenize.h"
 #include "vp9/encoder/vp9_vaq.h"
 
-#define DBG_PRNT_SEGMAP 0
-
-
-// #define ENC_DEBUG
-#ifdef ENC_DEBUG
-int enc_debug = 0;
-#endif
-
 static INLINE uint8_t *get_sb_index(MACROBLOCK *x, BLOCK_SIZE subsize) {
   switch (subsize) {
     case BLOCK_64X64:
@@ -327,7 +319,7 @@ static void build_activity_map(VP9_COMP *cpi) {
 }
 
 // Macroblock activity masking
-void vp9_activity_masking(VP9_COMP *cpi, MACROBLOCK *x) {
+static void activity_masking(VP9_COMP *cpi, MACROBLOCK *x) {
 #if USE_ACT_INDEX
   x->rdmult += *(x->mb_activity_ptr) * (x->rdmult >> 2);
   x->errorperbit = x->rdmult * 100 / (110 * x->rddiv);
@@ -353,7 +345,6 @@ static void select_in_frame_q_segment(VP9_COMP *cpi,
                                       int mi_row, int mi_col,
                                       int output_enabled, int projected_rate) {
   VP9_COMMON *const cm = &cpi->common;
-  int target_rate = cpi->rc.sb64_target_rate << 8;   // convert to bits << 8
 
   const int mi_offset = mi_row * cm->mi_cols + mi_col;
   const int bw = num_8x8_blocks_wide_lookup[BLOCK_64X64];
@@ -370,18 +361,19 @@ static void select_in_frame_q_segment(VP9_COMP *cpi,
   } else {
     // Rate depends on fraction of a SB64 in frame (xmis * ymis / bw * bh).
     // It is converted to bits * 256 units
-    target_rate = (cpi->rc.sb64_target_rate * xmis * ymis * 256) / (bw * bh);
+    const int target_rate = (cpi->rc.sb64_target_rate * xmis * ymis * 256) /
+                            (bw * bh);
 
     if (projected_rate < (target_rate / 4)) {
-      segment = 2;
-    } else if (projected_rate < (target_rate / 2)) {
       segment = 1;
     } else {
       segment = 0;
     }
 
-    complexity_metric =
-      clamp((int)((projected_rate * 64) / target_rate), 16, 255);
+    if (target_rate > 0) {
+      complexity_metric =
+        clamp((int)((projected_rate * 64) / target_rate), 16, 255);
+    }
   }
 
   // Fill in the entires in the segment map corresponding to this SB64
@@ -481,40 +473,42 @@ static void update_state(VP9_COMP *cpi, PICK_MODE_CONTEXT *ctx,
   if (frame_is_intra_only(cm)) {
 #if CONFIG_INTERNAL_STATS
     static const int kf_mode_index[] = {
-      THR_DC /*DC_PRED*/,
-      THR_V_PRED /*V_PRED*/,
-      THR_H_PRED /*H_PRED*/,
-      THR_D45_PRED /*D45_PRED*/,
+      THR_DC        /*DC_PRED*/,
+      THR_V_PRED    /*V_PRED*/,
+      THR_H_PRED    /*H_PRED*/,
+      THR_D45_PRED  /*D45_PRED*/,
       THR_D135_PRED /*D135_PRED*/,
       THR_D117_PRED /*D117_PRED*/,
       THR_D153_PRED /*D153_PRED*/,
       THR_D207_PRED /*D207_PRED*/,
-      THR_D63_PRED /*D63_PRED*/,
-      THR_TM /*TM_PRED*/,
+      THR_D63_PRED  /*D63_PRED*/,
+      THR_TM        /*TM_PRED*/,
     };
-    cpi->mode_chosen_counts[kf_mode_index[mi->mbmi.mode]]++;
+    cpi->mode_chosen_counts[kf_mode_index[mbmi->mode]]++;
 #endif
   } else {
     // Note how often each mode chosen as best
     cpi->mode_chosen_counts[mb_mode_index]++;
-    if (is_inter_block(mbmi) &&
-        (mbmi->sb_type < BLOCK_8X8 || mbmi->mode == NEWMV)) {
-      int_mv best_mv[2];
-      for (i = 0; i < 1 + has_second_ref(mbmi); ++i)
-        best_mv[i].as_int = mbmi->ref_mvs[mbmi->ref_frame[i]][0].as_int;
-      vp9_update_mv_count(cpi, x, best_mv);
-    }
 
-    if (cm->interp_filter == SWITCHABLE && is_inter_mode(mbmi->mode)) {
-      const int ctx = vp9_get_pred_context_switchable_interp(xd);
-      ++cm->counts.switchable_interp[ctx][mbmi->interp_filter];
+    if (is_inter_block(mbmi)) {
+      if (mbmi->sb_type < BLOCK_8X8 || mbmi->mode == NEWMV) {
+        int_mv best_mv[2];
+        for (i = 0; i < 1 + has_second_ref(mbmi); ++i)
+          best_mv[i].as_int = mbmi->ref_mvs[mbmi->ref_frame[i]][0].as_int;
+        vp9_update_mv_count(cpi, x, best_mv);
+      }
+
+      if (cm->interp_filter == SWITCHABLE) {
+        const int ctx = vp9_get_pred_context_switchable_interp(xd);
+        ++cm->counts.switchable_interp[ctx][mbmi->interp_filter];
+      }
     }
 
     cpi->rd_comp_pred_diff[SINGLE_REFERENCE] += ctx->single_pred_diff;
     cpi->rd_comp_pred_diff[COMPOUND_REFERENCE] += ctx->comp_pred_diff;
     cpi->rd_comp_pred_diff[REFERENCE_MODE_SELECT] += ctx->hybrid_pred_diff;
 
-    for (i = 0; i < SWITCHABLE_FILTER_CONTEXTS; i++)
+    for (i = 0; i < SWITCHABLE_FILTER_CONTEXTS; ++i)
       cpi->rd_filter_diff[i] += ctx->best_filter_diff[i];
   }
 }
@@ -617,7 +611,7 @@ static void set_offsets(VP9_COMP *cpi, const TileInfo *const tile,
     x->encode_breakout = cpi->segment_encode_breakout[mbmi->segment_id];
   } else {
     mbmi->segment_id = 0;
-    x->encode_breakout = cpi->oxcf.encode_breakout;
+    x->encode_breakout = cpi->encode_breakout;
   }
 }
 
@@ -664,20 +658,31 @@ static void rd_pick_sb_modes(VP9_COMP *cpi, const TileInfo *const tile,
   x->skip_recode = 0;
 
   // Set to zero to make sure we do not use the previous encoded frame stats
-  xd->mi_8x8[0]->mbmi.skip_coeff = 0;
+  xd->mi_8x8[0]->mbmi.skip = 0;
 
   x->source_variance = get_sby_perpixel_variance(cpi, x, bsize);
 
   if (cpi->oxcf.aq_mode == VARIANCE_AQ) {
     const int energy = bsize <= BLOCK_16X16 ? x->mb_energy
                                             : vp9_block_energy(cpi, x, bsize);
-    xd->mi_8x8[0]->mbmi.segment_id = vp9_vaq_segment_id(energy);
+
+    if (cm->frame_type == KEY_FRAME ||
+        cpi->refresh_alt_ref_frame ||
+        (cpi->refresh_golden_frame && !cpi->rc.is_src_frame_alt_ref)) {
+      xd->mi_8x8[0]->mbmi.segment_id = vp9_vaq_segment_id(energy);
+    } else {
+      const uint8_t *const map = cm->seg.update_map ? cpi->segmentation_map
+                                                    : cm->last_frame_seg_map;
+      xd->mi_8x8[0]->mbmi.segment_id =
+        vp9_get_segment_id(cm, map, bsize, mi_row, mi_col);
+    }
+
     rdmult_ratio = vp9_vaq_rdmult_ratio(energy);
     vp9_mb_init_quantizer(cpi, x);
   }
 
   if (cpi->oxcf.tuning == VP8_TUNE_SSIM)
-    vp9_activity_masking(cpi, x);
+    activity_masking(cpi, x);
 
   if (cpi->oxcf.aq_mode == VARIANCE_AQ) {
     vp9_clear_system_state();  // __asm emms;
@@ -685,11 +690,12 @@ static void rd_pick_sb_modes(VP9_COMP *cpi, const TileInfo *const tile,
   } else if (cpi->oxcf.aq_mode == COMPLEXITY_AQ) {
     const int mi_offset = mi_row * cm->mi_cols + mi_col;
     unsigned char complexity = cpi->complexity_map[mi_offset];
-    const int is_edge = (mi_row == 0) || (mi_row == (cm->mi_rows - 1)) ||
-                        (mi_col == 0) || (mi_col == (cm->mi_cols - 1));
+    const int is_edge = (mi_row <= 1) || (mi_row >= (cm->mi_rows - 2)) ||
+                        (mi_col <= 1) || (mi_col >= (cm->mi_cols - 2));
 
-    if (!is_edge && (complexity > 128))
+    if (!is_edge && (complexity > 128)) {
       x->rdmult = x->rdmult  + ((x->rdmult * (complexity - 128)) / 256);
+    }
   }
 
   // Find best coding mode & reconstruct the MB so it is available
@@ -713,40 +719,47 @@ static void rd_pick_sb_modes(VP9_COMP *cpi, const TileInfo *const tile,
       *totalrate = round(*totalrate * rdmult_ratio);
     }
   }
+  else if (cpi->oxcf.aq_mode == COMPLEXITY_AQ) {
+    x->rdmult = orig_rdmult;
+  }
 }
 
 static void update_stats(VP9_COMP *cpi) {
   VP9_COMMON *const cm = &cpi->common;
-  MACROBLOCK *const x = &cpi->mb;
-  MACROBLOCKD *const xd = &x->e_mbd;
-  MODE_INFO *mi = xd->mi_8x8[0];
-  MB_MODE_INFO *const mbmi = &mi->mbmi;
+  const MACROBLOCK *const x = &cpi->mb;
+  const MACROBLOCKD *const xd = &x->e_mbd;
+  const MODE_INFO *const mi = xd->mi_8x8[0];
+  const MB_MODE_INFO *const mbmi = &mi->mbmi;
 
   if (!frame_is_intra_only(cm)) {
     const int seg_ref_active = vp9_segfeature_active(&cm->seg, mbmi->segment_id,
                                                      SEG_LVL_REF_FRAME);
+    if (!seg_ref_active) {
+      FRAME_COUNTS *const counts = &cm->counts;
+      const int inter_block = is_inter_block(mbmi);
 
-    if (!seg_ref_active)
-      cm->counts.intra_inter[vp9_get_intra_inter_context(xd)]
-                            [is_inter_block(mbmi)]++;
+      counts->intra_inter[vp9_get_intra_inter_context(xd)][inter_block]++;
 
-    // If the segment reference feature is enabled we have only a single
-    // reference frame allowed for the segment so exclude it from
-    // the reference frame counts used to work out probabilities.
-    if (is_inter_block(mbmi) && !seg_ref_active) {
-      if (cm->reference_mode == REFERENCE_MODE_SELECT)
-        cm->counts.comp_inter[vp9_get_reference_mode_context(cm, xd)]
-                             [has_second_ref(mbmi)]++;
+      // If the segment reference feature is enabled we have only a single
+      // reference frame allowed for the segment so exclude it from
+      // the reference frame counts used to work out probabilities.
+      if (inter_block) {
+        const MV_REFERENCE_FRAME ref0 = mbmi->ref_frame[0];
 
-      if (has_second_ref(mbmi)) {
-        cm->counts.comp_ref[vp9_get_pred_context_comp_ref_p(cm, xd)]
-                           [mbmi->ref_frame[0] == GOLDEN_FRAME]++;
-      } else {
-        cm->counts.single_ref[vp9_get_pred_context_single_ref_p1(xd)][0]
-                             [mbmi->ref_frame[0] != LAST_FRAME]++;
-        if (mbmi->ref_frame[0] != LAST_FRAME)
-          cm->counts.single_ref[vp9_get_pred_context_single_ref_p2(xd)][1]
-                               [mbmi->ref_frame[0] != GOLDEN_FRAME]++;
+        if (cm->reference_mode == REFERENCE_MODE_SELECT)
+          counts->comp_inter[vp9_get_reference_mode_context(cm, xd)]
+                            [has_second_ref(mbmi)]++;
+
+        if (has_second_ref(mbmi)) {
+          counts->comp_ref[vp9_get_pred_context_comp_ref_p(cm, xd)]
+                          [ref0 == GOLDEN_FRAME]++;
+        } else {
+          counts->single_ref[vp9_get_pred_context_single_ref_p1(xd)][0]
+                            [ref0 != LAST_FRAME]++;
+          if (ref0 != LAST_FRAME)
+            counts->single_ref[vp9_get_pred_context_single_ref_p2(xd)][1]
+                              [ref0 != GOLDEN_FRAME]++;
+        }
       }
     }
   }
@@ -1030,130 +1043,172 @@ static int sb_has_motion(const VP9_COMMON *cm, MODE_INFO **prev_mi_8x8) {
   return 0;
 }
 
-// TODO(jingning) This currently serves as a test framework for non-RD mode
-// decision. To be continued on optimizing the partition type decisions.
-static void pick_partition_type(VP9_COMP *cpi,
-                                const TileInfo *const tile,
-                                MODE_INFO **mi_8x8, TOKENEXTRA **tp,
-                                int mi_row, int mi_col,
-                                BLOCK_SIZE bsize, int *rate, int64_t *dist,
-                                int do_recon) {
+static void update_state_rt(VP9_COMP *cpi, PICK_MODE_CONTEXT *ctx,
+                         BLOCK_SIZE bsize, int output_enabled) {
+  int i;
   VP9_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &cpi->mb;
-  const int mi_stride = cm->mode_info_stride;
-  const int num_8x8_subsize = (num_8x8_blocks_wide_lookup[bsize] >> 1);
-  int i;
-  PARTITION_TYPE partition = PARTITION_NONE;
-  BLOCK_SIZE subsize;
-  BLOCK_SIZE bs_type = mi_8x8[0]->mbmi.sb_type;
-  int sub_rate[4] = {0};
-  int64_t sub_dist[4] = {0};
-  int mi_offset;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  struct macroblock_plane *const p = x->plane;
+  struct macroblockd_plane *const pd = xd->plane;
+  MB_MODE_INFO *const mbmi = &xd->mi_8x8[0]->mbmi;
 
-  if (mi_row >= cm->mi_rows || mi_col >= cm->mi_cols)
-    return;
+  const int mb_mode_index = ctx->best_mode_index;
+  int max_plane;
 
-  partition = partition_lookup[b_width_log2(bsize)][bs_type];
-  subsize = get_subsize(bsize, partition);
+  max_plane = is_inter_block(mbmi) ? MAX_MB_PLANE : 1;
+  for (i = 0; i < max_plane; ++i) {
+    p[i].coeff = ctx->coeff_pbuf[i][1];
+    p[i].qcoeff = ctx->qcoeff_pbuf[i][1];
+    pd[i].dqcoeff = ctx->dqcoeff_pbuf[i][1];
+    p[i].eobs = ctx->eobs_pbuf[i][1];
+  }
+
+  for (i = max_plane; i < MAX_MB_PLANE; ++i) {
+    p[i].coeff = ctx->coeff_pbuf[i][2];
+    p[i].qcoeff = ctx->qcoeff_pbuf[i][2];
+    pd[i].dqcoeff = ctx->dqcoeff_pbuf[i][2];
+    p[i].eobs = ctx->eobs_pbuf[i][2];
+  }
+
+  x->skip = ctx->skip;
+
+  if (frame_is_intra_only(cm)) {
+#if CONFIG_INTERNAL_STATS
+    static const int kf_mode_index[] = {
+      THR_DC /*DC_PRED*/,
+      THR_V_PRED /*V_PRED*/,
+      THR_H_PRED /*H_PRED*/,
+      THR_D45_PRED /*D45_PRED*/,
+      THR_D135_PRED /*D135_PRED*/,
+      THR_D117_PRED /*D117_PRED*/,
+      THR_D153_PRED /*D153_PRED*/,
+      THR_D207_PRED /*D207_PRED*/,
+      THR_D63_PRED /*D63_PRED*/,
+      THR_TM /*TM_PRED*/,
+    };
+    ++cpi->mode_chosen_counts[kf_mode_index[mbmi->mode]];
+#endif
+  } else {
+    // Note how often each mode chosen as best
+    cpi->mode_chosen_counts[mb_mode_index]++;
+    if (is_inter_block(mbmi)) {
+      if (mbmi->sb_type < BLOCK_8X8 || mbmi->mode == NEWMV) {
+        int_mv best_mv[2];
+        for (i = 0; i < 1 + has_second_ref(mbmi); ++i)
+          best_mv[i].as_int = mbmi->ref_mvs[mbmi->ref_frame[i]][0].as_int;
+        vp9_update_mv_count(cpi, x, best_mv);
+      }
+
+      if (cm->interp_filter == SWITCHABLE) {
+        const int ctx = vp9_get_pred_context_switchable_interp(xd);
+        ++cm->counts.switchable_interp[ctx][mbmi->interp_filter];
+      }
+    }
+  }
+}
+
+static void encode_b_rt(VP9_COMP *cpi, const TileInfo *const tile,
+                     TOKENEXTRA **tp, int mi_row, int mi_col,
+                     int output_enabled, BLOCK_SIZE bsize) {
+  MACROBLOCK *const x = &cpi->mb;
 
   if (bsize < BLOCK_8X8) {
     // When ab_index = 0 all sub-blocks are handled, so for ab_index != 0
     // there is nothing to be done.
-    if (x->ab_index != 0) {
-      *rate = 0;
-      *dist = 0;
+    if (x->ab_index > 0)
       return;
-    }
-  } else {
-    *(get_sb_partitioning(x, bsize)) = subsize;
   }
+  set_offsets(cpi, tile, mi_row, mi_col, bsize);
+  update_state_rt(cpi, get_block_context(x, bsize), bsize, output_enabled);
+
+  encode_superblock(cpi, tp, output_enabled, mi_row, mi_col, bsize);
+  update_stats(cpi);
+
+  (*tp)->token = EOSB_TOKEN;
+  (*tp)++;
+}
+
+static void encode_sb_rt(VP9_COMP *cpi, const TileInfo *const tile,
+                      TOKENEXTRA **tp, int mi_row, int mi_col,
+                      int output_enabled, BLOCK_SIZE bsize) {
+  VP9_COMMON *const cm = &cpi->common;
+  MACROBLOCK *const x = &cpi->mb;
+  const int bsl = b_width_log2(bsize), hbs = (1 << bsl) / 4;
+  int ctx;
+  PARTITION_TYPE partition;
+  BLOCK_SIZE subsize;
+
+  if (mi_row >= cm->mi_rows || mi_col >= cm->mi_cols)
+    return;
+
+  if (bsize >= BLOCK_8X8) {
+    MACROBLOCKD *const xd = &cpi->mb.e_mbd;
+    const int idx_str = xd->mode_info_stride * mi_row + mi_col;
+    MODE_INFO ** mi_8x8 = cm->mi_grid_visible + idx_str;
+    ctx = partition_plane_context(cpi->above_seg_context, cpi->left_seg_context,
+                                 mi_row, mi_col, bsize);
+    subsize = mi_8x8[0]->mbmi.sb_type;
+
+  } else {
+    ctx = 0;
+    subsize = BLOCK_4X4;
+  }
+
+  partition = partition_lookup[bsl][subsize];
 
   switch (partition) {
     case PARTITION_NONE:
-      rd_pick_sb_modes(cpi, tile, mi_row, mi_col, rate, dist,
-                       bsize, get_block_context(x, bsize), INT64_MAX);
-      break;
-    case PARTITION_HORZ:
-      *get_sb_index(x, subsize) = 0;
-      rd_pick_sb_modes(cpi, tile, mi_row, mi_col, &sub_rate[0], &sub_dist[0],
-                       subsize, get_block_context(x, subsize), INT64_MAX);
-      if (bsize >= BLOCK_8X8 && mi_row + num_8x8_subsize < cm->mi_rows) {
-        update_state(cpi, get_block_context(x, subsize), subsize, 0);
-        encode_superblock(cpi, tp, 0, mi_row, mi_col, subsize);
-        *get_sb_index(x, subsize) = 1;
-        rd_pick_sb_modes(cpi, tile, mi_row + num_8x8_subsize, mi_col,
-                         &sub_rate[1], &sub_dist[1], subsize,
-                         get_block_context(x, subsize), INT64_MAX);
-      }
-      *rate = sub_rate[0] + sub_rate[1];
-      *dist = sub_dist[0] + sub_dist[1];
+      if (output_enabled && bsize >= BLOCK_8X8)
+        cm->counts.partition[ctx][PARTITION_NONE]++;
+      encode_b_rt(cpi, tile, tp, mi_row, mi_col, output_enabled, subsize);
       break;
     case PARTITION_VERT:
+      if (output_enabled)
+        cm->counts.partition[ctx][PARTITION_VERT]++;
       *get_sb_index(x, subsize) = 0;
-      rd_pick_sb_modes(cpi, tile, mi_row, mi_col, &sub_rate[0], &sub_dist[0],
-                       subsize, get_block_context(x, subsize), INT64_MAX);
-      if (bsize >= BLOCK_8X8 && mi_col + num_8x8_subsize < cm->mi_cols) {
-        update_state(cpi, get_block_context(x, subsize), subsize, 0);
-        encode_superblock(cpi, tp, 0, mi_row, mi_col, subsize);
+      encode_b_rt(cpi, tile, tp, mi_row, mi_col, output_enabled, subsize);
+      if (mi_col + hbs < cm->mi_cols) {
         *get_sb_index(x, subsize) = 1;
-        rd_pick_sb_modes(cpi, tile, mi_row, mi_col + num_8x8_subsize,
-                         &sub_rate[1], &sub_dist[1], subsize,
-                         get_block_context(x, subsize), INT64_MAX);
+        encode_b_rt(cpi, tile, tp, mi_row, mi_col + hbs, output_enabled,
+                    subsize);
       }
-      *rate = sub_rate[0] + sub_rate[1];
-      *dist = sub_dist[1] + sub_dist[1];
+      break;
+    case PARTITION_HORZ:
+      if (output_enabled)
+        cm->counts.partition[ctx][PARTITION_HORZ]++;
+      *get_sb_index(x, subsize) = 0;
+      encode_b_rt(cpi, tile, tp, mi_row, mi_col, output_enabled, subsize);
+      if (mi_row + hbs < cm->mi_rows) {
+        *get_sb_index(x, subsize) = 1;
+        encode_b_rt(cpi, tile, tp, mi_row + hbs, mi_col, output_enabled,
+                    subsize);
+      }
       break;
     case PARTITION_SPLIT:
+      subsize = get_subsize(bsize, PARTITION_SPLIT);
+      if (output_enabled)
+        cm->counts.partition[ctx][PARTITION_SPLIT]++;
+
       *get_sb_index(x, subsize) = 0;
-      pick_partition_type(cpi, tile, mi_8x8, tp, mi_row, mi_col, subsize,
-                          &sub_rate[0], &sub_dist[0], 0);
-
-      if ((mi_col + num_8x8_subsize) < cm->mi_cols) {
-        *get_sb_index(x, subsize) = 1;
-        pick_partition_type(cpi, tile, mi_8x8 + num_8x8_subsize, tp,
-                            mi_row, mi_col + num_8x8_subsize, subsize,
-                            &sub_rate[1], &sub_dist[1], 0);
-      }
-
-      if ((mi_row + num_8x8_subsize) < cm->mi_rows) {
-        *get_sb_index(x, subsize) = 2;
-        pick_partition_type(cpi, tile, mi_8x8 + num_8x8_subsize * mi_stride, tp,
-                            mi_row + num_8x8_subsize, mi_col, subsize,
-                            &sub_rate[2], &sub_dist[2], 0);
-      }
-
-      if ((mi_col + num_8x8_subsize) < cm->mi_cols &&
-          (mi_row + num_8x8_subsize) < cm->mi_rows) {
-        *get_sb_index(x, subsize) = 3;
-        mi_offset = num_8x8_subsize * mi_stride + num_8x8_subsize;
-        pick_partition_type(cpi, tile, mi_8x8 + mi_offset, tp,
-                            mi_row + num_8x8_subsize, mi_col + num_8x8_subsize,
-                            subsize, &sub_rate[3], &sub_dist[3], 0);
-      }
-
-      for (i = 0; i < 4; ++i) {
-        *rate += sub_rate[i];
-        *dist += sub_dist[i];
-      }
-
+      encode_sb_rt(cpi, tile, tp, mi_row, mi_col, output_enabled, subsize);
+      *get_sb_index(x, subsize) = 1;
+      encode_sb_rt(cpi, tile, tp, mi_row, mi_col + hbs, output_enabled,
+                   subsize);
+      *get_sb_index(x, subsize) = 2;
+      encode_sb_rt(cpi, tile, tp, mi_row + hbs, mi_col, output_enabled,
+                   subsize);
+      *get_sb_index(x, subsize) = 3;
+      encode_sb_rt(cpi, tile, tp, mi_row + hbs, mi_col + hbs, output_enabled,
+                subsize);
       break;
     default:
-      assert(0);
+      assert("Invalid partition type.");
   }
 
-  if (do_recon) {
-    int output_enabled = (bsize == BLOCK_64X64);
-
-    // Check the projected output rate for this SB against it's target
-    // and and if necessary apply a Q delta using segmentation to get
-    // closer to the target.
-    if ((cpi->oxcf.aq_mode == COMPLEXITY_AQ) && cm->seg.update_map) {
-      select_in_frame_q_segment(cpi, mi_row, mi_col,
-                                output_enabled, *rate);
-    }
-
-    encode_sb(cpi, tile, tp, mi_row, mi_col, output_enabled, bsize);
-  }
+  if (partition != PARTITION_SPLIT || bsize == BLOCK_8X8)
+    update_partition_context(cpi->above_seg_context, cpi->left_seg_context,
+                             mi_row, mi_col, subsize, bsize);
 }
 
 static void rd_use_partition(VP9_COMP *cpi,
@@ -1211,9 +1266,6 @@ static void rd_use_partition(VP9_COMP *cpi,
     set_offsets(cpi, tile, mi_row, mi_col, bsize);
     x->mb_energy = vp9_block_energy(cpi, x, bsize);
   }
-
-  x->fast_ms = 0;
-  x->subblock_ref = 0;
 
   if (cpi->sf.adjust_partitioning_from_last_frame) {
     // Check if any of the sub blocks are further split.
@@ -1444,15 +1496,19 @@ static void rd_use_partition(VP9_COMP *cpi,
 }
 
 static const BLOCK_SIZE min_partition_size[BLOCK_SIZES] = {
-  BLOCK_4X4, BLOCK_4X4, BLOCK_4X4, BLOCK_4X4,
-  BLOCK_4X4, BLOCK_4X4, BLOCK_8X8, BLOCK_8X8,
-  BLOCK_8X8, BLOCK_16X16, BLOCK_16X16, BLOCK_16X16, BLOCK_16X16
+  BLOCK_4X4,   BLOCK_4X4,   BLOCK_4X4,
+  BLOCK_4X4,   BLOCK_4X4,   BLOCK_4X4,
+  BLOCK_8X8,   BLOCK_8X8,   BLOCK_8X8,
+  BLOCK_16X16, BLOCK_16X16, BLOCK_16X16,
+  BLOCK_16X16
 };
 
 static const BLOCK_SIZE max_partition_size[BLOCK_SIZES] = {
-  BLOCK_8X8, BLOCK_16X16, BLOCK_16X16, BLOCK_16X16,
-  BLOCK_32X32, BLOCK_32X32, BLOCK_32X32, BLOCK_64X64,
-  BLOCK_64X64, BLOCK_64X64, BLOCK_64X64, BLOCK_64X64, BLOCK_64X64
+  BLOCK_8X8,   BLOCK_16X16, BLOCK_16X16,
+  BLOCK_16X16, BLOCK_32X32, BLOCK_32X32,
+  BLOCK_32X32, BLOCK_64X64, BLOCK_64X64,
+  BLOCK_64X64, BLOCK_64X64, BLOCK_64X64,
+  BLOCK_64X64
 };
 
 // Look at all the mode_info entries for blocks that are part of this
@@ -1482,6 +1538,15 @@ static void get_sb_partition_size_range(VP9_COMP *cpi, MODE_INFO ** mi_8x8,
     index += xd->mode_info_stride;
   }
 }
+
+// Next square block size less or equal than current block size.
+static const BLOCK_SIZE next_square_size[BLOCK_SIZES] = {
+  BLOCK_4X4, BLOCK_4X4, BLOCK_4X4,
+  BLOCK_8X8, BLOCK_8X8, BLOCK_8X8,
+  BLOCK_16X16, BLOCK_16X16, BLOCK_16X16,
+  BLOCK_32X32, BLOCK_32X32, BLOCK_32X32,
+  BLOCK_64X64
+};
 
 // Look at neighboring blocks and set a min and max partition size based on
 // what they chose.
@@ -1538,104 +1603,24 @@ static void rd_auto_partition_range(VP9_COMP *cpi, const TileInfo *const tile,
     }
   }
 
-  // Give a bit of leaway either side of the observed min and max
-  *min_block_size = min_partition_size[*min_block_size];
-  *max_block_size = max_partition_size[*max_block_size];
+  // adjust observed min and max
+  if (cpi->sf.auto_min_max_partition_size == RELAXED_NEIGHBORING_MIN_MAX) {
+    *min_block_size = min_partition_size[*min_block_size];
+    *max_block_size = max_partition_size[*max_block_size];
+  }
 
   // Check border cases where max and min from neighbours may not be legal.
   *max_block_size = find_partition_size(*max_block_size,
                                         row8x8_remaining, col8x8_remaining,
                                         &bh, &bw);
   *min_block_size = MIN(*min_block_size, *max_block_size);
-}
 
-static void compute_fast_motion_search_level(VP9_COMP *cpi, BLOCK_SIZE bsize) {
-  VP9_COMMON *const cm = &cpi->common;
-  MACROBLOCK *const x = &cpi->mb;
-
-  // Only use 8x8 result for non HD videos.
-  // int use_8x8 = (MIN(cpi->common.width, cpi->common.height) < 720) ? 1 : 0;
-  int use_8x8 = 1;
-
-  if (cm->frame_type && !cpi->rc.is_src_frame_alt_ref &&
-      ((use_8x8 && bsize == BLOCK_16X16) ||
-      bsize == BLOCK_32X32 || bsize == BLOCK_64X64)) {
-    int ref0 = 0, ref1 = 0, ref2 = 0, ref3 = 0;
-    PICK_MODE_CONTEXT *block_context = NULL;
-
-    if (bsize == BLOCK_16X16) {
-      block_context = x->sb8x8_context[x->sb_index][x->mb_index];
-    } else if (bsize == BLOCK_32X32) {
-      block_context = x->mb_context[x->sb_index];
-    } else if (bsize == BLOCK_64X64) {
-      block_context = x->sb32_context;
-    }
-
-    if (block_context) {
-      ref0 = block_context[0].mic.mbmi.ref_frame[0];
-      ref1 = block_context[1].mic.mbmi.ref_frame[0];
-      ref2 = block_context[2].mic.mbmi.ref_frame[0];
-      ref3 = block_context[3].mic.mbmi.ref_frame[0];
-    }
-
-    // Currently, only consider 4 inter reference frames.
-    if (ref0 && ref1 && ref2 && ref3) {
-      int d01, d23, d02, d13;
-
-      // Motion vectors for the four subblocks.
-      int16_t mvr0 = block_context[0].mic.mbmi.mv[0].as_mv.row;
-      int16_t mvc0 = block_context[0].mic.mbmi.mv[0].as_mv.col;
-      int16_t mvr1 = block_context[1].mic.mbmi.mv[0].as_mv.row;
-      int16_t mvc1 = block_context[1].mic.mbmi.mv[0].as_mv.col;
-      int16_t mvr2 = block_context[2].mic.mbmi.mv[0].as_mv.row;
-      int16_t mvc2 = block_context[2].mic.mbmi.mv[0].as_mv.col;
-      int16_t mvr3 = block_context[3].mic.mbmi.mv[0].as_mv.row;
-      int16_t mvc3 = block_context[3].mic.mbmi.mv[0].as_mv.col;
-
-      // Adjust sign if ref is alt_ref.
-      if (cm->ref_frame_sign_bias[ref0]) {
-        mvr0 *= -1;
-        mvc0 *= -1;
-      }
-
-      if (cm->ref_frame_sign_bias[ref1]) {
-        mvr1 *= -1;
-        mvc1 *= -1;
-      }
-
-      if (cm->ref_frame_sign_bias[ref2]) {
-        mvr2 *= -1;
-        mvc2 *= -1;
-      }
-
-      if (cm->ref_frame_sign_bias[ref3]) {
-        mvr3 *= -1;
-        mvc3 *= -1;
-      }
-
-      // Calculate mv distances.
-      d01 = MAX(abs(mvr0 - mvr1), abs(mvc0 - mvc1));
-      d23 = MAX(abs(mvr2 - mvr3), abs(mvc2 - mvc3));
-      d02 = MAX(abs(mvr0 - mvr2), abs(mvc0 - mvc2));
-      d13 = MAX(abs(mvr1 - mvr3), abs(mvc1 - mvc3));
-
-      if (d01 < FAST_MOTION_MV_THRESH && d23 < FAST_MOTION_MV_THRESH &&
-          d02 < FAST_MOTION_MV_THRESH && d13 < FAST_MOTION_MV_THRESH) {
-        // Set fast motion search level.
-        x->fast_ms = 1;
-
-        if (ref0 == ref1 && ref1 == ref2 && ref2 == ref3 &&
-            d01 < 2 && d23 < 2 && d02 < 2 && d13 < 2) {
-          // Set fast motion search level.
-          x->fast_ms = 2;
-
-          if (!d01 && !d23 && !d02 && !d13) {
-            x->fast_ms = 3;
-            x->subblock_ref = ref0;
-          }
-        }
-      }
-    }
+  // When use_square_partition_only is true, make sure at least one square
+  // partition is allowed by selecting the next smaller square size as
+  // *min_block_size.
+  if (cpi->sf.use_square_partition_only &&
+      (*max_block_size - *min_block_size) < 2) {
+    *min_block_size = next_square_size[*min_block_size];
   }
 }
 
@@ -1678,8 +1663,6 @@ static void rd_pick_partition(VP9_COMP *cpi, const TileInfo *const tile,
                                bsize >= BLOCK_8X8;
   int partition_vert_allowed = !force_horz_split && xss <= yss &&
                                bsize >= BLOCK_8X8;
-
-  int partition_split_done = 0;
   (void) *tp_orig;
 
   if (bsize < BLOCK_8X8) {
@@ -1821,16 +1804,7 @@ static void rd_pick_partition(VP9_COMP *cpi, const TileInfo *const tile,
       if (cpi->sf.less_rectangular_check)
         do_rect &= !partition_none_allowed;
     }
-    partition_split_done = 1;
     restore_context(cpi, mi_row, mi_col, a, l, sa, sl, bsize);
-  }
-
-  x->fast_ms = 0;
-  x->subblock_ref = 0;
-
-  if (partition_split_done &&
-      cpi->sf.using_small_partition_info) {
-    compute_fast_motion_search_level(cpi, bsize);
   }
 
   // PARTITION_HORZ
@@ -1937,7 +1911,11 @@ static void rd_pick_partition(VP9_COMP *cpi, const TileInfo *const tile,
     restore_context(cpi, mi_row, mi_col, a, l, sa, sl, bsize);
   }
 
-
+  // TODO(jbb): This code added so that we avoid static analysis
+  // warning related to the fact that best_rd isn't used after this
+  // point.  This code should be refactored so that the duplicate
+  // checks occur in some sub function and thus are used...
+  (void) best_rd;
   *rate = best_rate;
   *dist = best_dist;
 
@@ -1958,69 +1936,6 @@ static void rd_pick_partition(VP9_COMP *cpi, const TileInfo *const tile,
     assert(best_dist < INT_MAX);
   } else {
     assert(tp_orig == *tp);
-  }
-}
-
-// Examines 64x64 block and chooses a best reference frame
-static void rd_pick_reference_frame(VP9_COMP *cpi, const TileInfo *const tile,
-                                    int mi_row, int mi_col) {
-  VP9_COMMON * const cm = &cpi->common;
-  MACROBLOCK * const x = &cpi->mb;
-  int bsl = b_width_log2(BLOCK_64X64), bs = 1 << bsl;
-  int ms = bs / 2;
-  ENTROPY_CONTEXT l[16 * MAX_MB_PLANE], a[16 * MAX_MB_PLANE];
-  PARTITION_CONTEXT sl[8], sa[8];
-  int pl;
-  int r;
-  int64_t d;
-
-  save_context(cpi, mi_row, mi_col, a, l, sa, sl, BLOCK_64X64);
-
-  // Default is non mask (all reference frames allowed.
-  cpi->ref_frame_mask = 0;
-
-  // Do RD search for 64x64.
-  if ((mi_row + (ms >> 1) < cm->mi_rows) &&
-      (mi_col + (ms >> 1) < cm->mi_cols)) {
-    cpi->set_ref_frame_mask = 1;
-    rd_pick_sb_modes(cpi, tile, mi_row, mi_col, &r, &d, BLOCK_64X64,
-                     get_block_context(x, BLOCK_64X64), INT64_MAX);
-    pl = partition_plane_context(cpi->above_seg_context, cpi->left_seg_context,
-                                 mi_row, mi_col, BLOCK_64X64);
-    r += x->partition_cost[pl][PARTITION_NONE];
-
-    *(get_sb_partitioning(x, BLOCK_64X64)) = BLOCK_64X64;
-    cpi->set_ref_frame_mask = 0;
-  }
-
-  restore_context(cpi, mi_row, mi_col, a, l, sa, sl, BLOCK_64X64);
-}
-
-static void encode_sb_row_rt(VP9_COMP *cpi, const TileInfo *const tile,
-                             int mi_row, TOKENEXTRA **tp) {
-  VP9_COMMON *const cm = &cpi->common;
-  int mi_col;
-
-  cpi->sf.always_this_block_size = BLOCK_8X8;
-
-  // Initialize the left context for the new SB row
-  vpx_memset(&cpi->left_context, 0, sizeof(cpi->left_context));
-  vpx_memset(cpi->left_seg_context, 0, sizeof(cpi->left_seg_context));
-
-  // Code each SB in the row
-  for (mi_col = tile->mi_col_start; mi_col < tile->mi_col_end;
-       mi_col += MI_BLOCK_SIZE) {
-    int dummy_rate;
-    int64_t dummy_dist;
-    const int idx_str = cm->mode_info_stride * mi_row + mi_col;
-    MODE_INFO **mi_8x8 = cm->mi_grid_visible + idx_str;
-
-    vp9_zero(cpi->mb.pred_mv);
-
-    set_offsets(cpi, tile, mi_row, mi_col, BLOCK_64X64);
-    set_partitioning(cpi, tile, mi_8x8, mi_row, mi_col);
-    pick_partition_type(cpi, tile, mi_8x8, tp, mi_row, mi_col, BLOCK_64X64,
-                        &dummy_rate, &dummy_dist, 1);
   }
 }
 
@@ -2122,7 +2037,7 @@ static void init_encode_frame_mb_context(VP9_COMP *cpi) {
   setup_pre_planes(xd, 0, get_ref_frame_buffer(cpi, LAST_FRAME), 0, 0, NULL);
   setup_dst_planes(xd, get_frame_new_buffer(cm), 0, 0);
 
-  setup_block_dptrs(&x->e_mbd, cm->subsampling_x, cm->subsampling_y);
+  vp9_setup_block_planes(&x->e_mbd, cm->subsampling_x, cm->subsampling_y);
 
   xd->mi_8x8[0]->mbmi.mode = DC_PRED;
   xd->mi_8x8[0]->mbmi.uv_mode = DC_PRED;
@@ -2136,7 +2051,7 @@ static void init_encode_frame_mb_context(VP9_COMP *cpi) {
   vp9_zero(cm->counts.single_ref);
   vp9_zero(cm->counts.comp_ref);
   vp9_zero(cm->counts.tx);
-  vp9_zero(cm->counts.mbskip);
+  vp9_zero(cm->counts.skip);
 
   // Note: this memset assumes above_context[0], [1] and [2]
   // are allocated as part of the same buffer.
@@ -2169,122 +2084,6 @@ static void switch_tx_mode(VP9_COMP *cpi) {
     cpi->common.tx_mode = ALLOW_32X32;
 }
 
-static void encode_frame_internal(VP9_COMP *cpi) {
-  int mi_row;
-  MACROBLOCK *const x = &cpi->mb;
-  VP9_COMMON *const cm = &cpi->common;
-  MACROBLOCKD *const xd = &x->e_mbd;
-
-//  fprintf(stderr, "encode_frame_internal frame %d (%d) type %d\n",
-//           cpi->common.current_video_frame, cpi->common.show_frame,
-//           cm->frame_type);
-
-// debug output
-#if DBG_PRNT_SEGMAP
-  {
-    FILE *statsfile;
-    statsfile = fopen("segmap2.stt", "a");
-    fprintf(statsfile, "\n");
-    fclose(statsfile);
-  }
-#endif
-
-  vp9_zero(cm->counts.switchable_interp);
-  vp9_zero(cpi->tx_stepdown_count);
-
-  xd->mi_8x8 = cm->mi_grid_visible;
-  // required for vp9_frame_init_quantizer
-  xd->mi_8x8[0] = cm->mi;
-
-  xd->last_mi = cm->prev_mi;
-
-  vp9_zero(cm->counts.mv);
-  vp9_zero(cpi->coef_counts);
-  vp9_zero(cm->counts.eob_branch);
-
-  cpi->mb.e_mbd.lossless = cm->base_qindex == 0 && cm->y_dc_delta_q == 0
-      && cm->uv_dc_delta_q == 0 && cm->uv_ac_delta_q == 0;
-  switch_lossless_mode(cpi, cpi->mb.e_mbd.lossless);
-
-  vp9_frame_init_quantizer(cpi);
-
-  vp9_initialize_rd_consts(cpi);
-  vp9_initialize_me_consts(cpi, cm->base_qindex);
-  switch_tx_mode(cpi);
-
-  if (cpi->oxcf.tuning == VP8_TUNE_SSIM) {
-    // Initialize encode frame context.
-    init_encode_frame_mb_context(cpi);
-
-    // Build a frame level activity map
-    build_activity_map(cpi);
-  }
-
-  // Re-initialize encode frame context.
-  init_encode_frame_mb_context(cpi);
-
-  vp9_zero(cpi->rd_comp_pred_diff);
-  vp9_zero(cpi->rd_filter_diff);
-  vp9_zero(cpi->rd_tx_select_diff);
-  vp9_zero(cpi->rd_tx_select_threshes);
-
-  set_prev_mi(cm);
-
-  {
-    struct vpx_usec_timer emr_timer;
-    vpx_usec_timer_start(&emr_timer);
-
-    {
-      // Take tiles into account and give start/end MB
-      int tile_col, tile_row;
-      TOKENEXTRA *tp = cpi->tok;
-      const int tile_cols = 1 << cm->log2_tile_cols;
-      const int tile_rows = 1 << cm->log2_tile_rows;
-
-      for (tile_row = 0; tile_row < tile_rows; tile_row++) {
-        for (tile_col = 0; tile_col < tile_cols; tile_col++) {
-          TileInfo tile;
-          TOKENEXTRA *tp_old = tp;
-
-          // For each row of SBs in the frame
-          vp9_tile_init(&tile, cm, tile_row, tile_col);
-          for (mi_row = tile.mi_row_start;
-               mi_row < tile.mi_row_end; mi_row += 8)
-#if 1
-            encode_sb_row(cpi, &tile, mi_row, &tp);
-#else
-            encode_sb_row_rt(cpi, &tile, mi_row, &tp);
-#endif
-
-          cpi->tok_count[tile_row][tile_col] = (unsigned int)(tp - tp_old);
-          assert(tp - cpi->tok <= get_token_alloc(cm->mb_rows, cm->mb_cols));
-        }
-      }
-    }
-
-    vpx_usec_timer_mark(&emr_timer);
-    cpi->time_encode_sb_row += vpx_usec_timer_elapsed(&emr_timer);
-  }
-
-  if (cpi->sf.skip_encode_sb) {
-    int j;
-    unsigned int intra_count = 0, inter_count = 0;
-    for (j = 0; j < INTRA_INTER_CONTEXTS; ++j) {
-      intra_count += cm->counts.intra_inter[j][0];
-      inter_count += cm->counts.intra_inter[j][1];
-    }
-    cpi->sf.skip_encode_frame = ((intra_count << 2) < inter_count);
-    cpi->sf.skip_encode_frame &= (cm->frame_type != KEY_FRAME);
-    cpi->sf.skip_encode_frame &= cm->show_frame;
-  } else {
-    cpi->sf.skip_encode_frame = 0;
-  }
-
-#if 0
-  // Keep record of the total distortion this time around for future use
-  cpi->last_frame_distortion = cpi->frame_distortion;
-#endif
-}
 
 static int check_dual_ref_flags(VP9_COMP *cpi) {
   const int ref_flags = cpi->ref_frame_flags;
@@ -2302,7 +2101,7 @@ static int get_skip_flag(MODE_INFO **mi_8x8, int mis, int ymbs, int xmbs) {
 
   for (y = 0; y < ymbs; y++) {
     for (x = 0; x < xmbs; x++) {
-      if (!mi_8x8[y * mis + x]->mbmi.skip_coeff)
+      if (!mi_8x8[y * mis + x]->mbmi.skip)
         return 0;
     }
   }
@@ -2395,15 +2194,15 @@ static void reset_skip_txfm_size(VP9_COMMON *cm, TX_SIZE txfm_max) {
   }
 }
 
-static int get_frame_type(VP9_COMP *cpi) {
+static MV_REFERENCE_FRAME get_frame_type(VP9_COMP *cpi) {
   if (frame_is_intra_only(&cpi->common))
-    return 0;
+    return INTRA_FRAME;
   else if (cpi->rc.is_src_frame_alt_ref && cpi->refresh_golden_frame)
-    return 3;
+    return ALTREF_FRAME;
   else if (cpi->refresh_golden_frame || cpi->refresh_alt_ref_frame)
-    return 1;
+    return LAST_FRAME;
   else
-    return 2;
+    return GOLDEN_FRAME;
 }
 
 static void select_tx_mode(VP9_COMP *cpi) {
@@ -2434,6 +2233,247 @@ static void select_tx_mode(VP9_COMP *cpi) {
   }
 }
 
+// Start RTC Exploration
+typedef enum {
+  BOTH_ZERO = 0,
+  ZERO_PLUS_PREDICTED = 1,
+  BOTH_PREDICTED = 2,
+  NEW_PLUS_NON_INTRA = 3,
+  BOTH_NEW = 4,
+  INTRA_PLUS_NON_INTRA = 5,
+  BOTH_INTRA = 6,
+  INVALID_CASE = 9
+} motion_vector_context;
+
+static void set_mode_info(MB_MODE_INFO *mbmi, BLOCK_SIZE bsize,
+                          MB_PREDICTION_MODE mode, int mi_row, int mi_col) {
+  mbmi->interp_filter = EIGHTTAP;
+  mbmi->mode = mode;
+  mbmi->mv[0].as_int = 0;
+  mbmi->mv[1].as_int = 0;
+  if (mode < NEARESTMV) {
+    mbmi->ref_frame[0] = INTRA_FRAME;
+  } else {
+    mbmi->ref_frame[0] = LAST_FRAME;
+  }
+
+  mbmi->ref_frame[1] = INTRA_FRAME;
+  mbmi->tx_size = max_txsize_lookup[bsize];
+  mbmi->uv_mode = mode;
+  mbmi->skip = 0;
+  mbmi->sb_type = bsize;
+  mbmi->segment_id = 0;
+}
+
+static INLINE int get_block_row(int b32i, int b16i, int b8i) {
+  return ((b32i >> 1) << 2) + ((b16i >> 1) << 1) + (b8i >> 1);
+}
+
+static INLINE int get_block_col(int b32i, int b16i, int b8i) {
+  return ((b32i & 1) << 2) + ((b16i & 1) << 1) + (b8i & 1);
+}
+
+static void rtc_use_partition(VP9_COMP *cpi,
+                             const TileInfo *const tile,
+                             MODE_INFO **mi_8x8,
+                             TOKENEXTRA **tp, int mi_row, int mi_col,
+                             BLOCK_SIZE bsize, int *rate, int64_t *dist,
+                             int do_recon) {
+  VP9_COMMON *const cm = &cpi->common;
+  MACROBLOCK *const x = &cpi->mb;
+  MACROBLOCKD *const xd = &cpi->mb.e_mbd;
+  const int mis = cm->mode_info_stride;
+  int mi_width = num_8x8_blocks_wide_lookup[cpi->sf.always_this_block_size];
+  int mi_height = num_8x8_blocks_high_lookup[cpi->sf.always_this_block_size];
+  int i, j;
+  int chosen_rate = INT_MAX;
+  int64_t chosen_dist = INT_MAX;
+  MB_PREDICTION_MODE mode = DC_PRED;
+  int row8x8_remaining = tile->mi_row_end - mi_row;
+  int col8x8_remaining = tile->mi_col_end - mi_col;
+  int b32i;
+  for (b32i = 0; b32i < 4; b32i++) {
+    int b16i;
+    for (b16i = 0; b16i < 4; b16i++) {
+      int b8i;
+      int block_row = get_block_row(b32i, b16i, 0);
+      int block_col = get_block_col(b32i, b16i, 0);
+      int index = block_row * mis + block_col;
+      int rate;
+      int64_t dist;
+
+      // Find a partition size that fits
+      bsize = find_partition_size(cpi->sf.always_this_block_size,
+                                  (row8x8_remaining - block_row),
+                                  (col8x8_remaining - block_col),
+                                  &mi_height, &mi_width);
+      mi_8x8[index] = mi_8x8[0] + index;
+
+      set_mi_row_col(xd, tile, mi_row + block_row, mi_height,
+                     mi_col + block_col, mi_width, cm->mi_rows, cm->mi_cols);
+
+      xd->mi_8x8 = mi_8x8 + index;
+
+      if (cm->frame_type != KEY_FRAME) {
+        set_offsets(cpi, tile, mi_row + block_row, mi_col + block_col, bsize);
+
+        vp9_pick_inter_mode(cpi, x, tile,
+                            mi_row + block_row, mi_col + block_col,
+                            &rate, &dist, bsize);
+      } else {
+        set_mode_info(&mi_8x8[index]->mbmi, bsize, mode,
+                      mi_row + block_row, mi_col + block_col);
+      }
+
+      for (j = 0; j < mi_height; j++)
+        for (i = 0; i < mi_width; i++)
+          if ((xd->mb_to_right_edge >> (3 + MI_SIZE_LOG2)) + mi_width > i
+            && (xd->mb_to_bottom_edge >> (3 + MI_SIZE_LOG2)) + mi_height > j) {
+            mi_8x8[index+ i + j * mis] = mi_8x8[index];
+          }
+
+      for (b8i = 0; b8i < 4; b8i++) {
+      }
+    }
+  }
+  encode_sb_rt(cpi, tile, tp, mi_row, mi_col, 1, BLOCK_64X64);
+
+  *rate = chosen_rate;
+  *dist = chosen_dist;
+}
+
+static void encode_rtc_sb_row(VP9_COMP *cpi, const TileInfo *const tile,
+                              int mi_row, TOKENEXTRA **tp) {
+  VP9_COMMON * const cm = &cpi->common;
+  int mi_col;
+
+  // Initialize the left context for the new SB row
+  vpx_memset(&cpi->left_context, 0, sizeof(cpi->left_context));
+  vpx_memset(cpi->left_seg_context, 0, sizeof(cpi->left_seg_context));
+
+  // Code each SB in the row
+  for (mi_col = tile->mi_col_start; mi_col < tile->mi_col_end;
+       mi_col += MI_BLOCK_SIZE) {
+    int dummy_rate;
+    int64_t dummy_dist;
+
+    const int idx_str = cm->mode_info_stride * mi_row + mi_col;
+    MODE_INFO **mi_8x8 = cm->mi_grid_visible + idx_str;
+    cpi->mb.source_variance = UINT_MAX;
+
+    set_partitioning(cpi, tile, mi_8x8, mi_row, mi_col);
+    rtc_use_partition(cpi, tile, mi_8x8, tp, mi_row, mi_col, BLOCK_64X64,
+                     &dummy_rate, &dummy_dist, 1);
+  }
+}
+// end RTC play code
+
+static void encode_frame_internal(VP9_COMP *cpi) {
+  int mi_row;
+  MACROBLOCK *const x = &cpi->mb;
+  VP9_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *const xd = &x->e_mbd;
+
+//  fprintf(stderr, "encode_frame_internal frame %d (%d) type %d\n",
+//           cpi->common.current_video_frame, cpi->common.show_frame,
+//           cm->frame_type);
+
+  vp9_zero(cm->counts.switchable_interp);
+  vp9_zero(cpi->tx_stepdown_count);
+
+  xd->mi_8x8 = cm->mi_grid_visible;
+  // required for vp9_frame_init_quantizer
+  xd->mi_8x8[0] = cm->mi;
+
+  xd->last_mi = cm->prev_mi;
+
+  vp9_zero(cm->counts.mv);
+  vp9_zero(cpi->coef_counts);
+  vp9_zero(cm->counts.eob_branch);
+
+  cpi->mb.e_mbd.lossless = cm->base_qindex == 0 && cm->y_dc_delta_q == 0
+      && cm->uv_dc_delta_q == 0 && cm->uv_ac_delta_q == 0;
+  switch_lossless_mode(cpi, cpi->mb.e_mbd.lossless);
+
+  vp9_frame_init_quantizer(cpi);
+
+  vp9_initialize_rd_consts(cpi);
+  vp9_initialize_me_consts(cpi, cm->base_qindex);
+  switch_tx_mode(cpi);
+
+  if (cpi->oxcf.tuning == VP8_TUNE_SSIM) {
+    // Initialize encode frame context.
+    init_encode_frame_mb_context(cpi);
+
+    // Build a frame level activity map
+    build_activity_map(cpi);
+  }
+
+  // Re-initialize encode frame context.
+  init_encode_frame_mb_context(cpi);
+
+  vp9_zero(cpi->rd_comp_pred_diff);
+  vp9_zero(cpi->rd_filter_diff);
+  vp9_zero(cpi->rd_tx_select_diff);
+  vp9_zero(cpi->rd_tx_select_threshes);
+
+  set_prev_mi(cm);
+
+  {
+    struct vpx_usec_timer emr_timer;
+    vpx_usec_timer_start(&emr_timer);
+
+    {
+      // Take tiles into account and give start/end MB
+      int tile_col, tile_row;
+      TOKENEXTRA *tp = cpi->tok;
+      const int tile_cols = 1 << cm->log2_tile_cols;
+      const int tile_rows = 1 << cm->log2_tile_rows;
+
+      for (tile_row = 0; tile_row < tile_rows; tile_row++) {
+        for (tile_col = 0; tile_col < tile_cols; tile_col++) {
+          TileInfo tile;
+          TOKENEXTRA *tp_old = tp;
+
+          // For each row of SBs in the frame
+          vp9_tile_init(&tile, cm, tile_row, tile_col);
+          for (mi_row = tile.mi_row_start;
+               mi_row < tile.mi_row_end; mi_row += 8) {
+            if (cpi->sf.use_pick_mode)
+              encode_rtc_sb_row(cpi, &tile, mi_row, &tp);
+            else
+              encode_sb_row(cpi, &tile, mi_row, &tp);
+          }
+          cpi->tok_count[tile_row][tile_col] = (unsigned int)(tp - tp_old);
+          assert(tp - cpi->tok <= get_token_alloc(cm->mb_rows, cm->mb_cols));
+        }
+      }
+    }
+
+    vpx_usec_timer_mark(&emr_timer);
+    cpi->time_encode_sb_row += vpx_usec_timer_elapsed(&emr_timer);
+  }
+
+  if (cpi->sf.skip_encode_sb) {
+    int j;
+    unsigned int intra_count = 0, inter_count = 0;
+    for (j = 0; j < INTRA_INTER_CONTEXTS; ++j) {
+      intra_count += cm->counts.intra_inter[j][0];
+      inter_count += cm->counts.intra_inter[j][1];
+    }
+    cpi->sf.skip_encode_frame = ((intra_count << 2) < inter_count);
+    cpi->sf.skip_encode_frame &= (cm->frame_type != KEY_FRAME);
+    cpi->sf.skip_encode_frame &= cm->show_frame;
+  } else {
+    cpi->sf.skip_encode_frame = 0;
+  }
+
+#if 0
+  // Keep record of the total distortion this time around for future use
+  cpi->last_frame_distortion = cpi->frame_distortion;
+#endif
+}
+
 void vp9_encode_frame(VP9_COMP *cpi) {
   VP9_COMMON *const cm = &cpi->common;
 
@@ -2457,10 +2497,9 @@ void vp9_encode_frame(VP9_COMP *cpi) {
     }
   }
 
-  if (cpi->sf.RD) {
+  if (cpi->sf.frame_parameter_update) {
     int i;
     REFERENCE_MODE reference_mode;
-    INTERP_FILTER interp_filter;
     /*
      * This code does a single RD pass over the whole frame assuming
      * either compound, single or hybrid prediction as per whatever has
@@ -2470,7 +2509,7 @@ void vp9_encode_frame(VP9_COMP *cpi) {
      * that for subsequent frames.
      * It does the same analysis for transform size selection also.
      */
-    const int frame_type = get_frame_type(cpi);
+    const MV_REFERENCE_FRAME frame_type = get_frame_type(cpi);
     const int64_t *mode_thresh = cpi->rd_prediction_type_threshes[frame_type];
     const int64_t *filter_thresh = cpi->rd_filter_threshes[frame_type];
 
@@ -2488,22 +2527,18 @@ void vp9_encode_frame(VP9_COMP *cpi) {
     else
       reference_mode = REFERENCE_MODE_SELECT;
 
-    /* filter type selection */
-    // FIXME(rbultje) for some odd reason, we often select smooth_filter
-    // as default filter for ARF overlay frames. This is a REALLY BAD
-    // IDEA so we explicitly disable it here.
-    if (frame_type != 3 &&
-        filter_thresh[EIGHTTAP_SMOOTH] > filter_thresh[EIGHTTAP] &&
-        filter_thresh[EIGHTTAP_SMOOTH] > filter_thresh[EIGHTTAP_SHARP] &&
-        filter_thresh[EIGHTTAP_SMOOTH] > filter_thresh[SWITCHABLE - 1]) {
-      interp_filter = EIGHTTAP_SMOOTH;
-    } else if (filter_thresh[EIGHTTAP_SHARP] > filter_thresh[EIGHTTAP] &&
-               filter_thresh[EIGHTTAP_SHARP] > filter_thresh[SWITCHABLE - 1]) {
-      interp_filter = EIGHTTAP_SHARP;
-    } else if (filter_thresh[EIGHTTAP] > filter_thresh[SWITCHABLE - 1]) {
-      interp_filter = EIGHTTAP;
-    } else {
-      interp_filter = SWITCHABLE;
+    if (cm->interp_filter == SWITCHABLE) {
+      if (frame_type != ALTREF_FRAME &&
+          filter_thresh[EIGHTTAP_SMOOTH] > filter_thresh[EIGHTTAP] &&
+          filter_thresh[EIGHTTAP_SMOOTH] > filter_thresh[EIGHTTAP_SHARP] &&
+          filter_thresh[EIGHTTAP_SMOOTH] > filter_thresh[SWITCHABLE - 1]) {
+        cm->interp_filter = EIGHTTAP_SMOOTH;
+      } else if (filter_thresh[EIGHTTAP_SHARP] > filter_thresh[EIGHTTAP] &&
+          filter_thresh[EIGHTTAP_SHARP] > filter_thresh[SWITCHABLE - 1]) {
+        cm->interp_filter = EIGHTTAP_SHARP;
+      } else if (filter_thresh[EIGHTTAP] > filter_thresh[SWITCHABLE - 1]) {
+        cm->interp_filter = EIGHTTAP;
+      }
     }
 
     cpi->mb.e_mbd.lossless = cpi->oxcf.lossless;
@@ -2511,7 +2546,7 @@ void vp9_encode_frame(VP9_COMP *cpi) {
     /* transform size selection (4x4, 8x8, 16x16 or select-per-mb) */
     select_tx_mode(cpi);
     cm->reference_mode = reference_mode;
-    cm->interp_filter = interp_filter;
+
     encode_frame_internal(cpi);
 
     for (i = 0; i < REFERENCE_MODES; ++i) {
@@ -2590,6 +2625,8 @@ void vp9_encode_frame(VP9_COMP *cpi) {
       }
     }
   } else {
+    // Force the usage of the BILINEAR interp_filter.
+    cm->interp_filter = BILINEAR;
     encode_frame_internal(cpi);
   }
 }
@@ -2666,7 +2703,8 @@ static void encode_superblock(VP9_COMP *cpi, TOKENEXTRA **t, int output_enabled,
   const int mi_width = num_8x8_blocks_wide_lookup[bsize];
   const int mi_height = num_8x8_blocks_high_lookup[bsize];
   x->skip_recode = !x->select_txfm_size && mbmi->sb_type >= BLOCK_8X8 &&
-                   (cpi->oxcf.aq_mode != COMPLEXITY_AQ);
+                   (cpi->oxcf.aq_mode != COMPLEXITY_AQ) &&
+                   !cpi->sf.use_pick_mode;
   x->skip_optimize = ctx->is_coded;
   ctx->is_coded = 1;
   x->use_lp32x32fdct = cpi->sf.use_lp32x32fdct;
@@ -2682,7 +2720,7 @@ static void encode_superblock(VP9_COMP *cpi, TOKENEXTRA **t, int output_enabled,
     }
   } else {
     set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
-    vp9_setup_interp_filters(xd, mbmi->interp_filter, cm);
+    xd->interp_kernel = vp9_get_interp_kernel(mbmi->interp_filter);
 
     if (cpi->oxcf.tuning == VP8_TUNE_SSIM) {
       // Adjust the zbin based on this MB rate.
@@ -2697,9 +2735,10 @@ static void encode_superblock(VP9_COMP *cpi, TOKENEXTRA **t, int output_enabled,
   }
 
   if (!is_inter_block(mbmi)) {
-    mbmi->skip_coeff = 1;
-    vp9_encode_intra_block_y(x, MAX(bsize, BLOCK_8X8));
-    vp9_encode_intra_block_uv(x, MAX(bsize, BLOCK_8X8));
+    int plane;
+    mbmi->skip = 1;
+    for (plane = 0; plane < MAX_MB_PLANE; ++plane)
+      vp9_encode_intra_block_plane(x, MAX(bsize, BLOCK_8X8), plane);
     if (output_enabled)
       sum_intra_stats(&cm->counts, mi);
   } else {
@@ -2716,13 +2755,13 @@ static void encode_superblock(VP9_COMP *cpi, TOKENEXTRA **t, int output_enabled,
   if (!is_inter_block(mbmi)) {
     vp9_tokenize_sb(cpi, t, !output_enabled, MAX(bsize, BLOCK_8X8));
   } else if (!x->skip) {
-    mbmi->skip_coeff = 1;
+    mbmi->skip = 1;
     vp9_encode_sb(x, MAX(bsize, BLOCK_8X8));
     vp9_tokenize_sb(cpi, t, !output_enabled, MAX(bsize, BLOCK_8X8));
   } else {
-    mbmi->skip_coeff = 1;
+    mbmi->skip = 1;
     if (output_enabled)
-      cm->counts.mbskip[vp9_get_skip_context(xd)][1]++;
+      cm->counts.skip[vp9_get_skip_context(xd)][1]++;
     reset_skip_context(xd, MAX(bsize, BLOCK_8X8));
   }
 
@@ -2730,7 +2769,7 @@ static void encode_superblock(VP9_COMP *cpi, TOKENEXTRA **t, int output_enabled,
     if (cm->tx_mode == TX_MODE_SELECT &&
         mbmi->sb_type >= BLOCK_8X8  &&
         !(is_inter_block(mbmi) &&
-            (mbmi->skip_coeff ||
+            (mbmi->skip ||
              vp9_segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP)))) {
       ++get_tx_counts(max_txsize_lookup[bsize], vp9_get_tx_size_context(xd),
                       &cm->counts.tx)[mbmi->tx_size];

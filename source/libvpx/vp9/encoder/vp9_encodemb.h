@@ -20,36 +20,24 @@
 extern "C" {
 #endif
 
-struct optimize_ctx {
-  ENTROPY_CONTEXT ta[MAX_MB_PLANE][16];
-  ENTROPY_CONTEXT tl[MAX_MB_PLANE][16];
-};
-
-struct encode_b_args {
-  MACROBLOCK *x;
-  struct optimize_ctx *ctx;
-  unsigned char *skip_coeff;
-};
-
 void vp9_encode_sb(MACROBLOCK *x, BLOCK_SIZE bsize);
 void vp9_encode_sby(MACROBLOCK *x, BLOCK_SIZE bsize);
 
-void vp9_xform_quant(int plane, int block, BLOCK_SIZE plane_bsize,
-                     TX_SIZE tx_size, void *arg);
+void vp9_xform_quant(MACROBLOCK *x, int plane, int block,
+                     BLOCK_SIZE plane_bsize, TX_SIZE tx_size);
 
 void vp9_subtract_sby(MACROBLOCK *x, BLOCK_SIZE bsize);
 void vp9_subtract_sbuv(MACROBLOCK *x, BLOCK_SIZE bsize);
 void vp9_subtract_sb(MACROBLOCK *x, BLOCK_SIZE bsize);
 
-void vp9_encode_block_intra(int plane, int block, BLOCK_SIZE plane_bsize,
-                            TX_SIZE tx_size, void *arg);
+void vp9_encode_block_intra(MACROBLOCK *x, int plane, int block,
+                            BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
+                            unsigned char *skip);
 
-void vp9_encode_intra_block_y(MACROBLOCK *x, BLOCK_SIZE bsize);
-void vp9_encode_intra_block_uv(MACROBLOCK *x, BLOCK_SIZE bsize);
+void vp9_encode_intra_block_plane(MACROBLOCK *x, BLOCK_SIZE bsize, int plane);
 
 int vp9_encode_intra(MACROBLOCK *x, int use_16x16_pred);
-void vp9_setup_interp_filters(MACROBLOCKD *xd, INTERP_FILTER filter,
-                              VP9_COMMON *cm);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

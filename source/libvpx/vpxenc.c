@@ -27,6 +27,7 @@
 #include "third_party/libyuv/include/libyuv/scale.h"
 #include "./args.h"
 #include "./ivfenc.h"
+#include "./tools_common.h"
 
 #if CONFIG_VP8_ENCODER || CONFIG_VP9_ENCODER
 #include "vpx/vp8cx.h"
@@ -35,9 +36,10 @@
 #include "vpx/vp8dx.h"
 #endif
 
-#include "./tools_common.h"
+#include "vpx/vpx_integer.h"
 #include "vpx_ports/mem_ops.h"
 #include "vpx_ports/vpx_timer.h"
+#include "./rate_hist.h"
 #include "./vpxstats.h"
 #include "./warnings.h"
 #include "./webmenc.h"
@@ -58,24 +60,6 @@ static size_t wrap_fwrite(const void *ptr, size_t size, size_t nmemb,
 
 
 static const char *exec_name;
-
-static const struct codec_item {
-  char const              *name;
-  const vpx_codec_iface_t *(*iface)(void);
-  const vpx_codec_iface_t *(*dx_iface)(void);
-  unsigned int             fourcc;
-} codecs[] = {
-#if CONFIG_VP8_ENCODER && CONFIG_VP8_DECODER
-  {"vp8", &vpx_codec_vp8_cx, &vpx_codec_vp8_dx, VP8_FOURCC},
-#elif CONFIG_VP8_ENCODER && !CONFIG_VP8_DECODER
-  {"vp8", &vpx_codec_vp8_cx, NULL, VP8_FOURCC},
-#endif
-#if CONFIG_VP9_ENCODER && CONFIG_VP9_DECODER
-  {"vp9", &vpx_codec_vp9_cx, &vpx_codec_vp9_dx, VP9_FOURCC},
-#elif CONFIG_VP9_ENCODER && !CONFIG_VP9_DECODER
-  {"vp9", &vpx_codec_vp9_cx, NULL, VP9_FOURCC},
-#endif
-};
 
 static void warn_or_exit_on_errorv(vpx_codec_ctx_t *ctx, int fatal,
                                    const char *s, va_list ap) {
@@ -460,304 +444,38 @@ void usage_exit() {
   fprintf(stderr, "\nStream timebase (--timebase):\n"
           "  The desired precision of timestamps in the output, expressed\n"
           "  in fractional seconds. Default is 1/1000.\n");
-  fprintf(stderr, "\n"
-          "Included encoders:\n"
-          "\n");
+  fprintf(stderr, "\nIncluded encoders:\n\n");
 
-  for (i = 0; i < sizeof(codecs) / sizeof(codecs[0]); i++)
+  for (i = 0; i < get_vpx_encoder_count(); ++i) {
+    const VpxInterface *const encoder = get_vpx_encoder_by_index(i);
     fprintf(stderr, "    %-6s - %s\n",
-            codecs[i].name,
-            vpx_codec_iface_name(codecs[i].iface()));
+            encoder->name, vpx_codec_iface_name(encoder->interface()));
+  }
 
   exit(EXIT_FAILURE);
 }
 
-
-#define HIST_BAR_MAX 40
-struct hist_bucket {
-  int low, high, count;
-};
-
-
-static int merge_hist_buckets(struct hist_bucket *bucket,
-                              int *buckets_,
-                              int max_buckets) {
-  int small_bucket = 0, merge_bucket = INT_MAX, big_bucket = 0;
-  int buckets = *buckets_;
-  int i;
-
-  /* Find the extrema for this list of buckets */
-  big_bucket = small_bucket = 0;
-  for (i = 0; i < buckets; i++) {
-    if (bucket[i].count < bucket[small_bucket].count)
-      small_bucket = i;
-    if (bucket[i].count > bucket[big_bucket].count)
-      big_bucket = i;
-  }
-
-  /* If we have too many buckets, merge the smallest with an adjacent
-   * bucket.
-   */
-  while (buckets > max_buckets) {
-    int last_bucket = buckets - 1;
-
-    /* merge the small bucket with an adjacent one. */
-    if (small_bucket == 0)
-      merge_bucket = 1;
-    else if (small_bucket == last_bucket)
-      merge_bucket = last_bucket - 1;
-    else if (bucket[small_bucket - 1].count < bucket[small_bucket + 1].count)
-      merge_bucket = small_bucket - 1;
-    else
-      merge_bucket = small_bucket + 1;
-
-    assert(abs(merge_bucket - small_bucket) <= 1);
-    assert(small_bucket < buckets);
-    assert(big_bucket < buckets);
-    assert(merge_bucket < buckets);
-
-    if (merge_bucket < small_bucket) {
-      bucket[merge_bucket].high = bucket[small_bucket].high;
-      bucket[merge_bucket].count += bucket[small_bucket].count;
-    } else {
-      bucket[small_bucket].high = bucket[merge_bucket].high;
-      bucket[small_bucket].count += bucket[merge_bucket].count;
-      merge_bucket = small_bucket;
-    }
-
-    assert(bucket[merge_bucket].low != bucket[merge_bucket].high);
-
-    buckets--;
-
-    /* Remove the merge_bucket from the list, and find the new small
-     * and big buckets while we're at it
-     */
-    big_bucket = small_bucket = 0;
-    for (i = 0; i < buckets; i++) {
-      if (i > merge_bucket)
-        bucket[i] = bucket[i + 1];
-
-      if (bucket[i].count < bucket[small_bucket].count)
-        small_bucket = i;
-      if (bucket[i].count > bucket[big_bucket].count)
-        big_bucket = i;
-    }
-
-  }
-
-  *buckets_ = buckets;
-  return bucket[big_bucket].count;
-}
-
-
-static void show_histogram(const struct hist_bucket *bucket,
-                           int                       buckets,
-                           int                       total,
-                           int                       scale) {
-  const char *pat1, *pat2;
-  int i;
-
-  switch ((int)(log(bucket[buckets - 1].high) / log(10)) + 1) {
-    case 1:
-    case 2:
-      pat1 = "%4d %2s: ";
-      pat2 = "%4d-%2d: ";
-      break;
-    case 3:
-      pat1 = "%5d %3s: ";
-      pat2 = "%5d-%3d: ";
-      break;
-    case 4:
-      pat1 = "%6d %4s: ";
-      pat2 = "%6d-%4d: ";
-      break;
-    case 5:
-      pat1 = "%7d %5s: ";
-      pat2 = "%7d-%5d: ";
-      break;
-    case 6:
-      pat1 = "%8d %6s: ";
-      pat2 = "%8d-%6d: ";
-      break;
-    case 7:
-      pat1 = "%9d %7s: ";
-      pat2 = "%9d-%7d: ";
-      break;
-    default:
-      pat1 = "%12d %10s: ";
-      pat2 = "%12d-%10d: ";
-      break;
-  }
-
-  for (i = 0; i < buckets; i++) {
-    int len;
-    int j;
-    float pct;
-
-    pct = (float)(100.0 * bucket[i].count / total);
-    len = HIST_BAR_MAX * bucket[i].count / scale;
-    if (len < 1)
-      len = 1;
-    assert(len <= HIST_BAR_MAX);
-
-    if (bucket[i].low == bucket[i].high)
-      fprintf(stderr, pat1, bucket[i].low, "");
-    else
-      fprintf(stderr, pat2, bucket[i].low, bucket[i].high);
-
-    for (j = 0; j < HIST_BAR_MAX; j++)
-      fprintf(stderr, j < len ? "=" : " ");
-    fprintf(stderr, "\t%5d (%6.2f%%)\n", bucket[i].count, pct);
-  }
-}
-
-
-static void show_q_histogram(const int counts[64], int max_buckets) {
-  struct hist_bucket bucket[64];
-  int buckets = 0;
-  int total = 0;
-  int scale;
-  int i;
-
-
-  for (i = 0; i < 64; i++) {
-    if (counts[i]) {
-      bucket[buckets].low = bucket[buckets].high = i;
-      bucket[buckets].count = counts[i];
-      buckets++;
-      total += counts[i];
-    }
-  }
-
-  fprintf(stderr, "\nQuantizer Selection:\n");
-  scale = merge_hist_buckets(bucket, &buckets, max_buckets);
-  show_histogram(bucket, buckets, total, scale);
-}
-
-
-#define RATE_BINS (100)
-struct rate_hist {
-  int64_t            *pts;
-  int                *sz;
-  int                 samples;
-  int                 frames;
-  struct hist_bucket  bucket[RATE_BINS];
-  int                 total;
-};
-
-
-static void init_rate_histogram(struct rate_hist *hist,
-                                const vpx_codec_enc_cfg_t *cfg,
-                                const vpx_rational_t *fps) {
-  int i;
-
-  /* Determine the number of samples in the buffer. Use the file's framerate
-   * to determine the number of frames in rc_buf_sz milliseconds, with an
-   * adjustment (5/4) to account for alt-refs
-   */
-  hist->samples = cfg->rc_buf_sz * 5 / 4 * fps->num / fps->den / 1000;
-
-  /* prevent division by zero */
-  if (hist->samples == 0)
-    hist->samples = 1;
-
-  hist->pts = calloc(hist->samples, sizeof(*hist->pts));
-  hist->sz = calloc(hist->samples, sizeof(*hist->sz));
-  for (i = 0; i < RATE_BINS; i++) {
-    hist->bucket[i].low = INT_MAX;
-    hist->bucket[i].high = 0;
-    hist->bucket[i].count = 0;
-  }
-}
-
-
-static void destroy_rate_histogram(struct rate_hist *hist) {
-  free(hist->pts);
-  free(hist->sz);
-}
-
-
-static void update_rate_histogram(struct rate_hist          *hist,
-                                  const vpx_codec_enc_cfg_t *cfg,
-                                  const vpx_codec_cx_pkt_t  *pkt) {
-  int i, idx;
-  int64_t now, then, sum_sz = 0, avg_bitrate;
-
-  now = pkt->data.frame.pts * 1000
-        * (uint64_t)cfg->g_timebase.num / (uint64_t)cfg->g_timebase.den;
-
-  idx = hist->frames++ % hist->samples;
-  hist->pts[idx] = now;
-  hist->sz[idx] = (int)pkt->data.frame.sz;
-
-  if (now < cfg->rc_buf_initial_sz)
-    return;
-
-  then = now;
-
-  /* Sum the size over the past rc_buf_sz ms */
-  for (i = hist->frames; i > 0 && hist->frames - i < hist->samples; i--) {
-    int i_idx = (i - 1) % hist->samples;
-
-    then = hist->pts[i_idx];
-    if (now - then > cfg->rc_buf_sz)
-      break;
-    sum_sz += hist->sz[i_idx];
-  }
-
-  if (now == then)
-    return;
-
-  avg_bitrate = sum_sz * 8 * 1000 / (now - then);
-  idx = (int)(avg_bitrate * (RATE_BINS / 2) / (cfg->rc_target_bitrate * 1000));
-  if (idx < 0)
-    idx = 0;
-  if (idx > RATE_BINS - 1)
-    idx = RATE_BINS - 1;
-  if (hist->bucket[idx].low > avg_bitrate)
-    hist->bucket[idx].low = (int)avg_bitrate;
-  if (hist->bucket[idx].high < avg_bitrate)
-    hist->bucket[idx].high = (int)avg_bitrate;
-  hist->bucket[idx].count++;
-  hist->total++;
-}
-
-
-static void show_rate_histogram(struct rate_hist          *hist,
-                                const vpx_codec_enc_cfg_t *cfg,
-                                int                        max_buckets) {
-  int i, scale;
-  int buckets = 0;
-
-  for (i = 0; i < RATE_BINS; i++) {
-    if (hist->bucket[i].low == INT_MAX)
-      continue;
-    hist->bucket[buckets++] = hist->bucket[i];
-  }
-
-  fprintf(stderr, "\nRate (over %dms window):\n", cfg->rc_buf_sz);
-  scale = merge_hist_buckets(hist->bucket, &buckets, max_buckets);
-  show_histogram(hist->bucket, buckets, hist->total, scale);
-}
-
 #define mmin(a, b)  ((a) < (b) ? (a) : (b))
-static void find_mismatch(vpx_image_t *img1, vpx_image_t *img2,
+static void find_mismatch(const vpx_image_t *const img1,
+                          const vpx_image_t *const img2,
                           int yloc[4], int uloc[4], int vloc[4]) {
-  const unsigned int bsize = 64;
-  const unsigned int bsizey = bsize >> img1->y_chroma_shift;
-  const unsigned int bsizex = bsize >> img1->x_chroma_shift;
-  const int c_w = (img1->d_w + img1->x_chroma_shift) >> img1->x_chroma_shift;
-  const int c_h = (img1->d_h + img1->y_chroma_shift) >> img1->y_chroma_shift;
-  unsigned int match = 1;
-  unsigned int i, j;
+  const uint32_t bsize = 64;
+  const uint32_t bsizey = bsize >> img1->y_chroma_shift;
+  const uint32_t bsizex = bsize >> img1->x_chroma_shift;
+  const uint32_t c_w =
+      (img1->d_w + img1->x_chroma_shift) >> img1->x_chroma_shift;
+  const uint32_t c_h =
+      (img1->d_h + img1->y_chroma_shift) >> img1->y_chroma_shift;
+  int match = 1;
+  uint32_t i, j;
   yloc[0] = yloc[1] = yloc[2] = yloc[3] = -1;
   for (i = 0, match = 1; match && i < img1->d_h; i += bsize) {
     for (j = 0; match && j < img1->d_w; j += bsize) {
       int k, l;
-      int si = mmin(i + bsize, img1->d_h) - i;
-      int sj = mmin(j + bsize, img1->d_w) - j;
-      for (k = 0; match && k < si; k++)
-        for (l = 0; match && l < sj; l++) {
+      const int si = mmin(i + bsize, img1->d_h) - i;
+      const int sj = mmin(j + bsize, img1->d_w) - j;
+      for (k = 0; match && k < si; ++k) {
+        for (l = 0; match && l < sj; ++l) {
           if (*(img1->planes[VPX_PLANE_Y] +
                 (i + k) * img1->stride[VPX_PLANE_Y] + j + l) !=
               *(img2->planes[VPX_PLANE_Y] +
@@ -772,6 +490,7 @@ static void find_mismatch(vpx_image_t *img1, vpx_image_t *img2,
             break;
           }
         }
+      }
     }
   }
 
@@ -779,10 +498,10 @@ static void find_mismatch(vpx_image_t *img1, vpx_image_t *img2,
   for (i = 0, match = 1; match && i < c_h; i += bsizey) {
     for (j = 0; match && j < c_w; j += bsizex) {
       int k, l;
-      int si = mmin(i + bsizey, c_h - i);
-      int sj = mmin(j + bsizex, c_w - j);
-      for (k = 0; match && k < si; k++)
-        for (l = 0; match && l < sj; l++) {
+      const int si = mmin(i + bsizey, c_h - i);
+      const int sj = mmin(j + bsizex, c_w - j);
+      for (k = 0; match && k < si; ++k) {
+        for (l = 0; match && l < sj; ++l) {
           if (*(img1->planes[VPX_PLANE_U] +
                 (i + k) * img1->stride[VPX_PLANE_U] + j + l) !=
               *(img2->planes[VPX_PLANE_U] +
@@ -792,21 +511,22 @@ static void find_mismatch(vpx_image_t *img1, vpx_image_t *img2,
             uloc[2] = *(img1->planes[VPX_PLANE_U] +
                         (i + k) * img1->stride[VPX_PLANE_U] + j + l);
             uloc[3] = *(img2->planes[VPX_PLANE_U] +
-                        (i + k) * img2->stride[VPX_PLANE_V] + j + l);
+                        (i + k) * img2->stride[VPX_PLANE_U] + j + l);
             match = 0;
             break;
           }
         }
+      }
     }
   }
   vloc[0] = vloc[1] = vloc[2] = vloc[3] = -1;
   for (i = 0, match = 1; match && i < c_h; i += bsizey) {
     for (j = 0; match && j < c_w; j += bsizex) {
       int k, l;
-      int si = mmin(i + bsizey, c_h - i);
-      int sj = mmin(j + bsizex, c_w - j);
-      for (k = 0; match && k < si; k++)
-        for (l = 0; match && l < sj; l++) {
+      const int si = mmin(i + bsizey, c_h - i);
+      const int sj = mmin(j + bsizex, c_w - j);
+      for (k = 0; match && k < si; ++k) {
+        for (l = 0; match && l < sj; ++l) {
           if (*(img1->planes[VPX_PLANE_V] +
                 (i + k) * img1->stride[VPX_PLANE_V] + j + l) !=
               *(img2->planes[VPX_PLANE_V] +
@@ -821,34 +541,37 @@ static void find_mismatch(vpx_image_t *img1, vpx_image_t *img2,
             break;
           }
         }
+      }
     }
   }
 }
 
-static int compare_img(vpx_image_t *img1, vpx_image_t *img2)
-{
-  const int c_w = (img1->d_w + img1->x_chroma_shift) >> img1->x_chroma_shift;
-  const int c_h = (img1->d_h + img1->y_chroma_shift) >> img1->y_chroma_shift;
+static int compare_img(const vpx_image_t *const img1,
+                       const vpx_image_t *const img2) {
+  const uint32_t c_w =
+      (img1->d_w + img1->x_chroma_shift) >> img1->x_chroma_shift;
+  const uint32_t c_h =
+      (img1->d_h + img1->y_chroma_shift) >> img1->y_chroma_shift;
+  uint32_t i;
   int match = 1;
-  unsigned int i;
 
   match &= (img1->fmt == img2->fmt);
   match &= (img1->d_w == img2->d_w);
   match &= (img1->d_h == img2->d_h);
 
-  for (i = 0; i < img1->d_h; i++)
-    match &= (memcmp(img1->planes[VPX_PLANE_Y]+i*img1->stride[VPX_PLANE_Y],
-                     img2->planes[VPX_PLANE_Y]+i*img2->stride[VPX_PLANE_Y],
+  for (i = 0; i < img1->d_h; ++i)
+    match &= (memcmp(img1->planes[VPX_PLANE_Y] + i * img1->stride[VPX_PLANE_Y],
+                     img2->planes[VPX_PLANE_Y] + i * img2->stride[VPX_PLANE_Y],
                      img1->d_w) == 0);
 
-  for (i = 0; i < c_h; i++)
-    match &= (memcmp(img1->planes[VPX_PLANE_U]+i*img1->stride[VPX_PLANE_U],
-                     img2->planes[VPX_PLANE_U]+i*img2->stride[VPX_PLANE_U],
+  for (i = 0; i < c_h; ++i)
+    match &= (memcmp(img1->planes[VPX_PLANE_U] + i * img1->stride[VPX_PLANE_U],
+                     img2->planes[VPX_PLANE_U] + i * img2->stride[VPX_PLANE_U],
                      c_w) == 0);
 
-  for (i = 0; i < c_h; i++)
-    match &= (memcmp(img1->planes[VPX_PLANE_V]+i*img1->stride[VPX_PLANE_U],
-                     img2->planes[VPX_PLANE_V]+i*img2->stride[VPX_PLANE_U],
+  for (i = 0; i < c_h; ++i)
+    match &= (memcmp(img1->planes[VPX_PLANE_V] + i * img1->stride[VPX_PLANE_V],
+                     img2->planes[VPX_PLANE_V] + i * img2->stride[VPX_PLANE_V],
                      c_w) == 0);
 
   return match;
@@ -884,7 +607,7 @@ struct stream_state {
   struct stream_state      *next;
   struct stream_config      config;
   FILE                     *file;
-  struct rate_hist          rate_hist;
+  struct rate_hist         *rate_hist;
   struct EbmlGlobal         ebml;
   uint32_t                  hash;
   uint64_t                  psnr_sse_total;
@@ -924,7 +647,7 @@ static void parse_global_config(struct VpxEncoderConfig *global, char **argv) {
 
   /* Initialize default parameters */
   memset(global, 0, sizeof(*global));
-  global->codec = codecs;
+  global->codec = get_vpx_encoder_by_index(0);
   global->passes = 0;
   global->use_i420 = 1;
   /* Assign default deadline to good quality */
@@ -934,18 +657,9 @@ static void parse_global_config(struct VpxEncoderConfig *global, char **argv) {
     arg.argv_step = 1;
 
     if (arg_match(&arg, &codecarg, argi)) {
-      int j, k = -1;
-
-      for (j = 0; j < sizeof(codecs) / sizeof(codecs[0]); j++)
-        if (!strcmp(codecs[j].name, arg.val))
-          k = j;
-
-      if (k >= 0)
-        global->codec = codecs + k;
-      else
-        die("Error: Unrecognized argument (%s) to --codec\n",
-            arg.val);
-
+      global->codec = get_vpx_encoder_by_name(arg.val);
+      if (!global->codec)
+        die("Error: Unrecognized argument (%s) to --codec\n", arg.val);
     } else if (arg_match(&arg, &passes, argi)) {
       global->passes = arg_parse_uint(&arg);
 
@@ -1008,7 +722,7 @@ static void parse_global_config(struct VpxEncoderConfig *global, char **argv) {
 #if CONFIG_VP9_ENCODER
     // Make default VP9 passes = 2 until there is a better quality 1-pass
     // encoder
-    global->passes = (global->codec->iface == vpx_codec_vp9_cx ? 2 : 1);
+    global->passes = strcmp(global->codec->name, "vp9") == 0 ? 2 : 1;
 #else
     global->passes = 1;
 #endif
@@ -1088,7 +802,7 @@ static struct stream_state *new_stream(struct VpxEncoderConfig *global,
     vpx_codec_err_t  res;
 
     /* Populate encoder configuration */
-    res = vpx_codec_enc_config_default(global->codec->iface(),
+    res = vpx_codec_enc_config_default(global->codec->interface(),
                                        &stream->config.cfg,
                                        global->usage);
     if (res)
@@ -1132,15 +846,15 @@ static int parse_stream_params(struct VpxEncoderConfig *global,
   struct stream_config    *config = &stream->config;
   int                      eos_mark_found = 0;
 
-  /* Handle codec specific options */
+  // Handle codec specific options
   if (0) {
 #if CONFIG_VP8_ENCODER
-  } else if (global->codec->iface == vpx_codec_vp8_cx) {
+  } else if (strcmp(global->codec->name, "vp8") == 0) {
     ctrl_args = vp8_args;
     ctrl_args_map = vp8_arg_ctrl_map;
 #endif
 #if CONFIG_VP9_ENCODER
-  } else if (global->codec->iface == vpx_codec_vp9_cx) {
+  } else if (strcmp(global->codec->name, "vp9") == 0) {
     ctrl_args = vp9_args;
     ctrl_args_map = vp9_arg_ctrl_map;
 #endif
@@ -1348,7 +1062,7 @@ static void show_stream_config(struct stream_state *stream,
 
   if (stream->index == 0) {
     fprintf(stderr, "Codec: %s\n",
-            vpx_codec_iface_name(global->codec->iface()));
+            vpx_codec_iface_name(global->codec->interface()));
     fprintf(stderr, "Source file: %s Format: %s\n", input->filename,
             input->use_i420 ? "I420" : "YV12");
   }
@@ -1472,7 +1186,7 @@ static void initialize_encoder(struct stream_state *stream,
   flags |= global->out_part ? VPX_CODEC_USE_OUTPUT_PARTITION : 0;
 
   /* Construct Encoder Context */
-  vpx_codec_enc_init(&stream->encoder, global->codec->iface(),
+  vpx_codec_enc_init(&stream->encoder, global->codec->interface(),
                      &stream->config.cfg, flags);
   ctx_exit_on_error(&stream->encoder, "Failed to initialize encoder");
 
@@ -1492,7 +1206,8 @@ static void initialize_encoder(struct stream_state *stream,
 
 #if CONFIG_DECODERS
   if (global->test_decode != TEST_DECODE_OFF) {
-    vpx_codec_dec_init(&stream->decoder, global->codec->dx_iface(), NULL, 0);
+    const VpxInterface *decoder = get_vpx_decoder_by_name(global->codec->name);
+    vpx_codec_dec_init(&stream->decoder, decoder->interface(), NULL, 0);
   }
 #endif
 }
@@ -1576,7 +1291,7 @@ static void get_cx_data(struct stream_state *stream,
         if (!global->quiet)
           fprintf(stderr, " %6luF", (unsigned long)pkt->data.frame.sz);
 
-        update_rate_histogram(&stream->rate_hist, cfg, pkt);
+        update_rate_histogram(stream->rate_hist, cfg, pkt);
         if (stream->config.write_webm) {
           /* Update the hash */
           if (!stream->ebml.debug)
@@ -1590,7 +1305,7 @@ static void get_cx_data(struct stream_state *stream,
             ivf_header_pos = ftello(stream->file);
             fsize = pkt->data.frame.sz;
 
-            ivf_write_frame_header(stream->file, pkt);
+            ivf_write_frame_header(stream->file, pkt->data.frame.pts, fsize);
           } else {
             fsize += pkt->data.frame.sz;
 
@@ -1611,7 +1326,7 @@ static void get_cx_data(struct stream_state *stream,
 #if CONFIG_DECODERS
         if (global->test_decode != TEST_DECODE_OFF && !stream->mismatch_seen) {
           vpx_codec_decode(&stream->decoder, pkt->data.frame.buf,
-                           pkt->data.frame.sz, NULL, 0);
+                           (unsigned int)pkt->data.frame.sz, NULL, 0);
           if (stream->decoder.err) {
             warn_or_exit_on_error(&stream->decoder,
                                   global->test_decode == TEST_DECODE_FATAL,
@@ -1678,14 +1393,14 @@ static float usec_to_fps(uint64_t usec, unsigned int frames) {
 
 static void test_decode(struct stream_state  *stream,
                         enum TestDecodeFatality fatal,
-                        const struct codec_item *codec) {
+                        const VpxInterface *codec) {
   vpx_image_t enc_img, dec_img;
 
   if (stream->mismatch_seen)
     return;
 
   /* Get the internal reference frame */
-  if (codec->fourcc == VP8_FOURCC) {
+  if (strcmp(codec->name, "vp8") == 0) {
     struct vpx_ref_frame ref_enc, ref_dec;
     int width, height;
 
@@ -1734,7 +1449,9 @@ static void test_decode(struct stream_state  *stream,
 
 
 static void print_time(const char *label, int64_t etl) {
-  int hours, mins, secs;
+  int64_t hours;
+  int64_t mins;
+  int64_t secs;
 
   if (etl >= 0) {
     hours = etl / 3600;
@@ -1743,7 +1460,7 @@ static void print_time(const char *label, int64_t etl) {
     etl -= mins * 60;
     secs = etl;
 
-    fprintf(stderr, "[%3s %2d:%02d:%02d] ",
+    fprintf(stderr, "[%3s %2"PRId64":%02"PRId64": % 02"PRId64"] ",
             label, hours, mins, secs);
   } else {
     fprintf(stderr, "[%3s  unknown] ", label);
@@ -1881,9 +1598,9 @@ int main(int argc, const char **argv_) {
                       : VPX_IMG_FMT_YV12,
                       input.width, input.height, 32);
 
-      FOREACH_STREAM(init_rate_histogram(&stream->rate_hist,
-                                         &stream->config.cfg,
-                                         &global.framerate));
+      FOREACH_STREAM(stream->rate_hist =
+                         init_rate_histogram(&stream->config.cfg,
+                                             &global.framerate));
     }
 
     FOREACH_STREAM(setup_pass(stream, &global, pass));
@@ -1947,7 +1664,7 @@ int main(int argc, const char **argv_) {
           int64_t rate;
 
           if (global.limit) {
-            int frame_in_lagged = (seen_frames - lagged_count) * 1000;
+            off_t frame_in_lagged = (seen_frames - lagged_count) * 1000;
 
             rate = cx_time ? frame_in_lagged * (int64_t)1000000 / cx_time : 0;
             remaining = 1000 * (global.limit - global.skip_frames
@@ -2020,10 +1737,10 @@ int main(int argc, const char **argv_) {
                                     global.show_q_hist_buckets));
 
   if (global.show_rate_hist_buckets)
-    FOREACH_STREAM(show_rate_histogram(&stream->rate_hist,
+    FOREACH_STREAM(show_rate_histogram(stream->rate_hist,
                                        &stream->config.cfg,
                                        global.show_rate_hist_buckets));
-  FOREACH_STREAM(destroy_rate_histogram(&stream->rate_hist));
+  FOREACH_STREAM(destroy_rate_histogram(stream->rate_hist));
 
 #if CONFIG_INTERNAL_STATS
   /* TODO(jkoleszar): This doesn't belong in this executable. Do it for now,

@@ -47,14 +47,14 @@ static INLINE vp9_prob vp9_get_pred_prob_seg_id(struct segmentation *seg,
 static INLINE int vp9_get_skip_context(const MACROBLOCKD *xd) {
   const MODE_INFO *const above_mi = get_above_mi(xd);
   const MODE_INFO *const left_mi = get_left_mi(xd);
-  const int above_skip = (above_mi != NULL) ? above_mi->mbmi.skip_coeff : 0;
-  const int left_skip = (left_mi != NULL) ? left_mi->mbmi.skip_coeff : 0;
+  const int above_skip = (above_mi != NULL) ? above_mi->mbmi.skip : 0;
+  const int left_skip = (left_mi != NULL) ? left_mi->mbmi.skip : 0;
   return above_skip + left_skip;
 }
 
 static INLINE vp9_prob vp9_get_skip_prob(const VP9_COMMON *cm,
                                          const MACROBLOCKD *xd) {
-  return cm->fc.mbskip_probs[vp9_get_skip_context(xd)];
+  return cm->fc.skip_probs[vp9_get_skip_context(xd)];
 }
 
 int vp9_get_pred_context_switchable_interp(const MACROBLOCKD *xd);
@@ -98,8 +98,8 @@ static INLINE vp9_prob vp9_get_pred_prob_single_ref_p2(const VP9_COMMON *cm,
 
 int vp9_get_tx_size_context(const MACROBLOCKD *xd);
 
-static const vp9_prob *get_tx_probs(TX_SIZE max_tx_size, int ctx,
-                                    const struct tx_probs *tx_probs) {
+static INLINE const vp9_prob *get_tx_probs(TX_SIZE max_tx_size, int ctx,
+                                           const struct tx_probs *tx_probs) {
   switch (max_tx_size) {
     case TX_8X8:
       return tx_probs->p8x8[ctx];
@@ -113,13 +113,14 @@ static const vp9_prob *get_tx_probs(TX_SIZE max_tx_size, int ctx,
   }
 }
 
-static const vp9_prob *get_tx_probs2(TX_SIZE max_tx_size, const MACROBLOCKD *xd,
-                                     const struct tx_probs *tx_probs) {
+static INLINE const vp9_prob *get_tx_probs2(TX_SIZE max_tx_size,
+                                            const MACROBLOCKD *xd,
+                                            const struct tx_probs *tx_probs) {
   return get_tx_probs(max_tx_size, vp9_get_tx_size_context(xd), tx_probs);
 }
 
-static unsigned int *get_tx_counts(TX_SIZE max_tx_size, int ctx,
-                                   struct tx_counts *tx_counts) {
+static INLINE unsigned int *get_tx_counts(TX_SIZE max_tx_size, int ctx,
+                                          struct tx_counts *tx_counts) {
   switch (max_tx_size) {
     case TX_8X8:
       return tx_counts->p8x8[ctx];

@@ -172,9 +172,7 @@ struct macroblock {
   int skip_encode;
 
   // Used to store sub partition's choices.
-  int fast_ms;
   int_mv pred_mv[MAX_REF_FRAMES];
-  int subblock_ref;
 
   // TODO(jingning): Need to refactor the structure arrays that buffers the
   // coding mode decisions of each partition type.
@@ -238,25 +236,6 @@ static PICK_MODE_CONTEXT *get_block_context(MACROBLOCK *x, BLOCK_SIZE bsize) {
       return NULL;
   }
 }
-
-struct rdcost_block_args {
-  MACROBLOCK *x;
-  ENTROPY_CONTEXT t_above[16];
-  ENTROPY_CONTEXT t_left[16];
-  TX_SIZE tx_size;
-  int bw;
-  int bh;
-  int rate;
-  int64_t dist;
-  int64_t sse;
-  int this_rate;
-  int64_t this_dist;
-  int64_t this_sse;
-  int64_t this_rd;
-  int64_t best_rd;
-  int skip;
-  const int16_t *scan, *nb;
-};
 
 #ifdef __cplusplus
 }  // extern "C"

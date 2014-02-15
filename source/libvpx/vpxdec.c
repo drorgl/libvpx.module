@@ -37,19 +37,6 @@
 
 static const char *exec_name;
 
-static const struct {
-  char const *name;
-  const vpx_codec_iface_t *(*iface)(void);
-  uint32_t fourcc;
-} ifaces[] = {
-#if CONFIG_VP8_DECODER
-  {"vp8",  vpx_codec_vp8_dx,   VP8_FOURCC},
-#endif
-#if CONFIG_VP9_DECODER
-  {"vp9",  vpx_codec_vp9_dx,   VP9_FOURCC},
-#endif
-};
-
 struct VpxDecInputContext {
   struct VpxInputContext *vpx_input_ctx;
   struct WebmInputContext *webm_ctx;
@@ -88,6 +75,8 @@ static const arg_def_t error_concealment = ARG_DEF(NULL, "error-concealment", 0,
 static const arg_def_t scalearg = ARG_DEF("S", "scale", 0,
                                             "Scale output frames uniformly");
 
+static const arg_def_t fb_arg =
+    ARG_DEF(NULL, "frame-buffers", 1, "Number of frame buffers to use");
 
 static const arg_def_t md5arg = ARG_DEF(NULL, "md5", 0,
                                         "Compute the MD5 sum of the decoded frame");
@@ -95,7 +84,7 @@ static const arg_def_t md5arg = ARG_DEF(NULL, "md5", 0,
 static const arg_def_t *all_args[] = {
   &codecarg, &use_yv12, &use_i420, &flipuvarg, &noblitarg,
   &progressarg, &limitarg, &skiparg, &postprocarg, &summaryarg, &outputfile,
-  &threadsarg, &verbosearg, &scalearg,
+  &threadsarg, &verbosearg, &scalearg, &fb_arg,
   &md5arg,
   &error_concealment,
   NULL
@@ -170,10 +159,11 @@ void usage_exit() {
          );
   fprintf(stderr, "\nIncluded decoders:\n\n");
 
-  for (i = 0; i < sizeof(ifaces) / sizeof(ifaces[0]); i++)
+  for (i = 0; i < get_vpx_decoder_count(); ++i) {
+    const VpxInterface *const decoder = get_vpx_decoder_by_index(i);
     fprintf(stderr, "    %-6s - %s\n",
-            ifaces[i].name,
-            vpx_codec_iface_name(ifaces[i].iface()));
+            decoder->name, vpx_codec_iface_name(decoder->interface()));
+  }
 
   exit(EXIT_FAILURE);
 }
@@ -187,8 +177,8 @@ static int raw_read_frame(FILE *infile, uint8_t **buffer,
     if (!feof(infile))
       warn("Failed to read RAW frame size\n");
   } else {
-    const int kCorruptFrameThreshold = 256 * 1024 * 1024;
-    const int kFrameTooSmallThreshold = 256 * 1024;
+    const size_t kCorruptFrameThreshold = 256 * 1024 * 1024;
+    const size_t kFrameTooSmallThreshold = 256 * 1024;
     frame_size = mem_get_le32(raw_hdr);
 
     if (frame_size > kCorruptFrameThreshold) {
@@ -241,18 +231,6 @@ static int read_frame(struct VpxDecInputContext *input, uint8_t **buf,
   }
 }
 
-static int get_image_plane_width(int plane, const vpx_image_t *img) {
-  return (plane > 0 && img->x_chroma_shift > 0) ?
-             (img->d_w + 1) >> img->x_chroma_shift :
-             img->d_w;
-}
-
-static int get_image_plane_height(int plane, const vpx_image_t *img) {
-  return (plane > 0 &&  img->y_chroma_shift > 0) ?
-             (img->d_h + 1) >> img->y_chroma_shift :
-             img->d_h;
-}
-
 static void update_image_md5(const vpx_image_t *img, const int planes[3],
                              MD5Context *md5) {
   int i, y;
@@ -261,8 +239,8 @@ static void update_image_md5(const vpx_image_t *img, const int planes[3],
     const int plane = planes[i];
     const unsigned char *buf = img->planes[plane];
     const int stride = img->stride[plane];
-    const int w = get_image_plane_width(plane, img);
-    const int h = get_image_plane_height(plane, img);
+    const int w = vpx_img_plane_width(img, plane);
+    const int h = vpx_img_plane_height(img, plane);
 
     for (y = 0; y < h; ++y) {
       MD5Update(md5, buf, w);
@@ -279,8 +257,8 @@ static void write_image_file(const vpx_image_t *img, const int planes[3],
     const int plane = planes[i];
     const unsigned char *buf = img->planes[plane];
     const int stride = img->stride[plane];
-    const int w = get_image_plane_width(plane, img);
-    const int h = get_image_plane_height(plane, img);
+    const int w = vpx_img_plane_width(img, plane);
+    const int h = vpx_img_plane_height(img, plane);
 
     for (y = 0; y < h; ++y) {
       fwrite(buf, 1, w, file);
@@ -300,11 +278,12 @@ int file_is_raw(struct VpxInputContext *input) {
     int i;
 
     if (mem_get_le32(buf) < 256 * 1024 * 1024) {
-      for (i = 0; i < sizeof(ifaces) / sizeof(ifaces[0]); i++) {
-        if (!vpx_codec_peek_stream_info(ifaces[i].iface(),
+      for (i = 0; i < get_vpx_decoder_count(); ++i) {
+        const VpxInterface *const decoder = get_vpx_decoder_by_index(i);
+        if (!vpx_codec_peek_stream_info(decoder->interface(),
                                         buf + 4, 32 - 4, &si)) {
           is_raw = 1;
-          input->fourcc = ifaces[i].fourcc;
+          input->fourcc = decoder->fourcc;
           input->width = si.w;
           input->height = si.h;
           input->framerate.numerator = 30;
@@ -323,6 +302,68 @@ void show_progress(int frame_in, int frame_out, unsigned long dx_time) {
   fprintf(stderr, "%d decoded frames/%d showed frames in %lu us (%.2f fps)\r",
           frame_in, frame_out, dx_time,
           (float)frame_out * 1000000.0 / (float)dx_time);
+}
+
+struct ExternalFrameBuffer {
+  uint8_t* data;
+  size_t size;
+  int in_use;
+};
+
+struct ExternalFrameBufferList {
+  int num_external_frame_buffers;
+  struct ExternalFrameBuffer *ext_fb;
+};
+
+// Callback used by libvpx to request an external frame buffer. |cb_priv|
+// Application private data passed into the set function. |min_size| is the
+// minimum size in bytes needed to decode the next frame. |fb| pointer to the
+// frame buffer.
+int get_vp9_frame_buffer(void *cb_priv, size_t min_size,
+                         vpx_codec_frame_buffer_t *fb) {
+  int i;
+  struct ExternalFrameBufferList *const ext_fb_list =
+      (struct ExternalFrameBufferList *)cb_priv;
+  if (ext_fb_list == NULL)
+    return -1;
+
+  // Find a free frame buffer.
+  for (i = 0; i < ext_fb_list->num_external_frame_buffers; ++i) {
+    if (!ext_fb_list->ext_fb[i].in_use)
+      break;
+  }
+
+  if (i == ext_fb_list->num_external_frame_buffers)
+    return -1;
+
+  if (ext_fb_list->ext_fb[i].size < min_size) {
+    free(ext_fb_list->ext_fb[i].data);
+    ext_fb_list->ext_fb[i].data = (uint8_t *)malloc(min_size);
+    if (!ext_fb_list->ext_fb[i].data)
+      return -1;
+
+    ext_fb_list->ext_fb[i].size = min_size;
+  }
+
+  fb->data = ext_fb_list->ext_fb[i].data;
+  fb->size = ext_fb_list->ext_fb[i].size;
+  ext_fb_list->ext_fb[i].in_use = 1;
+
+  // Set the frame buffer's private data to point at the external frame buffer.
+  fb->priv = &ext_fb_list->ext_fb[i];
+  return 0;
+}
+
+// Callback used by libvpx when there are no references to the frame buffer.
+// |cb_priv| user private data passed into the set function. |fb| pointer
+// to the frame buffer.
+int release_vp9_frame_buffer(void *cb_priv,
+                             vpx_codec_frame_buffer_t *fb) {
+  struct ExternalFrameBuffer *const ext_fb =
+      (struct ExternalFrameBuffer *)fb->priv;
+  (void)cb_priv;
+  ext_fb->in_use = 0;
+  return 0;
 }
 
 void generate_filename(const char *pattern, char *out, size_t q_len,
@@ -441,7 +482,6 @@ static FILE *open_outfile(const char *name) {
 int main_loop(int argc, const char **argv_) {
   vpx_codec_ctx_t       decoder;
   char                  *fn = NULL;
-  int                    i;
   uint8_t               *buf = NULL;
   size_t                 bytes_in_buffer = 0, buffer_size = 0;
   FILE                  *infile;
@@ -450,7 +490,8 @@ int main_loop(int argc, const char **argv_) {
   int                    stop_after = 0, postproc = 0, summary = 0, quiet = 1;
   int                    arg_skip = 0;
   int                    ec_enabled = 0;
-  vpx_codec_iface_t       *iface = NULL;
+  const VpxInterface *interface = NULL;
+  const VpxInterface *fourcc_interface = NULL;
   unsigned long          dx_time = 0;
   struct arg               arg;
   char                   **argv, **argi, **argj;
@@ -470,6 +511,8 @@ int main_loop(int argc, const char **argv_) {
   int                     do_scale = 0;
   vpx_image_t             *scaled_img = NULL;
   int                     frame_avail, got_data;
+  int                     num_external_frame_buffers = 0;
+  struct ExternalFrameBufferList ext_fb_list = {0};
 
   const char *outfile_pattern = NULL;
   char outfile_name[PATH_MAX] = {0};
@@ -493,17 +536,9 @@ int main_loop(int argc, const char **argv_) {
     arg.argv_step = 1;
 
     if (arg_match(&arg, &codecarg, argi)) {
-      int j, k = -1;
-
-      for (j = 0; j < sizeof(ifaces) / sizeof(ifaces[0]); j++)
-        if (!strcmp(ifaces[j].name, arg.val))
-          k = j;
-
-      if (k >= 0)
-        iface = ifaces[k].iface();
-      else
-        die("Error: Unrecognized argument (%s) to --codec\n",
-            arg.val);
+      interface = get_vpx_decoder_by_name(arg.val);
+      if (!interface)
+        die("Error: Unrecognized argument (%s) to --codec\n", arg.val);
     } else if (arg_match(&arg, &looparg, argi)) {
       // no-op
     } else if (arg_match(&arg, &outputfile, argi))
@@ -536,6 +571,8 @@ int main_loop(int argc, const char **argv_) {
       quiet = 0;
     else if (arg_match(&arg, &scalearg, argi))
       do_scale = 1;
+    else if (arg_match(&arg, &fb_arg, argi))
+      num_external_frame_buffers = arg_parse_uint(&arg);
 
 #if CONFIG_VP8_DECODER
     else if (arg_match(&arg, &addnoise_level, argi)) {
@@ -660,24 +697,20 @@ int main_loop(int argc, const char **argv_) {
     }
   }
 
-  /* Try to determine the codec from the fourcc. */
-  for (i = 0; i < sizeof(ifaces) / sizeof(ifaces[0]); i++)
-    if (vpx_input_ctx.fourcc == ifaces[i].fourcc) {
-      vpx_codec_iface_t *vpx_iface = ifaces[i].iface();
+  fourcc_interface = get_vpx_decoder_by_fourcc(vpx_input_ctx.fourcc);
+  if (interface && fourcc_interface && interface != fourcc_interface)
+    warn("Header indicates codec: %s\n", fourcc_interface->name);
+  else
+    interface = fourcc_interface;
 
-      if (iface && iface != vpx_iface)
-        warn("Header indicates codec: %s\n", ifaces[i].name);
-      else
-        iface = vpx_iface;
-
-      break;
-    }
+  if (!interface)
+    interface = get_vpx_decoder_by_index(0);
 
   dec_flags = (postproc ? VPX_CODEC_USE_POSTPROC : 0) |
               (ec_enabled ? VPX_CODEC_USE_ERROR_CONCEALMENT : 0);
-  if (vpx_codec_dec_init(&decoder, iface ? iface :  ifaces[0].iface(), &cfg,
-                         dec_flags)) {
-    fprintf(stderr, "Failed to initialize decoder: %s\n", vpx_codec_error(&decoder));
+  if (vpx_codec_dec_init(&decoder, interface->interface(), &cfg, dec_flags)) {
+    fprintf(stderr, "Failed to initialize decoder: %s\n",
+            vpx_codec_error(&decoder));
     return EXIT_FAILURE;
   }
 
@@ -724,6 +757,19 @@ int main_loop(int argc, const char **argv_) {
     if (read_frame(&input, &buf, &bytes_in_buffer, &buffer_size))
       break;
     arg_skip--;
+  }
+
+  if (num_external_frame_buffers > 0) {
+    ext_fb_list.num_external_frame_buffers = num_external_frame_buffers;
+    ext_fb_list.ext_fb = (struct ExternalFrameBuffer *)calloc(
+        num_external_frame_buffers, sizeof(*ext_fb_list.ext_fb));
+    if (vpx_codec_set_frame_buffer_functions(
+            &decoder, get_vp9_frame_buffer, release_vp9_frame_buffer,
+            &ext_fb_list)) {
+      fprintf(stderr, "Failed to configure external frame buffers: %s\n",
+              vpx_codec_error(&decoder));
+      return EXIT_FAILURE;
+    }
   }
 
   frame_avail = 1;
@@ -897,6 +943,11 @@ fail:
     free(buf);
 
   if (scaled_img) vpx_img_free(scaled_img);
+
+  for (i = 0; i < ext_fb_list.num_external_frame_buffers; ++i) {
+    free(ext_fb_list.ext_fb[i].data);
+  }
+  free(ext_fb_list.ext_fb);
 
   fclose(infile);
   free(argv);

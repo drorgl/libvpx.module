@@ -8,41 +8,46 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-
 #ifndef VP9_ENCODER_VP9_ONYX_INT_H_
 #define VP9_ENCODER_VP9_ONYX_INT_H_
 
 #include <stdio.h>
+
 #include "./vpx_config.h"
-#include "vp9/common/vp9_onyx.h"
-#include "vp9/encoder/vp9_treewriter.h"
-#include "vp9/encoder/vp9_tokenize.h"
-#include "vp9/common/vp9_onyxc_int.h"
-#include "vp9/encoder/vp9_variance.h"
-#include "vp9/encoder/vp9_encodemb.h"
-#include "vp9/encoder/vp9_quantize.h"
-#include "vp9/common/vp9_entropy.h"
-#include "vp9/common/vp9_entropymode.h"
 #include "vpx_ports/mem.h"
 #include "vpx/internal/vpx_codec_internal.h"
-#include "vp9/encoder/vp9_mcomp.h"
+
+#include "vp9/common/vp9_entropy.h"
+#include "vp9/common/vp9_entropymode.h"
+#include "vp9/common/vp9_onyx.h"
+#include "vp9/common/vp9_onyxc_int.h"
+
+#include "vp9/encoder/vp9_encodemb.h"
+#include "vp9/encoder/vp9_firstpass.h"
 #include "vp9/encoder/vp9_lookahead.h"
+#include "vp9/encoder/vp9_mbgraph.h"
+#include "vp9/encoder/vp9_mcomp.h"
+#include "vp9/encoder/vp9_quantize.h"
+#include "vp9/encoder/vp9_ratectrl.h"
+#include "vp9/encoder/vp9_tokenize.h"
+#include "vp9/encoder/vp9_treewriter.h"
+#include "vp9/encoder/vp9_variance.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define DISABLE_RC_LONG_TERM_MEM 0
 // #define MODE_TEST_HIT_STATS
 
-// #define SPEEDSTATS 1
 #if CONFIG_MULTIPLE_ARF
 // Set MIN_GF_INTERVAL to 1 for the full decomposition.
 #define MIN_GF_INTERVAL             2
 #else
 #define MIN_GF_INTERVAL             4
 #endif
-#define DEFAULT_GF_INTERVAL         7
+#define DEFAULT_GF_INTERVAL         10
+#define DEFAULT_KF_BOOST            2000
+#define DEFAULT_GF_BOOST            2000
 
 #define KEY_FRAME_CONTEXT 5
 
@@ -74,54 +79,6 @@ typedef struct {
 
   FRAME_CONTEXT fc;
 } CODING_CONTEXT;
-
-typedef struct {
-  double frame;
-  double intra_error;
-  double coded_error;
-  double sr_coded_error;
-  double ssim_weighted_pred_err;
-  double pcnt_inter;
-  double pcnt_motion;
-  double pcnt_second_ref;
-  double pcnt_neutral;
-  double MVr;
-  double mvr_abs;
-  double MVc;
-  double mvc_abs;
-  double MVrv;
-  double MVcv;
-  double mv_in_out_count;
-  double new_mv_count;
-  double duration;
-  double count;
-} FIRSTPASS_STATS;
-
-typedef struct {
-  int frames_so_far;
-  double frame_intra_error;
-  double frame_coded_error;
-  double frame_pcnt_inter;
-  double frame_pcnt_motion;
-  double frame_mvr;
-  double frame_mvr_abs;
-  double frame_mvc;
-  double frame_mvc_abs;
-} ONEPASS_FRAMESTATS;
-
-typedef struct {
-  struct {
-    int err;
-    union {
-      int_mv mv;
-      MB_PREDICTION_MODE mode;
-    } m;
-  } ref[MAX_REF_FRAMES];
-} MBGRAPH_MB_STATS;
-
-typedef struct {
-  MBGRAPH_MB_STATS *mb_stats;
-} MBGRAPH_FRAME_STATS;
 
 // This enumerator type needs to be kept aligned with the mode order in
 // const MODE_DEFINITION vp9_mode_order[MAX_MODES] used in the rd code.
@@ -190,6 +147,12 @@ typedef enum {
 } TX_SIZE_SEARCH_METHOD;
 
 typedef enum {
+  NOT_IN_USE = 0,
+  RELAXED_NEIGHBORING_MIN_MAX = 1,
+  STRICT_NEIGHBORING_MIN_MAX = 2
+} AUTO_MIN_MAX_MODE;
+
+typedef enum {
   // Values should be powers of 2 so that they can be selected as bits of
   // an integer flags field
 
@@ -234,18 +197,34 @@ typedef enum {
   LAST_FRAME_PARTITION_ALL = 2
 } LAST_FRAME_PARTITION_METHOD;
 
+typedef enum {
+  // No recode.
+  DISALLOW_RECODE = 0,
+  // Allow recode for KF and exceeding maximum frame bandwidth.
+  ALLOW_RECODE_KFMAXBW = 1,
+  // Allow recode only for KF/ARF/GF frames.
+  ALLOW_RECODE_KFARFGF = 2,
+  // Allow recode for all frames based on bitrate constraints.
+  ALLOW_RECODE = 3,
+} RECODE_LOOP_TYPE;
+
+typedef enum {
+  // encode_breakout is disabled.
+  ENCODE_BREAKOUT_DISABLED = 0,
+  // encode_breakout is enabled.
+  ENCODE_BREAKOUT_ENABLED = 1,
+  // encode_breakout is enabled with small max_thresh limit.
+  ENCODE_BREAKOUT_LIMITED = 2
+} ENCODE_BREAKOUT_TYPE;
+
 typedef struct {
-  // This flag refers to whether or not to perform rd optimization.
-  int RD;
+  // Frame level coding parameter update
+  int frame_parameter_update;
 
   // Motion search method (Diamond, NSTEP, Hex, Big Diamond, Square, etc).
   SEARCH_METHODS search_method;
 
-  // Recode_loop can be:
-  // 0 means we only encode a frame once
-  // 1 means we can re-encode based on bitrate constraints on any frame
-  // 2 means we can only recode gold, alt, and key frames.
-  int recode_loop;
+  RECODE_LOOP_TYPE recode_loop;
 
   // Subpel_search_method can only be subpel_tree which does a subpixel
   // logarithmic search that keeps stepping at 1/2 pixel units until
@@ -346,9 +325,8 @@ typedef struct {
   BLOCK_SIZE always_this_block_size;
 
   // Sets min and max partition sizes for this 64x64 region based on the
-  // same superblock in last encoded frame, and the left and above neighbor
-  // in this block.
-  int auto_min_max_partition_size;
+  // same 64x64 in last encoded frame, and the left and above neighbor.
+  AUTO_MIN_MAX_MODE auto_min_max_partition_size;
 
   // Min and max partition size we enable (block_size) as per auto
   // min max, but also used by adjust partitioning, and pick_partitioning.
@@ -367,11 +345,6 @@ typedef struct {
   // it always, to allow it for only Last frame and Intra, disable it for all
   // inter modes or to enable it always.
   int disable_split_mask;
-
-  // TODO(jbb): Remove this and everything that uses it. It's only valid if
-  // we were doing small to large partition checks. We currently do the
-  // reverse.
-  int using_small_partition_info;
 
   // TODO(jingning): combine the related motion search speed features
   // This allows us to use motion search at other sizes as a starting
@@ -420,68 +393,24 @@ typedef struct {
   // This feature limits the number of coefficients updates we actually do
   // by only looking at counts from 1/2 the bands.
   int use_fast_coef_updates;  // 0: 2-loop, 1: 1-loop, 2: 1-loop reduced
+
+  // This flag controls the use of non-RD mode decision.
+  int use_pick_mode;
+
+  // This variable sets the encode_breakout threshold. Currently, it is only
+  // enabled in real time mode.
+  int encode_breakout_thresh;
 } SPEED_FEATURES;
 
 typedef struct {
-  // Rate targetting variables
-  int this_frame_target;
-  int projected_frame_size;
-  int sb64_target_rate;
-  int last_q[3];                   // Separate values for Intra/Inter/ARF-GF
-  int last_boosted_qindex;         // Last boosted GF/KF/ARF q
-
-  int gfu_boost;
-  int last_boost;
-  int kf_boost;
-
-  double rate_correction_factor;
-  double key_frame_rate_correction_factor;
-  double gf_rate_correction_factor;
-
-  unsigned int frames_since_golden;
-  unsigned int frames_till_gf_update_due;  // Count down till next GF
-  unsigned int max_gf_interval;
-  unsigned int baseline_gf_interval;
-  unsigned int frames_to_key;
-  unsigned int frames_since_key;
-  unsigned int this_key_frame_forced;
-  unsigned int next_key_frame_forced;
-  unsigned int source_alt_ref_pending;
-  unsigned int source_alt_ref_active;
-  unsigned int is_src_frame_alt_ref;
-
-  int per_frame_bandwidth;        // Current section per frame bandwidth target
-  int av_per_frame_bandwidth;     // Average frame size target for clip
-  int min_frame_bandwidth;        // Minimum allocation used for any frame
-  int max_frame_bandwidth;        // Maximum burst rate allowed for a frame.
-
-  int ni_av_qi;
-  int ni_tot_qi;
-  int ni_frames;
-  int avg_frame_qindex[3];  // 0 - KEY, 1 - INTER, 2 - ARF/GF
-  double tot_q;
-  double avg_q;
-
-  int buffer_level;
-  int bits_off_target;
-
-  int decimation_factor;
-  int decimation_count;
-
-  int rolling_target_bits;
-  int rolling_actual_bits;
-
-  int long_rolling_target_bits;
-  int long_rolling_actual_bits;
-
-  int64_t total_actual_bits;
-  int total_target_vs_actual;        // debug stats
-
-  int worst_quality;
-  int active_worst_quality;
-  int best_quality;
-  // int active_best_quality;
-} RATE_CONTROL;
+  RATE_CONTROL rc;
+  int target_bandwidth;
+  int64_t starting_buffer_level;
+  int64_t optimal_buffer_level;
+  int64_t maximum_buffer_size;
+  double framerate;
+  int avg_frame_size;
+} LAYER_CONTEXT;
 
 typedef struct VP9_COMP {
   DECLARE_ALIGNED(16, int16_t, y_quant[QINDEX_RANGE][8]);
@@ -504,7 +433,6 @@ typedef struct VP9_COMP {
   MACROBLOCK mb;
   VP9_COMMON common;
   VP9_CONFIG oxcf;
-  struct rdcost_block_args rdcost_stack;
   struct lookahead_ctx    *lookahead;
   struct lookahead_entry  *source;
 #if CONFIG_MULTIPLE_ARF
@@ -527,9 +455,6 @@ typedef struct VP9_COMP {
   int lst_fb_idx;
   int gld_fb_idx;
   int alt_fb_idx;
-
-  int current_layer;
-  int use_svc;
 
 #if CONFIG_MULTIPLE_ARF
   int alt_ref_fb_idx[REF_FRAMES - 3];
@@ -606,14 +531,8 @@ typedef struct VP9_COMP {
   vp9_coeff_probs_model frame_coef_probs[TX_SIZES][PLANE_TYPES];
   vp9_coeff_stats frame_branch_ct[TX_SIZES][PLANE_TYPES];
 
-  int64_t target_bandwidth;
   struct vpx_codec_pkt_list  *output_pkt_list;
 
-#if 0
-  // Experimental code for lagged and one pass
-  ONEPASS_FRAMESTATS one_pass_frame_stats[MAX_LAG_BUFFERS];
-  int one_pass_frame_index;
-#endif
   MBGRAPH_FRAME_STATS mbgraph_stats[MAX_LAG_BUFFERS];
   int mbgraph_n_frames;             // number of frames filled in the above
   int static_mb_pct;                // % forced skip mbs by segmentation
@@ -621,12 +540,11 @@ typedef struct VP9_COMP {
 
   // for real time encoding
   int speed;
-  int compressor_speed;
 
   int cpu_used;
   int pass;
 
-  vp9_prob last_skip_false_probs[3][MBSKIP_CONTEXTS];
+  vp9_prob last_skip_false_probs[3][SKIP_CONTEXTS];
   int last_skip_probs_q[3];
 
   int ref_frame_flags;
@@ -635,6 +553,13 @@ typedef struct VP9_COMP {
 
   unsigned int max_mv_magnitude;
   int mv_step_param;
+
+  // Default value is 1. From first pass stats, encode_breakout may be disabled.
+  ENCODE_BREAKOUT_TYPE allow_encode_breakout;
+
+  // Get threshold from external input. In real time mode, it can be
+  // overwritten according to encoding speed.
+  int encode_breakout;
 
   unsigned char *segmentation_map;
 
@@ -657,46 +582,7 @@ typedef struct VP9_COMP {
   uint64_t time_pick_lpf;
   uint64_t time_encode_sb_row;
 
-  struct twopass_rc {
-    unsigned int section_intra_rating;
-    unsigned int next_iiratio;
-    unsigned int this_iiratio;
-    FIRSTPASS_STATS total_stats;
-    FIRSTPASS_STATS this_frame_stats;
-    FIRSTPASS_STATS *stats_in, *stats_in_end, *stats_in_start;
-    FIRSTPASS_STATS total_left_stats;
-    int first_pass_done;
-    int64_t bits_left;
-    int64_t clip_bits_total;
-    double avg_iiratio;
-    double modified_error_min;
-    double modified_error_max;
-    double modified_error_total;
-    double modified_error_left;
-    double kf_intra_err_min;
-    double gf_intra_err_min;
-    int static_scene_max_gf_interval;
-    int kf_bits;
-    // Remaining error from uncoded frames in a gf group. Two pass use only
-    int64_t gf_group_error_left;
-
-    // Projected total bits available for a key frame group of frames
-    int64_t kf_group_bits;
-
-    // Error score of frames still to be coded in kf group
-    int64_t kf_group_error_left;
-
-    // Projected Bits available for a group of frames including 1 GF or ARF
-    int64_t gf_group_bits;
-    // Bits for the golden frame or ARF - 2 pass only
-    int gf_bits;
-    int alt_extra_bits;
-
-    int sr_update_lag;
-
-    int kf_zeromotion_pct;
-    int gf_zeromotion_pct;
-  } twopass;
+  struct twopass_rc twopass;
 
   YV12_BUFFER_CONFIG alt_ref_buffer;
   YV12_BUFFER_CONFIG *frames[MAX_LAG_BUFFERS];
@@ -753,9 +639,17 @@ typedef struct VP9_COMP {
   int initial_width;
   int initial_height;
 
-  int number_spatial_layers;
-  int enable_encode_breakout;   // Default value is 1. From first pass stats,
-                                // encode_breakout may be disabled.
+  int use_svc;
+
+  struct svc {
+    int spatial_layer_id;
+    int temporal_layer_id;
+    int number_spatial_layers;
+    int number_temporal_layers;
+    // Layer context used for rate control in CBR mode, only defined for
+    // temporal layers for now.
+    LAYER_CONTEXT layer_context[VPX_TS_MAX_LAYERS];
+  } svc;
 
 #if CONFIG_MULTIPLE_ARF
   // ARF tracking variables.
@@ -802,14 +696,13 @@ static int get_ref_frame_idx(const VP9_COMP *cpi,
 static YV12_BUFFER_CONFIG *get_ref_frame_buffer(VP9_COMP *cpi,
                                                 MV_REFERENCE_FRAME ref_frame) {
   VP9_COMMON *const cm = &cpi->common;
-  return &cm->yv12_fb[cm->ref_frame_map[get_ref_frame_idx(cpi, ref_frame)]];
+  return &cm->frame_bufs[cm->ref_frame_map[get_ref_frame_idx(cpi,
+                                                             ref_frame)]].buf;
 }
 
 void vp9_encode_frame(VP9_COMP *cpi);
 
 void vp9_pack_bitstream(VP9_COMP *cpi, uint8_t *dest, size_t *size);
-
-void vp9_activity_masking(VP9_COMP *cpi, MACROBLOCK *x);
 
 void vp9_set_speed_features(VP9_COMP *cpi);
 
@@ -826,8 +719,10 @@ static int get_token_alloc(int mb_rows, int mb_cols) {
 
 static void set_ref_ptrs(VP9_COMMON *cm, MACROBLOCKD *xd,
                          MV_REFERENCE_FRAME ref0, MV_REFERENCE_FRAME ref1) {
-  xd->block_refs[0] = &cm->frame_refs[ref0 - LAST_FRAME];
-  xd->block_refs[1] = &cm->frame_refs[ref1 - LAST_FRAME];
+  xd->block_refs[0] = &cm->frame_refs[ref0 >= LAST_FRAME ? ref0 - LAST_FRAME
+                                                         : 0];
+  xd->block_refs[1] = &cm->frame_refs[ref1 >= LAST_FRAME ? ref1 - LAST_FRAME
+                                                         : 0];
 }
 
 #ifdef __cplusplus

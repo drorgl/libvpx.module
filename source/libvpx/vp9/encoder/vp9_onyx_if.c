@@ -93,19 +93,10 @@ FILE *kf_list;
 FILE *keyfile;
 #endif
 
-#ifdef SPEEDSTATS
-unsigned int frames_at_speed[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                    0, 0, 0};
-#endif
-
-#if defined(SECTIONBITS_OUTPUT)
-extern unsigned __int64 Sectionbits[500];
-#endif
-
-extern void vp9_init_quantizer(VP9_COMP *cpi);
+void vp9_init_quantizer(VP9_COMP *cpi);
 
 static const double in_frame_q_adj_ratio[MAX_SEGMENTS] =
-  {1.0, 1.5, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+  {1.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 
 static INLINE void Scale2Ratio(int mode, int *hr, int *hs) {
   switch (mode) {
@@ -276,7 +267,6 @@ static void setup_in_frame_q_adj(VP9_COMP *cpi) {
     // Clear down the complexity map used for rd
     vpx_memset(cpi->complexity_map, 0, cm->mi_rows * cm->mi_cols);
 
-    // Enable segmentation
     vp9_enable_segmentation((VP9_PTR)cpi);
     vp9_clearall_segfeatures(seg);
 
@@ -287,7 +277,7 @@ static void setup_in_frame_q_adj(VP9_COMP *cpi) {
     vp9_disable_segfeature(seg, 0, SEG_LVL_ALT_Q);
 
     // Use some of the segments for in frame Q adjustment
-    for (segment = 1; segment < 3; segment++) {
+    for (segment = 1; segment < 2; segment++) {
       qindex_delta =
         vp9_compute_qdelta_by_rate(cpi, cm->base_qindex,
                                    in_frame_q_adj_ratio[segment]);
@@ -455,14 +445,17 @@ static void update_reference_segmentation_map(VP9_COMP *cpi) {
     cache_ptr += cm->mi_cols;
   }
 }
+static int is_slowest_mode(int mode) {
+  return (mode == MODE_SECONDPASS_BEST || mode == MODE_BESTQUALITY);
+}
 
-static void set_rd_speed_thresholds(VP9_COMP *cpi, int mode) {
+static void set_rd_speed_thresholds(VP9_COMP *cpi) {
   SPEED_FEATURES *sf = &cpi->sf;
   int i;
 
   // Set baseline threshold values
   for (i = 0; i < MAX_MODES; ++i)
-    sf->thresh_mult[i] = mode == 0 ? -500 : 0;
+    sf->thresh_mult[i] = is_slowest_mode(cpi->oxcf.mode) ? -500 : 0;
 
   sf->thresh_mult[THR_NEARESTMV] = 0;
   sf->thresh_mult[THR_NEARESTG] = 0;
@@ -538,12 +531,12 @@ static void set_rd_speed_thresholds(VP9_COMP *cpi, int mode) {
   }
 }
 
-static void set_rd_speed_thresholds_sub8x8(VP9_COMP *cpi, int mode) {
+static void set_rd_speed_thresholds_sub8x8(VP9_COMP *cpi) {
   SPEED_FEATURES *sf = &cpi->sf;
   int i;
 
   for (i = 0; i < MAX_REFS; ++i)
-    sf->thresh_mult_sub8x8[i] = mode == 0 ? -500 : 0;
+    sf->thresh_mult_sub8x8[i] = is_slowest_mode(cpi->oxcf.mode)  ? -500 : 0;
 
   sf->thresh_mult_sub8x8[THR_LAST] += 2500;
   sf->thresh_mult_sub8x8[THR_GOLD] += 2500;
@@ -578,7 +571,7 @@ static void set_good_speed_feature(VP9_COMMON *cm,
                                    int speed) {
   int i;
   sf->adaptive_rd_thresh = 1;
-  sf->recode_loop = (speed < 1);
+  sf->recode_loop = ((speed < 1) ? ALLOW_RECODE : ALLOW_RECODE_KFMAXBW);
   if (speed == 1) {
     sf->use_square_partition_only = !frame_is_intra_only(cm);
     sf->less_rectangular_check  = 1;
@@ -596,7 +589,7 @@ static void set_good_speed_feature(VP9_COMMON *cm,
     sf->adaptive_pred_interp_filter = 1;
     sf->auto_mv_step_size = 1;
     sf->adaptive_rd_thresh = 2;
-    sf->recode_loop = 2;
+    sf->recode_loop = ALLOW_RECODE_KFARFGF;
     sf->intra_y_mode_mask[TX_32X32] = INTRA_DC_H_V;
     sf->intra_uv_mode_mask[TX_32X32] = INTRA_DC_H_V;
     sf->intra_uv_mode_mask[TX_16X16] = INTRA_DC_H_V;
@@ -626,13 +619,13 @@ static void set_good_speed_feature(VP9_COMMON *cm,
     sf->disable_filter_search_var_thresh = 50;
     sf->comp_inter_joint_search_thresh = BLOCK_SIZES;
 
-    sf->auto_min_max_partition_size = 1;
+    sf->auto_min_max_partition_size = RELAXED_NEIGHBORING_MIN_MAX;
     sf->use_lastframe_partitioning = LAST_FRAME_PARTITION_LOW_MOTION;
     sf->adjust_partitioning_from_last_frame = 1;
     sf->last_partitioning_redo_frequency = 3;
 
     sf->adaptive_rd_thresh = 2;
-    sf->recode_loop = 2;
+    sf->recode_loop = ALLOW_RECODE_KFARFGF;
     sf->use_lp32x32fdct = 1;
     sf->mode_skip_start = 11;
     sf->intra_y_mode_mask[TX_32X32] = INTRA_DC_H_V;
@@ -663,7 +656,7 @@ static void set_good_speed_feature(VP9_COMMON *cm,
     sf->disable_filter_search_var_thresh = 100;
     sf->comp_inter_joint_search_thresh = BLOCK_SIZES;
 
-    sf->auto_min_max_partition_size = 1;
+    sf->auto_min_max_partition_size = RELAXED_NEIGHBORING_MIN_MAX;
     sf->use_lastframe_partitioning = LAST_FRAME_PARTITION_ALL;
     sf->adjust_partitioning_from_last_frame = 1;
     sf->last_partitioning_redo_frequency = 3;
@@ -698,7 +691,7 @@ static void set_good_speed_feature(VP9_COMMON *cm,
     sf->disable_filter_search_var_thresh = 200;
     sf->comp_inter_joint_search_thresh = BLOCK_SIZES;
 
-    sf->auto_min_max_partition_size = 1;
+    sf->auto_min_max_partition_size = RELAXED_NEIGHBORING_MIN_MAX;
     sf->use_lastframe_partitioning = LAST_FRAME_PARTITION_ALL;
     sf->adjust_partitioning_from_last_frame = 1;
     sf->last_partitioning_redo_frequency = 3;
@@ -749,7 +742,9 @@ static void set_rt_speed_feature(VP9_COMMON *cm,
                                  int speed) {
   sf->static_segmentation = 0;
   sf->adaptive_rd_thresh = 1;
-  sf->recode_loop = (speed < 1);
+  sf->recode_loop = ((speed < 1) ? ALLOW_RECODE : ALLOW_RECODE_KFMAXBW);
+  sf->encode_breakout_thresh = 1;
+
   if (speed == 1) {
     sf->use_square_partition_only = !frame_is_intra_only(cm);
     sf->less_rectangular_check = 1;
@@ -767,10 +762,11 @@ static void set_rt_speed_feature(VP9_COMMON *cm,
     sf->adaptive_pred_interp_filter = 1;
     sf->auto_mv_step_size = 1;
     sf->adaptive_rd_thresh = 2;
-    sf->recode_loop = 2;
+    sf->recode_loop = ALLOW_RECODE_KFARFGF;
     sf->intra_y_mode_mask[TX_32X32] = INTRA_DC_H_V;
     sf->intra_uv_mode_mask[TX_32X32] = INTRA_DC_H_V;
     sf->intra_uv_mode_mask[TX_16X16] = INTRA_DC_H_V;
+    sf->encode_breakout_thresh = 8;
   }
   if (speed >= 2) {
     sf->use_square_partition_only = !frame_is_intra_only(cm);
@@ -797,19 +793,20 @@ static void set_rt_speed_feature(VP9_COMMON *cm,
     sf->disable_filter_search_var_thresh = 50;
     sf->comp_inter_joint_search_thresh = BLOCK_SIZES;
 
-    sf->auto_min_max_partition_size = 1;
+    sf->auto_min_max_partition_size = RELAXED_NEIGHBORING_MIN_MAX;
     sf->use_lastframe_partitioning = LAST_FRAME_PARTITION_LOW_MOTION;
     sf->adjust_partitioning_from_last_frame = 1;
     sf->last_partitioning_redo_frequency = 3;
 
     sf->adaptive_rd_thresh = 2;
-    sf->recode_loop = 2;
+    sf->recode_loop = ALLOW_RECODE_KFARFGF;
     sf->use_lp32x32fdct = 1;
     sf->mode_skip_start = 11;
     sf->intra_y_mode_mask[TX_32X32] = INTRA_DC_H_V;
     sf->intra_y_mode_mask[TX_16X16] = INTRA_DC_H_V;
     sf->intra_uv_mode_mask[TX_32X32] = INTRA_DC_H_V;
     sf->intra_uv_mode_mask[TX_16X16] = INTRA_DC_H_V;
+    sf->encode_breakout_thresh = 200;
   }
   if (speed >= 3) {
     sf->use_square_partition_only = 1;
@@ -832,26 +829,37 @@ static void set_rt_speed_feature(VP9_COMMON *cm,
     sf->use_fast_coef_updates = 2;
     sf->adaptive_rd_thresh = 4;
     sf->mode_skip_start = 6;
+    sf->encode_breakout_thresh = 400;
   }
   if (speed >= 4) {
     sf->optimize_coefficients = 0;
+    sf->disable_split_mask = DISABLE_ALL_SPLIT;
+    sf->use_fast_lpf_pick = 2;
+    sf->encode_breakout_thresh = 700;
   }
   if (speed >= 5) {
     int i;
-    sf->disable_split_mask = DISABLE_ALL_SPLIT;
+    sf->adaptive_rd_thresh = 5;
+    sf->auto_min_max_partition_size = frame_is_intra_only(cm) ?
+        RELAXED_NEIGHBORING_MIN_MAX : STRICT_NEIGHBORING_MIN_MAX;
     sf->subpel_force_stop = 1;
     for (i = 0; i < TX_SIZES; i++) {
       sf->intra_y_mode_mask[i] = INTRA_DC_H_V;
       sf->intra_uv_mode_mask[i] = INTRA_DC_ONLY;
     }
-    sf->use_fast_lpf_pick = 2;
+    sf->frame_parameter_update = 0;
+    sf->encode_breakout_thresh = 1000;
+  }
+  if (speed >= 6) {
+    sf->always_this_block_size = BLOCK_16X16;
+    sf->use_pick_mode = 1;
+    sf->encode_breakout_thresh = 1000;
   }
 }
 
 void vp9_set_speed_features(VP9_COMP *cpi) {
   SPEED_FEATURES *sf = &cpi->sf;
   VP9_COMMON *cm = &cpi->common;
-  int mode = cpi->compressor_speed;
   int speed = cpi->speed;
   int i;
 
@@ -863,9 +871,9 @@ void vp9_set_speed_features(VP9_COMP *cpi) {
     cpi->mode_chosen_counts[i] = 0;
 
   // best quality defaults
-  sf->RD = 1;
+  sf->frame_parameter_update = 1;
   sf->search_method = NSTEP;
-  sf->recode_loop = 1;
+  sf->recode_loop = ALLOW_RECODE;
   sf->subpel_search_method = SUBPEL_TREE;
   sf->subpel_iters_per_step = 2;
   sf->subpel_force_stop = 0;
@@ -884,7 +892,7 @@ void vp9_set_speed_features(VP9_COMP *cpi) {
   sf->use_one_partition_size_always = 0;
   sf->less_rectangular_check = 0;
   sf->use_square_partition_only = 0;
-  sf->auto_min_max_partition_size = 0;
+  sf->auto_min_max_partition_size = NOT_IN_USE;
   sf->max_partition_size = BLOCK_64X64;
   sf->min_partition_size = BLOCK_4X4;
   sf->adjust_partitioning_from_last_frame = 0;
@@ -902,25 +910,28 @@ void vp9_set_speed_features(VP9_COMP *cpi) {
   sf->use_uv_intra_rd_estimate = 0;
   sf->use_fast_lpf_pick = 0;
   sf->use_fast_coef_updates = 0;
-  sf->using_small_partition_info = 0;
   sf->mode_skip_start = MAX_MODES;  // Mode index at which mode skip mask set
+  sf->use_pick_mode = 0;
+  sf->encode_breakout_thresh = 0;
 
-  switch (mode) {
-    case 0:  // This is the best quality mode.
+  switch (cpi->oxcf.mode) {
+    case MODE_BESTQUALITY:
+    case MODE_SECONDPASS_BEST:  // This is the best quality mode.
       cpi->diamond_search_sad = vp9_full_range_search;
       break;
-    case 1:
+    case MODE_FIRSTPASS:
+    case MODE_GOODQUALITY:
+    case MODE_SECONDPASS:
       set_good_speed_feature(cm, sf, speed);
       break;
-      break;
-    case 2:
+    case MODE_REALTIME:
       set_rt_speed_feature(cm, sf, speed);
       break;
   }; /* switch */
 
   // Set rd thresholds based on mode and speed setting
-  set_rd_speed_thresholds(cpi, mode);
-  set_rd_speed_thresholds_sub8x8(cpi, mode);
+  set_rd_speed_thresholds(cpi);
+  set_rd_speed_thresholds_sub8x8(cpi);
 
   // Slow quant, dct and trellis not worthwhile for first pass
   // so make sure they are always turned off.
@@ -930,7 +941,7 @@ void vp9_set_speed_features(VP9_COMP *cpi) {
 
   // No recode for 1 pass.
   if (cpi->pass == 0) {
-    sf->recode_loop = 0;
+    sf->recode_loop = DISALLOW_RECODE;
     sf->optimize_coefficients = 0;
   }
 
@@ -946,9 +957,9 @@ void vp9_set_speed_features(VP9_COMP *cpi) {
 
   cpi->mb.optimize = cpi->sf.optimize_coefficients == 1 && cpi->pass != 1;
 
-#ifdef SPEEDSTATS
-  frames_at_speed[cpi->speed]++;
-#endif
+  if (cpi->encode_breakout && cpi->oxcf.mode == MODE_REALTIME &&
+      sf->encode_breakout_thresh > cpi->encode_breakout)
+    cpi->encode_breakout = sf->encode_breakout_thresh;
 }
 
 static void alloc_raw_frame_buffers(VP9_COMP *cpi) {
@@ -964,7 +975,7 @@ static void alloc_raw_frame_buffers(VP9_COMP *cpi) {
   if (vp9_realloc_frame_buffer(&cpi->alt_ref_buffer,
                                cpi->oxcf.width, cpi->oxcf.height,
                                cm->subsampling_x, cm->subsampling_y,
-                               VP9_ENC_BORDER_IN_PIXELS))
+                               VP9_ENC_BORDER_IN_PIXELS, NULL, NULL, NULL))
     vpx_internal_error(&cm->error, VPX_CODEC_MEM_ERROR,
                        "Failed to allocate altref buffer");
 }
@@ -1032,14 +1043,14 @@ static void update_frame_size(VP9_COMP *cpi) {
   if (vp9_realloc_frame_buffer(&cpi->last_frame_uf,
                                cm->width, cm->height,
                                cm->subsampling_x, cm->subsampling_y,
-                               VP9_ENC_BORDER_IN_PIXELS))
+                               VP9_ENC_BORDER_IN_PIXELS, NULL, NULL, NULL))
     vpx_internal_error(&cm->error, VPX_CODEC_MEM_ERROR,
                        "Failed to reallocate last frame buffer");
 
   if (vp9_realloc_frame_buffer(&cpi->scaled_source,
                                cm->width, cm->height,
                                cm->subsampling_x, cm->subsampling_y,
-                               VP9_ENC_BORDER_IN_PIXELS))
+                               VP9_ENC_BORDER_IN_PIXELS, NULL, NULL, NULL))
     vpx_internal_error(&cm->error, VPX_CODEC_MEM_ERROR,
                        "Failed to reallocate scaled source buffer");
 
@@ -1096,8 +1107,6 @@ void vp9_new_framerate(VP9_COMP *cpi, double framerate) {
 
   cpi->oxcf.framerate = framerate;
   cpi->output_framerate = cpi->oxcf.framerate;
-  cpi->rc.per_frame_bandwidth = (int)(cpi->oxcf.target_bandwidth
-                                      / cpi->output_framerate);
   cpi->rc.av_per_frame_bandwidth = (int)(cpi->oxcf.target_bandwidth
                                          / cpi->output_framerate);
   cpi->rc.min_frame_bandwidth = (int)(cpi->rc.av_per_frame_bandwidth *
@@ -1147,6 +1156,121 @@ static int64_t rescale(int val, int64_t num, int denom) {
   return (llval * llnum / llden);
 }
 
+// Initialize layer context data from init_config().
+static void init_layer_context(VP9_COMP *const cpi) {
+  const VP9_CONFIG *const oxcf = &cpi->oxcf;
+  int temporal_layer = 0;
+  cpi->svc.spatial_layer_id = 0;
+  cpi->svc.temporal_layer_id = 0;
+  for (temporal_layer = 0; temporal_layer < cpi->svc.number_temporal_layers;
+      ++temporal_layer) {
+    LAYER_CONTEXT *const lc = &cpi->svc.layer_context[temporal_layer];
+    RATE_CONTROL *const lrc = &lc->rc;
+    lrc->avg_frame_qindex[INTER_FRAME] = q_trans[oxcf->worst_allowed_q];
+    lrc->last_q[INTER_FRAME] = q_trans[oxcf->worst_allowed_q];
+    lrc->ni_av_qi = q_trans[oxcf->worst_allowed_q];
+    lrc->total_actual_bits = 0;
+    lrc->total_target_vs_actual = 0;
+    lrc->ni_tot_qi = 0;
+    lrc->tot_q = 0.0;
+    lrc->avg_q = 0.0;
+    lrc->ni_frames = 0;
+    lrc->decimation_count = 0;
+    lrc->decimation_factor = 0;
+    lrc->rate_correction_factor = 1.0;
+    lrc->key_frame_rate_correction_factor = 1.0;
+    lc->target_bandwidth = oxcf->ts_target_bitrate[temporal_layer] *
+        1000;
+    lrc->buffer_level = rescale((int)(oxcf->starting_buffer_level),
+                               lc->target_bandwidth, 1000);
+    lrc->bits_off_target = lrc->buffer_level;
+  }
+}
+
+// Update the layer context from a change_config() call.
+static void update_layer_context_change_config(VP9_COMP *const cpi,
+                                               const int target_bandwidth) {
+  const VP9_CONFIG *const oxcf = &cpi->oxcf;
+  const RATE_CONTROL *const rc = &cpi->rc;
+  int temporal_layer = 0;
+  float bitrate_alloc = 1.0;
+  for (temporal_layer = 0; temporal_layer < cpi->svc.number_temporal_layers;
+      ++temporal_layer) {
+    LAYER_CONTEXT *const lc = &cpi->svc.layer_context[temporal_layer];
+    RATE_CONTROL *const lrc = &lc->rc;
+    lc->target_bandwidth = oxcf->ts_target_bitrate[temporal_layer] * 1000;
+    bitrate_alloc = (float)lc->target_bandwidth / (float)target_bandwidth;
+    // Update buffer-related quantities.
+    lc->starting_buffer_level = oxcf->starting_buffer_level * bitrate_alloc;
+    lc->optimal_buffer_level = oxcf->optimal_buffer_level * bitrate_alloc;
+    lc->maximum_buffer_size = oxcf->maximum_buffer_size * bitrate_alloc;
+    lrc->bits_off_target = MIN(lrc->bits_off_target, lc->maximum_buffer_size);
+    lrc->buffer_level = MIN(lrc->buffer_level, lc->maximum_buffer_size);
+    // Update framerate-related quantities.
+    lc->framerate = oxcf->framerate / oxcf->ts_rate_decimator[temporal_layer];
+    lrc->av_per_frame_bandwidth = (int)(lc->target_bandwidth / lc->framerate);
+    lrc->max_frame_bandwidth = rc->max_frame_bandwidth;
+    // Update qp-related quantities.
+    lrc->worst_quality = rc->worst_quality;
+    lrc->best_quality = rc->best_quality;
+  }
+}
+
+// Prior to encoding the frame, update framerate-related quantities
+// for the current layer.
+static void update_layer_framerate(VP9_COMP *const cpi) {
+  int temporal_layer = cpi->svc.temporal_layer_id;
+  const VP9_CONFIG *const oxcf = &cpi->oxcf;
+  LAYER_CONTEXT *const lc = &cpi->svc.layer_context[temporal_layer];
+  RATE_CONTROL *const lrc = &lc->rc;
+  lc->framerate = oxcf->framerate / oxcf->ts_rate_decimator[temporal_layer];
+  lrc->av_per_frame_bandwidth = (int)(lc->target_bandwidth / lc->framerate);
+  lrc->max_frame_bandwidth = cpi->rc.max_frame_bandwidth;
+  // Update the average layer frame size (non-cumulative per-frame-bw).
+  if (temporal_layer == 0) {
+    lc->avg_frame_size = lrc->av_per_frame_bandwidth;
+  } else {
+    double prev_layer_framerate = oxcf->framerate /
+        oxcf->ts_rate_decimator[temporal_layer - 1];
+    int prev_layer_target_bandwidth =
+        oxcf->ts_target_bitrate[temporal_layer - 1] * 1000;
+    lc->avg_frame_size =
+        (int)(lc->target_bandwidth - prev_layer_target_bandwidth) /
+        (lc->framerate - prev_layer_framerate);
+  }
+}
+
+// Prior to encoding the frame, set the layer context, for the current layer
+// to be encoded, to the cpi struct.
+static void restore_layer_context(VP9_COMP *const cpi) {
+  int temporal_layer = cpi->svc.temporal_layer_id;
+  LAYER_CONTEXT *lc = &cpi->svc.layer_context[temporal_layer];
+  int frame_since_key = cpi->rc.frames_since_key;
+  int frame_to_key = cpi->rc.frames_to_key;
+  cpi->rc = lc->rc;
+  cpi->oxcf.target_bandwidth = lc->target_bandwidth;
+  cpi->oxcf.starting_buffer_level = lc->starting_buffer_level;
+  cpi->oxcf.optimal_buffer_level = lc->optimal_buffer_level;
+  cpi->oxcf.maximum_buffer_size = lc->maximum_buffer_size;
+  cpi->output_framerate = lc->framerate;
+  // Reset the frames_since_key and frames_to_key counters to their values
+  // before the layer restore. Keep these defined for the stream (not layer).
+  cpi->rc.frames_since_key = frame_since_key;
+  cpi->rc.frames_to_key = frame_to_key;
+}
+
+// Save the layer context after encoding the frame.
+static void save_layer_context(VP9_COMP *const cpi) {
+  int temporal_layer = cpi->svc.temporal_layer_id;
+  LAYER_CONTEXT *lc = &cpi->svc.layer_context[temporal_layer];
+  lc->rc = cpi->rc;
+  lc->target_bandwidth = cpi->oxcf.target_bandwidth;
+  lc->starting_buffer_level = cpi->oxcf.starting_buffer_level;
+  lc->optimal_buffer_level = cpi->oxcf.optimal_buffer_level;
+  lc->maximum_buffer_size = cpi->oxcf.maximum_buffer_size;
+  lc->framerate = cpi->output_framerate;
+}
+
 static void set_tile_limits(VP9_COMP *cpi) {
   VP9_COMMON *const cm = &cpi->common;
 
@@ -1173,12 +1297,20 @@ static void init_config(VP9_PTR ptr, VP9_CONFIG *oxcf) {
   cm->subsampling_y = 0;
   vp9_alloc_compressor_data(cpi);
 
+  // Spatial scalability.
+  cpi->svc.number_spatial_layers = oxcf->ss_number_layers;
+  // Temporal scalability.
+  cpi->svc.number_temporal_layers = oxcf->ts_number_layers;
+
+  if (cpi->svc.number_temporal_layers > 1 &&
+      cpi->oxcf.end_usage == USAGE_STREAM_FROM_SERVER) {
+    init_layer_context(cpi);
+  }
+
   // change includes all joint functionality
   vp9_change_config(ptr, oxcf);
 
   // Initialize active best and worst q and average q values.
-  cpi->rc.active_worst_quality      = cpi->oxcf.worst_allowed_q;
-
   if (cpi->pass == 0 && cpi->oxcf.end_usage == USAGE_STREAM_FROM_SERVER) {
     cpi->rc.avg_frame_qindex[0] = cpi->oxcf.worst_allowed_q;
     cpi->rc.avg_frame_qindex[1] = cpi->oxcf.worst_allowed_q;
@@ -1213,16 +1345,12 @@ static void init_config(VP9_PTR ptr, VP9_CONFIG *oxcf) {
   cpi->gld_fb_idx = 1;
   cpi->alt_fb_idx = 2;
 
-  cpi->current_layer = 0;
-  cpi->use_svc = 0;
-
   set_tile_limits(cpi);
 
   cpi->fixed_divide[0] = 0;
   for (i = 1; i < 512; i++)
     cpi->fixed_divide[i] = 0x80000 / i;
 }
-
 
 void vp9_change_config(VP9_PTR ptr, VP9_CONFIG *oxcf) {
   VP9_COMP *cpi = (VP9_COMP *)(ptr);
@@ -1241,24 +1369,24 @@ void vp9_change_config(VP9_PTR ptr, VP9_CONFIG *oxcf) {
       // Real time and one pass deprecated in test code base
     case MODE_GOODQUALITY:
       cpi->pass = 0;
-      cpi->compressor_speed = 2;
       cpi->oxcf.cpu_used = clamp(cpi->oxcf.cpu_used, -5, 5);
       break;
 
     case MODE_FIRSTPASS:
       cpi->pass = 1;
-      cpi->compressor_speed = 1;
       break;
 
     case MODE_SECONDPASS:
       cpi->pass = 2;
-      cpi->compressor_speed = 1;
       cpi->oxcf.cpu_used = clamp(cpi->oxcf.cpu_used, -5, 5);
       break;
 
     case MODE_SECONDPASS_BEST:
       cpi->pass = 2;
-      cpi->compressor_speed = 0;
+      break;
+
+    case MODE_REALTIME:
+      cpi->pass = 0;
       break;
   }
 
@@ -1287,6 +1415,7 @@ void vp9_change_config(VP9_PTR ptr, VP9_CONFIG *oxcf) {
     for (i = 0; i < MAX_SEGMENTS; i++)
       cpi->segment_encode_breakout[i] = cpi->oxcf.encode_breakout;
   }
+  cpi->encode_breakout = cpi->oxcf.encode_breakout;
 
   // local file playback mode == really big buffer
   if (cpi->oxcf.end_usage == USAGE_LOCAL_FILE_PLAYBACK) {
@@ -1315,10 +1444,10 @@ void vp9_change_config(VP9_PTR ptr, VP9_CONFIG *oxcf) {
                                             cpi->oxcf.target_bandwidth, 1000);
   // Under a configuration change, where maximum_buffer_size may change,
   // keep buffer level clipped to the maximum allowed buffer size.
-  if (cpi->rc.bits_off_target > cpi->oxcf.maximum_buffer_size) {
-    cpi->rc.bits_off_target = cpi->oxcf.maximum_buffer_size;
-    cpi->rc.buffer_level = cpi->rc.bits_off_target;
-  }
+  cpi->rc.bits_off_target = MIN(cpi->rc.bits_off_target,
+                                cpi->oxcf.maximum_buffer_size);
+  cpi->rc.buffer_level = MIN(cpi->rc.buffer_level,
+                             cpi->oxcf.maximum_buffer_size);
 
   // Set up frame rate and related parameters rate control values.
   vp9_new_framerate(cpi, cpi->oxcf.framerate);
@@ -1328,15 +1457,10 @@ void vp9_change_config(VP9_PTR ptr, VP9_CONFIG *oxcf) {
   cpi->rc.best_quality = cpi->oxcf.best_allowed_q;
 
   // active values should only be modified if out of new range
-  cpi->rc.active_worst_quality = clamp(cpi->rc.active_worst_quality,
-                                       cpi->rc.best_quality,
-                                       cpi->rc.worst_quality);
 
   cpi->cq_target_quality = cpi->oxcf.cq_level;
 
   cm->interp_filter = DEFAULT_INTERP_FILTER;
-
-  cpi->target_bandwidth = cpi->oxcf.target_bandwidth;
 
   cm->display_width = cpi->oxcf.width;
   cm->display_height = cpi->oxcf.height;
@@ -1348,24 +1472,28 @@ void vp9_change_config(VP9_PTR ptr, VP9_CONFIG *oxcf) {
 
   if (cpi->initial_width) {
     // Increasing the size of the frame beyond the first seen frame, or some
-    // otherwise signalled maximum size, is not supported.
+    // otherwise signaled maximum size, is not supported.
     // TODO(jkoleszar): exit gracefully.
     assert(cm->width <= cpi->initial_width);
     assert(cm->height <= cpi->initial_height);
   }
   update_frame_size(cpi);
 
+  if (cpi->svc.number_temporal_layers > 1 &&
+      cpi->oxcf.end_usage == USAGE_STREAM_FROM_SERVER) {
+    update_layer_context_change_config(cpi, cpi->oxcf.target_bandwidth);
+  }
+
   cpi->speed = cpi->oxcf.cpu_used;
 
   if (cpi->oxcf.lag_in_frames == 0) {
-    // force to allowlag to 0 if lag_in_frames is 0;
+    // Force allow_lag to 0 if lag_in_frames is 0.
     cpi->oxcf.allow_lag = 0;
   } else if (cpi->oxcf.lag_in_frames > MAX_LAG_BUFFERS) {
-     // Limit on lag buffers as these are not currently dynamically allocated
+     // Limit on lag buffers as these are not currently dynamically allocated.
     cpi->oxcf.lag_in_frames = MAX_LAG_BUFFERS;
   }
 
-  // YX Temp
 #if CONFIG_MULTIPLE_ARF
   vp9_zero(cpi->alt_ref_source);
 #else
@@ -1578,6 +1706,8 @@ VP9_PTR vp9_create_compressor(VP9_CONFIG *oxcf) {
 
   vp9_create_common(cm);
 
+  cpi->use_svc = 0;
+
   init_config((VP9_PTR)cpi, oxcf);
 
   init_pick_mode_context(cpi);
@@ -1592,9 +1722,6 @@ VP9_PTR vp9_create_compressor(VP9_CONFIG *oxcf) {
   cpi->gold_is_last = 0;
   cpi->alt_is_last  = 0;
   cpi->gold_is_alt  = 0;
-
-  // Spatial scalability
-  cpi->number_spatial_layers = oxcf->ss_number_layers;
 
   // Create the encoder segmentation map and set all entries to 0
   CHECK_MEM_ERROR(cm, cpi->segmentation_map,
@@ -1620,11 +1747,6 @@ VP9_PTR vp9_create_compressor(VP9_CONFIG *oxcf) {
                     vpx_calloc(cm->MBs *
                                sizeof(*cpi->mbgraph_stats[i].mb_stats), 1));
   }
-
-#ifdef ENTROPY_STATS
-  if (cpi->pass != 1)
-    init_context_counters();
-#endif
 
   /*Initialize the feed-forward activity masking.*/
   cpi->activity_avg = 90 << 12;
@@ -1730,7 +1852,7 @@ VP9_PTR vp9_create_compressor(VP9_CONFIG *oxcf) {
 
   cpi->output_pkt_list = oxcf->output_pkt_list;
 
-  cpi->enable_encode_breakout = 1;
+  cpi->allow_encode_breakout = ENCODE_BREAKOUT_ENABLED;
 
   if (cpi->pass == 1) {
     vp9_init_first_pass(cpi);
@@ -1956,21 +2078,6 @@ void vp9_remove_compressor(VP9_PTR *ptr) {
     }
 #endif
 
-#if defined(SECTIONBITS_OUTPUT)
-
-    if (0) {
-      int i;
-      FILE *f = fopen("tokenbits.stt", "a");
-
-      for (i = 0; i < 28; i++)
-        fprintf(f, "%8d", (int)(Sectionbits[i] / 256));
-
-      fprintf(f, "\n");
-      fclose(f);
-    }
-
-#endif
-
 #if 0
     {
       printf("\n_pick_loop_filter_level:%d\n", cpi->time_pick_lpf / 1000);
@@ -2186,7 +2293,7 @@ int vp9_get_reference_enc(VP9_PTR ptr, int index, YV12_BUFFER_CONFIG **fb) {
   if (index < 0 || index >= REF_FRAMES)
     return -1;
 
-  *fb = &cm->yv12_fb[cm->ref_frame_map[index]];
+  *fb = &cm->frame_bufs[cm->ref_frame_map[index]].buf;
   return 0;
 }
 
@@ -2437,34 +2544,33 @@ static double compute_edge_pixel_proportion(YV12_BUFFER_CONFIG *frame) {
 
 // Function to test for conditions that indicate we should loop
 // back and recode a frame.
-static int recode_loop_test(VP9_COMP *cpi,
+static int recode_loop_test(const VP9_COMP *cpi,
                             int high_limit, int low_limit,
                             int q, int maxq, int minq) {
+  const VP9_COMMON *const cm = &cpi->common;
+  const RATE_CONTROL *const rc = &cpi->rc;
   int force_recode = 0;
-  VP9_COMMON *cm = &cpi->common;
 
   // Special case trap if maximum allowed frame size exceeded.
-  if (cpi->rc.projected_frame_size > cpi->rc.max_frame_bandwidth) {
+  if (rc->projected_frame_size > rc->max_frame_bandwidth) {
     force_recode = 1;
 
   // Is frame recode allowed.
   // Yes if either recode mode 1 is selected or mode 2 is selected
   // and the frame is a key frame, golden frame or alt_ref_frame
-  } else if ((cpi->sf.recode_loop == 1) ||
-      ((cpi->sf.recode_loop == 2) &&
-       ((cm->frame_type == KEY_FRAME) ||
-        cpi->refresh_golden_frame ||
-        cpi->refresh_alt_ref_frame))) {
+  } else if ((cpi->sf.recode_loop == ALLOW_RECODE) ||
+             ((cpi->sf.recode_loop == ALLOW_RECODE_KFARFGF) &&
+              (cm->frame_type == KEY_FRAME ||
+               cpi->refresh_golden_frame || cpi->refresh_alt_ref_frame))) {
     // General over and under shoot tests
-    if (((cpi->rc.projected_frame_size > high_limit) && (q < maxq)) ||
-        ((cpi->rc.projected_frame_size < low_limit) && (q > minq))) {
+    if ((rc->projected_frame_size > high_limit && q < maxq) ||
+        (rc->projected_frame_size < low_limit && q > minq)) {
       force_recode = 1;
     } else if (cpi->oxcf.end_usage == USAGE_CONSTRAINED_QUALITY) {
       // Deal with frame undershoot and whether or not we are
       // below the automatically set cq level.
       if (q > cpi->cq_target_quality &&
-          cpi->rc.projected_frame_size <
-          ((cpi->rc.this_frame_target * 7) >> 3)) {
+          rc->projected_frame_size < ((rc->this_frame_target * 7) >> 3)) {
         force_recode = 1;
       }
     }
@@ -2478,9 +2584,9 @@ static void update_reference_frames(VP9_COMP * const cpi) {
   // At this point the new frame has been encoded.
   // If any buffer copy / swapping is signaled it should be done here.
   if (cm->frame_type == KEY_FRAME) {
-    ref_cnt_fb(cm->fb_idx_ref_cnt,
+    ref_cnt_fb(cm->frame_bufs,
                &cm->ref_frame_map[cpi->gld_fb_idx], cm->new_fb_idx);
-    ref_cnt_fb(cm->fb_idx_ref_cnt,
+    ref_cnt_fb(cm->frame_bufs,
                &cm->ref_frame_map[cpi->alt_fb_idx], cm->new_fb_idx);
   }
 #if CONFIG_MULTIPLE_ARF
@@ -2501,7 +2607,7 @@ static void update_reference_frames(VP9_COMP * const cpi) {
      */
     int tmp;
 
-    ref_cnt_fb(cm->fb_idx_ref_cnt,
+    ref_cnt_fb(cm->frame_bufs,
                &cm->ref_frame_map[cpi->alt_fb_idx], cm->new_fb_idx);
 
     tmp = cpi->alt_fb_idx;
@@ -2515,18 +2621,18 @@ static void update_reference_frames(VP9_COMP * const cpi) {
         arf_idx = cpi->arf_buffer_idx[cpi->sequence_number + 1];
       }
 #endif
-      ref_cnt_fb(cm->fb_idx_ref_cnt,
+      ref_cnt_fb(cm->frame_bufs,
                  &cm->ref_frame_map[arf_idx], cm->new_fb_idx);
     }
 
     if (cpi->refresh_golden_frame) {
-      ref_cnt_fb(cm->fb_idx_ref_cnt,
+      ref_cnt_fb(cm->frame_bufs,
                  &cm->ref_frame_map[cpi->gld_fb_idx], cm->new_fb_idx);
     }
   }
 
   if (cpi->refresh_last_frame) {
-    ref_cnt_fb(cm->fb_idx_ref_cnt,
+    ref_cnt_fb(cm->frame_bufs,
                &cm->ref_frame_map[cpi->lst_fb_idx], cm->new_fb_idx);
   }
 }
@@ -2564,20 +2670,20 @@ static void scale_references(VP9_COMP *cpi) {
 
   for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
     const int idx = cm->ref_frame_map[get_ref_frame_idx(cpi, ref_frame)];
-    YV12_BUFFER_CONFIG *ref = &cm->yv12_fb[idx];
+    YV12_BUFFER_CONFIG *const ref = &cm->frame_bufs[idx].buf;
 
     if (ref->y_crop_width != cm->width ||
         ref->y_crop_height != cm->height) {
       const int new_fb = get_free_fb(cm);
-      vp9_realloc_frame_buffer(&cm->yv12_fb[new_fb],
+      vp9_realloc_frame_buffer(&cm->frame_bufs[new_fb].buf,
                                cm->width, cm->height,
                                cm->subsampling_x, cm->subsampling_y,
-                               VP9_ENC_BORDER_IN_PIXELS);
-      scale_and_extend_frame(ref, &cm->yv12_fb[new_fb]);
+                               VP9_ENC_BORDER_IN_PIXELS, NULL, NULL, NULL);
+      scale_and_extend_frame(ref, &cm->frame_bufs[new_fb].buf);
       cpi->scaled_ref_idx[ref_frame - 1] = new_fb;
     } else {
       cpi->scaled_ref_idx[ref_frame - 1] = idx;
-      cm->fb_idx_ref_cnt[idx]++;
+      cm->frame_bufs[idx].ref_count++;
     }
   }
 }
@@ -2587,7 +2693,7 @@ static void release_scaled_references(VP9_COMP *cpi) {
   int i;
 
   for (i = 0; i < 3; i++)
-    cm->fb_idx_ref_cnt[cpi->scaled_ref_idx[i]]--;
+    cm->frame_bufs[cpi->scaled_ref_idx[i]].ref_count--;
 }
 
 static void full_to_model_count(unsigned int *model_count,
@@ -2625,7 +2731,7 @@ static void output_frame_level_debug_stats(VP9_COMP *cpi) {
   if (cpi->twopass.total_left_stats.coded_error != 0.0)
     fprintf(f, "%10u %10d %10d %10d %10d %10d "
         "%10"PRId64" %10"PRId64" %10d "
-        "%7.2lf %7.2lf %7.2lf %7.2lf %7.2lf %7.2lf"
+        "%7.2lf %7.2lf %7.2lf %7.2lf %7.2lf"
         "%6d %6d %5d %5d %5d "
         "%10"PRId64" %10.3lf"
         "%10lf %8u %10d %10d %10d\n",
@@ -2638,7 +2744,7 @@ static void output_frame_level_debug_stats(VP9_COMP *cpi) {
         cpi->rc.total_actual_bits, cm->base_qindex,
         vp9_convert_qindex_to_q(cm->base_qindex),
         (double)vp9_dc_quant(cm->base_qindex, 0) / 4.0,
-        vp9_convert_qindex_to_q(cpi->rc.active_worst_quality), cpi->rc.avg_q,
+        cpi->rc.avg_q,
         vp9_convert_qindex_to_q(cpi->rc.ni_av_qi),
         vp9_convert_qindex_to_q(cpi->cq_target_quality),
         cpi->refresh_last_frame, cpi->refresh_golden_frame,
@@ -2672,25 +2778,67 @@ static void output_frame_level_debug_stats(VP9_COMP *cpi) {
 }
 #endif
 
+static void encode_without_recode_loop(VP9_COMP *cpi,
+                                       size_t *size,
+                                       uint8_t *dest,
+                                       int q) {
+  VP9_COMMON *const cm = &cpi->common;
+  vp9_clear_system_state();  // __asm emms;
+  vp9_set_quantizer(cpi, q);
+
+  // Set up entropy context depending on frame type. The decoder mandates
+  // the use of the default context, index 0, for keyframes and inter
+  // frames where the error_resilient_mode or intra_only flag is set. For
+  // other inter-frames the encoder currently uses only two contexts;
+  // context 1 for ALTREF frames and context 0 for the others.
+  if (cm->frame_type == KEY_FRAME) {
+    vp9_setup_key_frame(cpi);
+  } else {
+    if (!cm->intra_only && !cm->error_resilient_mode) {
+      cpi->common.frame_context_idx = cpi->refresh_alt_ref_frame;
+    }
+    vp9_setup_inter_frame(cpi);
+  }
+  // Variance adaptive and in frame q adjustment experiments are mutually
+  // exclusive.
+  if (cpi->oxcf.aq_mode == VARIANCE_AQ) {
+    vp9_vaq_frame_setup(cpi);
+  } else if (cpi->oxcf.aq_mode == COMPLEXITY_AQ) {
+    setup_in_frame_q_adj(cpi);
+  }
+  // transform / motion compensation build reconstruction frame
+  vp9_encode_frame(cpi);
+
+  // Update the skip mb flag probabilities based on the distribution
+  // seen in the last encoder iteration.
+  // update_base_skip_probs(cpi);
+  vp9_clear_system_state();  // __asm emms;
+}
+
 static void encode_with_recode_loop(VP9_COMP *cpi,
                                     size_t *size,
                                     uint8_t *dest,
-                                    int *q,
+                                    int q,
                                     int bottom_index,
-                                    int top_index,
-                                    int frame_over_shoot_limit,
-                                    int frame_under_shoot_limit) {
+                                    int top_index) {
   VP9_COMMON *const cm = &cpi->common;
   int loop_count = 0;
   int loop = 0;
   int overshoot_seen = 0;
   int undershoot_seen = 0;
   int q_low = bottom_index, q_high = top_index;
+  int frame_over_shoot_limit;
+  int frame_under_shoot_limit;
+
+  // Decide frame size bounds
+  vp9_rc_compute_frame_size_bounds(cpi, cpi->rc.this_frame_target,
+                                   &frame_under_shoot_limit,
+                                   &frame_over_shoot_limit);
 
   do {
     vp9_clear_system_state();  // __asm emms;
 
-    vp9_set_quantizer(cpi, *q);
+    vp9_set_quantizer(cpi, q);
 
     if (loop_count == 0) {
       // Set up entropy context depending on frame type. The decoder mandates
@@ -2717,7 +2865,6 @@ static void encode_with_recode_loop(VP9_COMP *cpi,
     }
 
     // transform / motion compensation build reconstruction frame
-
     vp9_encode_frame(cpi);
 
     // Update the skip mb flag probabilities based on the distribution
@@ -2729,10 +2876,12 @@ static void encode_with_recode_loop(VP9_COMP *cpi,
     // Dummy pack of the bitstream using up to date stats to get an
     // accurate estimate of output frame size to determine if we need
     // to recode.
-    if (cpi->sf.recode_loop != 0) {
+    if (cpi->sf.recode_loop >= ALLOW_RECODE_KFARFGF) {
       vp9_save_coding_context(cpi);
       cpi->dummy_packing = 1;
-      vp9_pack_bitstream(cpi, dest, size);
+      if (!cpi->sf.use_pick_mode)
+        vp9_pack_bitstream(cpi, dest, size);
+
       cpi->rc.projected_frame_size = (*size) << 3;
       vp9_restore_coding_context(cpi);
 
@@ -2746,7 +2895,7 @@ static void encode_with_recode_loop(VP9_COMP *cpi,
       if ((cm->frame_type == KEY_FRAME) &&
            cpi->rc.this_key_frame_forced &&
            (cpi->rc.projected_frame_size < cpi->rc.max_frame_bandwidth)) {
-        int last_q = *q;
+        int last_q = q;
         int kf_err = vp9_calc_ss_err(cpi->Source, get_frame_new_buffer(cm));
 
         int high_err_target = cpi->ambient_err;
@@ -2762,32 +2911,32 @@ static void encode_with_recode_loop(VP9_COMP *cpi,
             (kf_err > low_err_target &&
              cpi->rc.projected_frame_size <= frame_under_shoot_limit)) {
           // Lower q_high
-          q_high = *q > q_low ? *q - 1 : q_low;
+          q_high = q > q_low ? q - 1 : q_low;
 
           // Adjust Q
-          *q = ((*q) * high_err_target) / kf_err;
-          *q = MIN((*q), (q_high + q_low) >> 1);
+          q = (q * high_err_target) / kf_err;
+          q = MIN(q, (q_high + q_low) >> 1);
         } else if (kf_err < low_err_target &&
                    cpi->rc.projected_frame_size >= frame_under_shoot_limit) {
           // The key frame is much better than the previous frame
           // Raise q_low
-          q_low = *q < q_high ? *q + 1 : q_high;
+          q_low = q < q_high ? q + 1 : q_high;
 
           // Adjust Q
-          *q = ((*q) * low_err_target) / kf_err;
-          *q = MIN((*q), (q_high + q_low + 1) >> 1);
+          q = (q * low_err_target) / kf_err;
+          q = MIN(q, (q_high + q_low + 1) >> 1);
         }
 
         // Clamp Q to upper and lower limits:
-        *q = clamp(*q, q_low, q_high);
+        q = clamp(q, q_low, q_high);
 
-        loop = *q != last_q;
+        loop = q != last_q;
       } else if (recode_loop_test(
           cpi, frame_over_shoot_limit, frame_under_shoot_limit,
-          *q, MAX(q_high, top_index), bottom_index)) {
+          q, MAX(q_high, top_index), bottom_index)) {
         // Is the projected frame size out of range and are we allowed
         // to attempt to recode.
-        int last_q = *q;
+        int last_q = q;
         int retries = 0;
 
         // Frame size out of permitted range:
@@ -2800,23 +2949,23 @@ static void encode_with_recode_loop(VP9_COMP *cpi,
             q_high = cpi->rc.worst_quality;
 
           // Raise Qlow as to at least the current value
-          q_low = *q < q_high ? *q + 1 : q_high;
+          q_low = q < q_high ? q + 1 : q_high;
 
           if (undershoot_seen || loop_count > 1) {
             // Update rate_correction_factor unless
             vp9_rc_update_rate_correction_factors(cpi, 1);
 
-            *q = (q_high + q_low + 1) / 2;
+            q = (q_high + q_low + 1) / 2;
           } else {
             // Update rate_correction_factor unless
             vp9_rc_update_rate_correction_factors(cpi, 0);
 
-            *q = vp9_rc_regulate_q(cpi, cpi->rc.this_frame_target,
+            q = vp9_rc_regulate_q(cpi, cpi->rc.this_frame_target,
                                    bottom_index, MAX(q_high, top_index));
 
-            while (*q < q_low && retries < 10) {
+            while (q < q_low && retries < 10) {
               vp9_rc_update_rate_correction_factors(cpi, 0);
-              *q = vp9_rc_regulate_q(cpi, cpi->rc.this_frame_target,
+              q = vp9_rc_regulate_q(cpi, cpi->rc.this_frame_target,
                                      bottom_index, MAX(q_high, top_index));
               retries++;
             }
@@ -2825,27 +2974,27 @@ static void encode_with_recode_loop(VP9_COMP *cpi,
           overshoot_seen = 1;
         } else {
           // Frame is too small
-          q_high = *q > q_low ? *q - 1 : q_low;
+          q_high = q > q_low ? q - 1 : q_low;
 
           if (overshoot_seen || loop_count > 1) {
             vp9_rc_update_rate_correction_factors(cpi, 1);
-            *q = (q_high + q_low) / 2;
+            q = (q_high + q_low) / 2;
           } else {
             vp9_rc_update_rate_correction_factors(cpi, 0);
-            *q = vp9_rc_regulate_q(cpi, cpi->rc.this_frame_target,
+            q = vp9_rc_regulate_q(cpi, cpi->rc.this_frame_target,
                                    bottom_index, top_index);
             // Special case reset for qlow for constrained quality.
             // This should only trigger where there is very substantial
             // undershoot on a frame and the auto cq level is above
             // the user passsed in value.
             if (cpi->oxcf.end_usage == USAGE_CONSTRAINED_QUALITY &&
-                *q < q_low) {
-              q_low = *q;
+                q < q_low) {
+              q_low = q;
             }
 
-            while (*q > q_high && retries < 10) {
+            while (q > q_high && retries < 10) {
               vp9_rc_update_rate_correction_factors(cpi, 0);
-              *q = vp9_rc_regulate_q(cpi, cpi->rc.this_frame_target,
+              q = vp9_rc_regulate_q(cpi, cpi->rc.this_frame_target,
                                      bottom_index, top_index);
               retries++;
             }
@@ -2855,9 +3004,9 @@ static void encode_with_recode_loop(VP9_COMP *cpi,
         }
 
         // Clamp Q to upper and lower limits:
-        *q = clamp(*q, q_low, q_high);
+        q = clamp(q, q_low, q_high);
 
-        loop = *q != last_q;
+        loop = q != last_q;
       } else {
         loop = 0;
       }
@@ -2930,20 +3079,18 @@ static void encode_frame_to_data_rate(VP9_COMP *cpi,
   VP9_COMMON *const cm = &cpi->common;
   TX_SIZE t;
   int q;
-  int frame_over_shoot_limit;
-  int frame_under_shoot_limit;
   int top_index;
   int bottom_index;
 
   SPEED_FEATURES *const sf = &cpi->sf;
-  unsigned int max_mv_def = MIN(cpi->common.width, cpi->common.height);
+  unsigned int max_mv_def = MIN(cm->width, cm->height);
   struct segmentation *const seg = &cm->seg;
 
   set_ext_overrides(cpi);
 
   /* Scale the source buffer, if required. */
-  if (cm->mi_cols * 8 != cpi->un_scaled_source->y_width ||
-      cm->mi_rows * 8 != cpi->un_scaled_source->y_height) {
+  if (cm->mi_cols * MI_SIZE != cpi->un_scaled_source->y_width ||
+      cm->mi_rows * MI_SIZE != cpi->un_scaled_source->y_height) {
     scale_and_extend_frame_nonnormative(cpi->un_scaled_source,
                                         &cpi->scaled_source);
     cpi->Source = &cpi->scaled_source;
@@ -2952,20 +3099,7 @@ static void encode_frame_to_data_rate(VP9_COMP *cpi,
   }
   scale_references(cpi);
 
-  // Clear down mmx registers to allow floating point in what follows.
   vp9_clear_system_state();
-
-  // For an alt ref frame in 2 pass we skip the call to the second
-  // pass function that sets the target bandwidth so we must set it here.
-  if (cpi->refresh_alt_ref_frame) {
-    // Set a per frame bit target for the alt ref frame.
-    cpi->rc.per_frame_bandwidth = cpi->twopass.gf_bits;
-    // Set a per second target bitrate.
-    cpi->target_bandwidth = (int)(cpi->twopass.gf_bits * cpi->output_framerate);
-  }
-
-  // Clear zbin over-quant value and mode boost values.
-  cpi->zbin_mode_boost = 0;
 
   // Enable or disable mode based tweaking of the zbin.
   // For 2 pass only used where GF/ARF prediction quality
@@ -2974,7 +3108,7 @@ static void encode_frame_to_data_rate(VP9_COMP *cpi,
   cpi->zbin_mode_boost_enabled = 0;
 
   // Current default encoder behavior for the altref sign bias.
-  cpi->common.ref_frame_sign_bias[ALTREF_FRAME] = cpi->rc.source_alt_ref_active;
+  cm->ref_frame_sign_bias[ALTREF_FRAME] = cpi->rc.source_alt_ref_active;
 
   // Set default state for segment based loop filter update flags.
   cm->lf.mode_ref_delta_update = 0;
@@ -2983,7 +3117,7 @@ static void encode_frame_to_data_rate(VP9_COMP *cpi,
   cpi->mv_step_param = vp9_init_search_range(cpi, max_mv_def);
   // Initialize cpi->max_mv_magnitude and cpi->mv_step_param if appropriate.
   if (sf->auto_mv_step_size) {
-    if (frame_is_intra_only(&cpi->common)) {
+    if (frame_is_intra_only(cm)) {
       // Initialize max_mv_magnitude for use in the first INTER frame
       // after a key/intra-only frame.
       cpi->max_mv_magnitude = max_mv_def;
@@ -2992,8 +3126,8 @@ static void encode_frame_to_data_rate(VP9_COMP *cpi,
         // Allow mv_steps to correspond to twice the max mv magnitude found
         // in the previous frame, capped by the default max_mv_magnitude based
         // on resolution.
-        cpi->mv_step_param = vp9_init_search_range(
-            cpi, MIN(max_mv_def, 2 * cpi->max_mv_magnitude));
+        cpi->mv_step_param = vp9_init_search_range(cpi, MIN(max_mv_def, 2 *
+                                 cpi->max_mv_magnitude));
       cpi->max_mv_magnitude = 0;
     }
   }
@@ -3030,21 +3164,17 @@ static void encode_frame_to_data_rate(VP9_COMP *cpi,
   // static regions if indicated.
   // Only allowed in second pass of two pass (as requires lagged coding)
   // and if the relevant speed feature flag is set.
-  if ((cpi->pass == 2) && (cpi->sf.static_segmentation)) {
+  if (cpi->pass == 2 && cpi->sf.static_segmentation)
     configure_static_seg_features(cpi);
-  }
 
   // For 1 pass CBR, check if we are dropping this frame.
   // Never drop on key frame.
   if (cpi->pass == 0 &&
       cpi->oxcf.end_usage == USAGE_STREAM_FROM_SERVER &&
       cm->frame_type != KEY_FRAME) {
-    if (vp9_drop_frame(cpi)) {
-      // Update buffer level with zero size, update frame counters, and return.
-      vp9_update_buffer_level(cpi, 0);
-      cm->last_frame_type = cm->frame_type;
+    if (vp9_rc_drop_frame(cpi)) {
       vp9_rc_postencode_update_drop_frame(cpi);
-      cm->current_video_frame++;
+      ++cm->current_video_frame;
       return;
     }
   }
@@ -3082,18 +3212,8 @@ static void encode_frame_to_data_rate(VP9_COMP *cpi,
   vp9_write_yuv_frame(cpi->Source);
 #endif
 
-  // Decide how big to make the frame.
-  vp9_rc_pick_frame_size_target(cpi);
-
-  // Decide frame size bounds
-  vp9_rc_compute_frame_size_bounds(cpi, cpi->rc.this_frame_target,
-                                   &frame_under_shoot_limit,
-                                   &frame_over_shoot_limit);
-
-  // Decide q and q bounds
-  q = vp9_rc_pick_q_and_adjust_q_bounds(cpi,
-                                        &bottom_index,
-                                        &top_index);
+  // Decide q and q bounds.
+  q = vp9_rc_pick_q_and_bounds(cpi, &bottom_index, &top_index);
 
   if (!frame_is_intra_only(cm)) {
     cm->interp_filter = DEFAULT_INTERP_FILTER;
@@ -3101,14 +3221,11 @@ static void encode_frame_to_data_rate(VP9_COMP *cpi,
     set_high_precision_mv(cpi, (q < HIGH_PRECISION_MV_QTHRESH));
   }
 
-  encode_with_recode_loop(cpi,
-                          size,
-                          dest,
-                          &q,
-                          bottom_index,
-                          top_index,
-                          frame_over_shoot_limit,
-                          frame_under_shoot_limit);
+  if (cpi->sf.recode_loop == DISALLOW_RECODE) {
+    encode_without_recode_loop(cpi, size, dest, q);
+  } else {
+    encode_with_recode_loop(cpi, size, dest, q, bottom_index, top_index);
+  }
 
   // Special case code to reduce pulsing when key frames are forced at a
   // fixed interval. Note the reconstruction error if it is the frame before
@@ -3155,41 +3272,30 @@ static void encode_frame_to_data_rate(VP9_COMP *cpi,
   update_reference_frames(cpi);
 
   for (t = TX_4X4; t <= TX_32X32; t++)
-    full_to_model_counts(cpi->common.counts.coef[t],
-                         cpi->coef_counts[t]);
-  if (!cpi->common.error_resilient_mode &&
-      !cpi->common.frame_parallel_decoding_mode) {
-    vp9_adapt_coef_probs(&cpi->common);
-  }
+    full_to_model_counts(cm->counts.coef[t], cpi->coef_counts[t]);
 
-  if (!frame_is_intra_only(&cpi->common)) {
-    if (!cpi->common.error_resilient_mode &&
-        !cpi->common.frame_parallel_decoding_mode) {
-      vp9_adapt_mode_probs(&cpi->common);
-      vp9_adapt_mv_probs(&cpi->common, cpi->common.allow_high_precision_mv);
+  if (!cm->error_resilient_mode && !cm->frame_parallel_decoding_mode)
+    vp9_adapt_coef_probs(cm);
+
+  if (!frame_is_intra_only(cm)) {
+    if (!cm->error_resilient_mode && !cm->frame_parallel_decoding_mode) {
+      vp9_adapt_mode_probs(cm);
+      vp9_adapt_mv_probs(cm, cm->allow_high_precision_mv);
     }
   }
-
-#ifdef ENTROPY_STATS
-  vp9_update_mode_context_stats(cpi);
-#endif
-
-  /* Move storing frame_type out of the above loop since it is also
-   * needed in motion search besides loopfilter */
-  cm->last_frame_type = cm->frame_type;
 
 #if 0
   output_frame_level_debug_stats(cpi);
 #endif
   if (cpi->refresh_golden_frame == 1)
-    cm->frame_flags = cm->frame_flags | FRAMEFLAGS_GOLDEN;
+    cm->frame_flags |= FRAMEFLAGS_GOLDEN;
   else
-    cm->frame_flags = cm->frame_flags&~FRAMEFLAGS_GOLDEN;
+    cm->frame_flags &= ~FRAMEFLAGS_GOLDEN;
 
   if (cpi->refresh_alt_ref_frame == 1)
-    cm->frame_flags = cm->frame_flags | FRAMEFLAGS_ALTREF;
+    cm->frame_flags |= FRAMEFLAGS_ALTREF;
   else
-    cm->frame_flags = cm->frame_flags&~FRAMEFLAGS_ALTREF;
+    cm->frame_flags &= ~FRAMEFLAGS_ALTREF;
 
   get_ref_frame_flags(cpi);
 
@@ -3236,7 +3342,9 @@ static void encode_frame_to_data_rate(VP9_COMP *cpi,
   cm->last_height = cm->height;
 
   // reset to normal state now that we are done.
-  cm->last_show_frame = cm->show_frame;
+  if (!cm->show_existing_frame)
+    cm->last_show_frame = cm->show_frame;
+
   if (cm->show_frame) {
     // current mip will be the prev_mip for the next frame
     MODE_INFO *temp = cm->prev_mip;
@@ -3257,6 +3365,7 @@ static void encode_frame_to_data_rate(VP9_COMP *cpi,
     // update not a real frame
     ++cm->current_video_frame;
   }
+
   // restore prev_mi
   cm->prev_mi = cm->prev_mip + cm->mode_info_stride + 1;
   cm->prev_mi_grid_visible = cm->prev_mi_grid_base + cm->mode_info_stride + 1;
@@ -3264,16 +3373,16 @@ static void encode_frame_to_data_rate(VP9_COMP *cpi,
 
 static void SvcEncode(VP9_COMP *cpi, size_t *size, uint8_t *dest,
                       unsigned int *frame_flags) {
-  vp9_get_svc_params(cpi);
+  vp9_rc_get_svc_params(cpi);
   encode_frame_to_data_rate(cpi, size, dest, frame_flags);
 }
 
 static void Pass0Encode(VP9_COMP *cpi, size_t *size, uint8_t *dest,
                         unsigned int *frame_flags) {
   if (cpi->oxcf.end_usage == USAGE_STREAM_FROM_SERVER) {
-    vp9_get_one_pass_cbr_params(cpi);
+    vp9_rc_get_one_pass_cbr_params(cpi);
   } else {
-    vp9_get_one_pass_params(cpi);
+    vp9_rc_get_one_pass_vbr_params(cpi);
   }
   encode_frame_to_data_rate(cpi, size, dest, frame_flags);
 }
@@ -3284,18 +3393,17 @@ static void Pass1Encode(VP9_COMP *cpi, size_t *size, uint8_t *dest,
   (void) dest;
   (void) frame_flags;
 
-  vp9_get_first_pass_params(cpi);
+  vp9_rc_get_first_pass_params(cpi);
   vp9_set_quantizer(cpi, find_fp_qindex());
   vp9_first_pass(cpi);
 }
 
 static void Pass2Encode(VP9_COMP *cpi, size_t *size,
                         uint8_t *dest, unsigned int *frame_flags) {
-  cpi->enable_encode_breakout = 1;
+  cpi->allow_encode_breakout = ENCODE_BREAKOUT_ENABLED;
 
-  vp9_get_second_pass_params(cpi);
+  vp9_rc_get_second_pass_params(cpi);
   encode_frame_to_data_rate(cpi, size, dest, frame_flags);
-  // vp9_print_modes_and_motion_vectors(&cpi->common, "encode.stt");
 
   vp9_twopass_postencode_update(cpi, *size);
 }
@@ -3317,6 +3425,7 @@ int vp9_receive_raw_frame(VP9_PTR ptr, unsigned int frame_flags,
                           YV12_BUFFER_CONFIG *sd, int64_t time_stamp,
                           int64_t end_time) {
   VP9_COMP              *cpi = (VP9_COMP *) ptr;
+  VP9_COMMON             *cm = &cpi->common;
   struct vpx_usec_timer  timer;
   int                    res = 0;
   const int    subsampling_x = sd->uv_width  < sd->y_width;
@@ -3329,6 +3438,12 @@ int vp9_receive_raw_frame(VP9_PTR ptr, unsigned int frame_flags,
     res = -1;
   vpx_usec_timer_mark(&timer);
   cpi->time_receive_data += vpx_usec_timer_elapsed(&timer);
+
+  if (cm->version == 0 && (subsampling_x != 1 || subsampling_y != 1)) {
+    vpx_internal_error(&cm->error, VPX_CODEC_INVALID_PARAM,
+                       "Non-4:2:0 color space requires profile >= 1");
+    res = -1;
+  }
 
   return res;
 }
@@ -3445,8 +3560,7 @@ int vp9_get_compressed_data(VP9_PTR ptr, unsigned int *frame_flags,
       if (cpi->oxcf.arnr_max_frames > 0) {
         // Produce the filtered ARF frame.
         // TODO(agrange) merge these two functions.
-        configure_arnr_filter(cpi, cm->current_video_frame + frames_to_arf,
-                              cpi->rc.gfu_boost);
+        vp9_configure_arnr_filter(cpi, frames_to_arf, cpi->rc.gfu_boost);
         vp9_temporal_filter_prepare(cpi, frames_to_arf);
         vp9_extend_frame_borders(&cpi->alt_ref_buffer,
                                  cm->subsampling_x, cm->subsampling_y);
@@ -3462,7 +3576,9 @@ int vp9_get_compressed_data(VP9_PTR ptr, unsigned int *frame_flags,
 #if CONFIG_MULTIPLE_ARF
       if (!cpi->multi_arf_enabled)
 #endif
-        cpi->rc.source_alt_ref_pending = 0;   // Clear Pending altf Ref flag.
+        cpi->rc.source_alt_ref_pending = 0;
+    } else {
+      cpi->rc.source_alt_ref_pending = 0;
     }
   }
 
@@ -3535,6 +3651,12 @@ int vp9_get_compressed_data(VP9_PTR ptr, unsigned int *frame_flags,
     adjust_frame_rate(cpi);
   }
 
+  if (cpi->svc.number_temporal_layers > 1 &&
+      cpi->oxcf.end_usage == USAGE_STREAM_FROM_SERVER) {
+    update_layer_framerate(cpi);
+    restore_layer_context(cpi);
+  }
+
   // start with a 0 size frame
   *size = 0;
 
@@ -3544,7 +3666,7 @@ int vp9_get_compressed_data(VP9_PTR ptr, unsigned int *frame_flags,
   /* find a free buffer for the new frame, releasing the reference previously
    * held.
    */
-  cm->fb_idx_ref_cnt[cm->new_fb_idx]--;
+  cm->frame_bufs[cm->new_fb_idx].ref_count--;
   cm->new_fb_idx = get_free_fb(cm);
 
 #if CONFIG_MULTIPLE_ARF
@@ -3564,12 +3686,11 @@ int vp9_get_compressed_data(VP9_PTR ptr, unsigned int *frame_flags,
   vp9_realloc_frame_buffer(get_frame_new_buffer(cm),
                            cm->width, cm->height,
                            cm->subsampling_x, cm->subsampling_y,
-                           VP9_ENC_BORDER_IN_PIXELS);
+                           VP9_ENC_BORDER_IN_PIXELS, NULL, NULL, NULL);
 
   for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
     const int idx = cm->ref_frame_map[get_ref_frame_idx(cpi, ref_frame)];
-    YV12_BUFFER_CONFIG *const buf = &cm->yv12_fb[idx];
-
+    YV12_BUFFER_CONFIG *const buf = &cm->frame_bufs[idx].buf;
     RefBuffer *const ref_buf = &cm->frame_refs[ref_frame - 1];
     ref_buf->buf = buf;
     ref_buf->idx = idx;
@@ -3582,10 +3703,11 @@ int vp9_get_compressed_data(VP9_PTR ptr, unsigned int *frame_flags,
   }
 
   set_ref_ptrs(cm, xd, LAST_FRAME, LAST_FRAME);
-  vp9_setup_interp_filters(xd, DEFAULT_INTERP_FILTER, cm);
+  xd->interp_kernel = vp9_get_interp_kernel(
+      DEFAULT_INTERP_FILTER == SWITCHABLE ? EIGHTTAP : DEFAULT_INTERP_FILTER);
 
   if (cpi->oxcf.aq_mode == VARIANCE_AQ) {
-      vp9_vaq_init();
+    vp9_vaq_init();
   }
 
   if (cpi->use_svc) {
@@ -3609,6 +3731,12 @@ int vp9_get_compressed_data(VP9_PTR ptr, unsigned int *frame_flags,
 
   if (*size > 0) {
     cpi->droppable = !frame_is_reference(cpi);
+  }
+
+  // Save layer specific state.
+  if (cpi->svc.number_temporal_layers > 1 &&
+      cpi->oxcf.end_usage == USAGE_STREAM_FROM_SERVER) {
+    save_layer_context(cpi);
   }
 
   vpx_usec_timer_mark(&cmptimer);
@@ -3824,11 +3952,11 @@ int vp9_set_size_literal(VP9_PTR comp, unsigned int width,
     cm->width = width;
     if (cm->width * 5 < cpi->initial_width) {
       cm->width = cpi->initial_width / 5 + 1;
-      printf("Warning: Desired width too small, changed to %d \n", cm->width);
+      printf("Warning: Desired width too small, changed to %d\n", cm->width);
     }
     if (cm->width > cpi->initial_width) {
       cm->width = cpi->initial_width;
-      printf("Warning: Desired width too large, changed to %d \n", cm->width);
+      printf("Warning: Desired width too large, changed to %d\n", cm->width);
     }
   }
 
@@ -3836,11 +3964,11 @@ int vp9_set_size_literal(VP9_PTR comp, unsigned int width,
     cm->height = height;
     if (cm->height * 5 < cpi->initial_height) {
       cm->height = cpi->initial_height / 5 + 1;
-      printf("Warning: Desired height too small, changed to %d \n", cm->height);
+      printf("Warning: Desired height too small, changed to %d\n", cm->height);
     }
     if (cm->height > cpi->initial_height) {
       cm->height = cpi->initial_height;
-      printf("Warning: Desired height too large, changed to %d \n", cm->height);
+      printf("Warning: Desired height too large, changed to %d\n", cm->height);
     }
   }
 

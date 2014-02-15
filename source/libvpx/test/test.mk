@@ -36,6 +36,7 @@ LIBVPX_TEST_SRCS-$(CONFIG_DECODERS)    += ../md5_utils.h ../md5_utils.c
 LIBVPX_TEST_SRCS-yes                   += decode_test_driver.cc
 LIBVPX_TEST_SRCS-yes                   += decode_test_driver.h
 LIBVPX_TEST_SRCS-$(CONFIG_DECODERS)    += ivf_video_source.h
+LIBVPX_TEST_SRCS-$(CONFIG_VP9_DECODER) += external_frame_buffer_test.cc
 
 ## WebM Parsing
 NESTEGG_SRCS                           += ../nestegg/halloc/halloc.h
@@ -676,6 +677,8 @@ LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-09-lf_deltas.webm
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-09-lf_deltas.webm.md5
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp91-2-04-yv444.webm
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp91-2-04-yv444.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-10-show-existing-frame.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-10-show-existing-frame.webm.md5
 
 ifeq ($(CONFIG_DECODE_PERF_TESTS),yes)
 # BBB VP9 streams

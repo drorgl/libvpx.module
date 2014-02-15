@@ -69,7 +69,7 @@ static void inter_predictor(const uint8_t *src, int src_stride,
                             const int subpel_y,
                             const struct scale_factors *sf,
                             int w, int h, int ref,
-                            const interp_kernel *kernel,
+                            const InterpKernel *kernel,
                             int xs, int ys) {
   sf->predict[subpel_x != 0][subpel_y != 0][ref](
       src, src_stride, dst, dst_stride,
@@ -81,7 +81,7 @@ void vp9_build_inter_predictor(const uint8_t *src, int src_stride,
                                const MV *src_mv,
                                const struct scale_factors *sf,
                                int w, int h, int ref,
-                               const interp_kernel *kernel,
+                               const InterpKernel *kernel,
                                enum mv_precision precision,
                                int x, int y) {
   const int is_q4 = precision == MV_PRECISION_Q4;
@@ -269,21 +269,15 @@ static void dec_build_inter_predictors(MACROBLOCKD *xd, int plane, int block,
                ? (plane == 0 ? mi->bmi[block].as_mv[ref].as_mv
                              : mi_mv_pred_q4(mi, ref))
                : mi->mbmi.mv[ref].as_mv;
-
-    // TODO(jkoleszar): This clamping is done in the incorrect place for the
-    // scaling case. It needs to be done on the scaled MV, not the pre-scaling
-    // MV. Note however that it performs the subsampling aware scaling so
-    // that the result is always q4.
-    // mv_precision precision is MV_PRECISION_Q4.
-    const MV mv_q4 = clamp_mv_to_umv_border_sb(xd, &mv, bw, bh,
-                                               pd->subsampling_x,
-                                               pd->subsampling_y);
-
     MV32 scaled_mv;
-    int xs, ys, x0, y0, x0_16, y0_16, x1, y1, frame_width,
-        frame_height, subpel_x, subpel_y, buf_stride;
+    int xs, ys, x0, y0, x0_16, y0_16, frame_width, frame_height, buf_stride,
+        subpel_x, subpel_y;
     uint8_t *ref_frame, *buf_ptr;
     const YV12_BUFFER_CONFIG *ref_buf = xd->block_refs[ref]->buf;
+    const MV mv_q4 = {
+      mv.row * (1 << (1 - pd->subsampling_y)),
+      mv.col * (1 << (1 - pd->subsampling_x))
+    };
 
     // Get reference frame pointer, width and height.
     if (plane == 0) {
@@ -327,10 +321,6 @@ static void dec_build_inter_predictors(MACROBLOCKD *xd, int plane, int block,
     x0_16 += scaled_mv.col;
     y0_16 += scaled_mv.row;
 
-    // Get reference block bottom right coordinate.
-    x1 = ((x0_16 + (w - 1) * xs) >> SUBPEL_BITS) + 1;
-    y1 = ((y0_16 + (h - 1) * ys) >> SUBPEL_BITS) + 1;
-
     // Get reference block pointer.
     buf_ptr = ref_frame + y0 * pre_buf->stride + x0;
     buf_stride = pre_buf->stride;
@@ -339,6 +329,9 @@ static void dec_build_inter_predictors(MACROBLOCKD *xd, int plane, int block,
     // width/height is not a multiple of 8 pixels.
     if (scaled_mv.col || scaled_mv.row ||
         (frame_width & 0x7) || (frame_height & 0x7)) {
+      // Get reference block bottom right coordinate.
+      int x1 = ((x0_16 + (w - 1) * xs) >> SUBPEL_BITS) + 1;
+      int y1 = ((y0_16 + (h - 1) * ys) >> SUBPEL_BITS) + 1;
       int x_pad = 0, y_pad = 0;
 
       if (subpel_x || (sf->x_step_q4 & SUBPEL_MASK)) {

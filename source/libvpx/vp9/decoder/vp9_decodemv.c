@@ -146,15 +146,15 @@ static int read_inter_segment_id(VP9_COMMON *const cm, MACROBLOCKD *const xd,
   return segment_id;
 }
 
-static int read_skip_coeff(VP9_COMMON *cm, const MACROBLOCKD *xd,
-                           int segment_id, vp9_reader *r) {
+static int read_skip(VP9_COMMON *cm, const MACROBLOCKD *xd,
+                     int segment_id, vp9_reader *r) {
   if (vp9_segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP)) {
     return 1;
   } else {
     const int ctx = vp9_get_skip_context(xd);
-    const int skip = vp9_read(r, cm->fc.mbskip_probs[ctx]);
+    const int skip = vp9_read(r, cm->fc.skip_probs[ctx]);
     if (!cm->frame_parallel_decoding_mode)
-      ++cm->counts.mbskip[ctx][skip];
+      ++cm->counts.skip[ctx][skip];
     return skip;
   }
 }
@@ -169,14 +169,14 @@ static void read_intra_frame_mode_info(VP9_COMMON *const cm,
   const BLOCK_SIZE bsize = mbmi->sb_type;
 
   mbmi->segment_id = read_intra_segment_id(cm, xd, mi_row, mi_col, r);
-  mbmi->skip_coeff = read_skip_coeff(cm, xd, mbmi->segment_id, r);
+  mbmi->skip = read_skip(cm, xd, mbmi->segment_id, r);
   mbmi->tx_size = read_tx_size(cm, xd, cm->tx_mode, bsize, 1, r);
   mbmi->ref_frame[0] = INTRA_FRAME;
   mbmi->ref_frame[1] = NONE;
 
   if (bsize >= BLOCK_8X8) {
-    const MB_PREDICTION_MODE A = above_block_mode(mi, above_mi, 0);
-    const MB_PREDICTION_MODE L = left_block_mode(mi, left_mi, 0);
+    const MB_PREDICTION_MODE A = vp9_above_block_mode(mi, above_mi, 0);
+    const MB_PREDICTION_MODE L = vp9_left_block_mode(mi, left_mi, 0);
     mbmi->mode = read_intra_mode(r, vp9_kf_y_mode_prob[A][L]);
   } else {
     // Only 4x4, 4x8, 8x4 blocks
@@ -187,8 +187,8 @@ static void read_intra_frame_mode_info(VP9_COMMON *const cm,
     for (idy = 0; idy < 2; idy += num_4x4_h) {
       for (idx = 0; idx < 2; idx += num_4x4_w) {
         const int ib = idy * 2 + idx;
-        const MB_PREDICTION_MODE A = above_block_mode(mi, above_mi, ib);
-        const MB_PREDICTION_MODE L = left_block_mode(mi, left_mi, ib);
+        const MB_PREDICTION_MODE A = vp9_above_block_mode(mi, above_mi, ib);
+        const MB_PREDICTION_MODE L = vp9_left_block_mode(mi, left_mi, ib);
         const MB_PREDICTION_MODE b_mode = read_intra_mode(r,
                                               vp9_kf_y_mode_prob[A][L]);
         mi->bmi[ib].as_mode = b_mode;
@@ -520,10 +520,10 @@ static void read_inter_frame_mode_info(VP9_COMMON *const cm,
   mbmi->mv[0].as_int = 0;
   mbmi->mv[1].as_int = 0;
   mbmi->segment_id = read_inter_segment_id(cm, xd, mi_row, mi_col, r);
-  mbmi->skip_coeff = read_skip_coeff(cm, xd, mbmi->segment_id, r);
+  mbmi->skip = read_skip(cm, xd, mbmi->segment_id, r);
   inter_block = read_is_inter_block(cm, xd, mbmi->segment_id, r);
   mbmi->tx_size = read_tx_size(cm, xd, cm->tx_mode, mbmi->sb_type,
-                               !mbmi->skip_coeff || !inter_block, r);
+                               !mbmi->skip || !inter_block, r);
 
   if (inter_block)
     read_inter_block_mode_info(cm, xd, tile, mi, mi_row, mi_col, r);

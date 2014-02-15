@@ -27,6 +27,7 @@
 #include "vpx_ports/vpx_timer.h"
 #include "vp9/decoder/vp9_decodeframe.h"
 #include "vp9/decoder/vp9_detokenize.h"
+#include "vp9/decoder/vp9_dthread.h"
 #include "./vpx_scale_rtcd.h"
 
 #define WRITE_RECON_BUFFER 0
@@ -177,13 +178,24 @@ void vp9_remove_decompressor(VP9D_PTR ptr) {
     vpx_free(worker->data2);
   }
   vpx_free(pbi->tile_workers);
+
+  if (pbi->num_tile_workers) {
+    VP9_COMMON *const cm = &pbi->common;
+    const int sb_rows =
+        mi_cols_aligned_to_sb(cm->mi_rows) >> MI_BLOCK_SIZE_LOG2;
+    VP9LfSync *const lf_sync = &pbi->lf_row_sync;
+
+    vp9_loop_filter_dealloc(lf_sync, sb_rows);
+  }
+
   vpx_free(pbi->mi_streams);
   vpx_free(pbi->above_context[0]);
   vpx_free(pbi->above_seg_context);
   vpx_free(pbi);
 }
 
-static int equal_dimensions(YV12_BUFFER_CONFIG *a, YV12_BUFFER_CONFIG *b) {
+static int equal_dimensions(const YV12_BUFFER_CONFIG *a,
+                            const YV12_BUFFER_CONFIG *b) {
     return a->y_height == b->y_height && a->y_width == b->y_width &&
            a->uv_height == b->uv_height && a->uv_width == b->uv_width;
 }
@@ -200,7 +212,8 @@ vpx_codec_err_t vp9_copy_reference_dec(VP9D_PTR ptr,
    * later commit that adds VP9-specific controls for this functionality.
    */
   if (ref_frame_flag == VP9_LAST_FLAG) {
-    YV12_BUFFER_CONFIG *cfg = &cm->yv12_fb[cm->ref_frame_map[0]];
+    const YV12_BUFFER_CONFIG *const cfg =
+        &cm->frame_bufs[cm->ref_frame_map[0]].buf;
     if (!equal_dimensions(cfg, sd))
       vpx_internal_error(&cm->error, VPX_CODEC_ERROR,
                          "Incorrect buffer dimensions");
@@ -246,13 +259,13 @@ vpx_codec_err_t vp9_set_reference_dec(VP9D_PTR ptr, VP9_REFFRAME ref_frame_flag,
 
     // Find an empty frame buffer.
     const int free_fb = get_free_fb(cm);
-    // Decrease fb_idx_ref_cnt since it will be increased again in
+    // Decrease ref_count since it will be increased again in
     // ref_cnt_fb() below.
-    cm->fb_idx_ref_cnt[free_fb]--;
+    cm->frame_bufs[free_fb].ref_count--;
 
     // Manage the reference counters and copy image.
-    ref_cnt_fb(cm->fb_idx_ref_cnt, ref_fb_ptr, free_fb);
-    ref_buf->buf = &cm->yv12_fb[*ref_fb_ptr];
+    ref_cnt_fb(cm->frame_bufs, ref_fb_ptr, free_fb);
+    ref_buf->buf = &cm->frame_bufs[*ref_fb_ptr].buf;
     vp8_yv12_copy_frame(sd, ref_buf->buf);
   }
 
@@ -267,7 +280,7 @@ int vp9_get_reference_dec(VP9D_PTR ptr, int index, YV12_BUFFER_CONFIG **fb) {
   if (index < 0 || index >= REF_FRAMES)
     return -1;
 
-  *fb = &cm->yv12_fb[cm->ref_frame_map[index]];
+  *fb = &cm->frame_bufs[cm->ref_frame_map[index]].buf;
   return 0;
 }
 
@@ -277,14 +290,19 @@ static void swap_frame_buffers(VP9D_COMP *pbi) {
   VP9_COMMON *const cm = &pbi->common;
 
   for (mask = pbi->refresh_frame_flags; mask; mask >>= 1) {
-    if (mask & 1)
-      ref_cnt_fb(cm->fb_idx_ref_cnt, &cm->ref_frame_map[ref_index],
+    if (mask & 1) {
+      const int old_idx = cm->ref_frame_map[ref_index];
+      ref_cnt_fb(cm->frame_bufs, &cm->ref_frame_map[ref_index],
                  cm->new_fb_idx);
+      if (old_idx >= 0 && cm->frame_bufs[old_idx].ref_count == 0)
+        cm->release_fb_cb(cm->cb_priv,
+                          &cm->frame_bufs[old_idx].raw_frame_buffer);
+    }
     ++ref_index;
   }
 
   cm->frame_to_show = get_frame_new_buffer(cm);
-  cm->fb_idx_ref_cnt[cm->new_fb_idx]--;
+  cm->frame_bufs[cm->new_fb_idx].ref_count--;
 
   // Invalidate these references until the next frame starts.
   for (ref_index = 0; ref_index < 3; ref_index++)
@@ -324,6 +342,10 @@ int vp9_receive_compressed_data(VP9D_PTR ptr,
       cm->frame_refs[0].buf->corrupted = 1;
   }
 
+  // Check if the previous frame was a frame without any references to it.
+  if (cm->new_fb_idx >= 0 && cm->frame_bufs[cm->new_fb_idx].ref_count == 0)
+    cm->release_fb_cb(cm->cb_priv,
+                      &cm->frame_bufs[cm->new_fb_idx].raw_frame_buffer);
   cm->new_fb_idx = get_free_fb(cm);
 
   if (setjmp(cm->error.jmp)) {
@@ -340,8 +362,8 @@ int vp9_receive_compressed_data(VP9D_PTR ptr,
     if (cm->frame_refs[0].idx != INT_MAX)
       cm->frame_refs[0].buf->corrupted = 1;
 
-    if (cm->fb_idx_ref_cnt[cm->new_fb_idx] > 0)
-      cm->fb_idx_ref_cnt[cm->new_fb_idx]--;
+    if (cm->frame_bufs[cm->new_fb_idx].ref_count > 0)
+      cm->frame_bufs[cm->new_fb_idx].ref_count--;
 
     return -1;
   }
@@ -353,8 +375,8 @@ int vp9_receive_compressed_data(VP9D_PTR ptr,
   if (retcode < 0) {
     cm->error.error_code = VPX_CODEC_ERROR;
     cm->error.setjmp = 0;
-    if (cm->fb_idx_ref_cnt[cm->new_fb_idx] > 0)
-      cm->fb_idx_ref_cnt[cm->new_fb_idx]--;
+    if (cm->frame_bufs[cm->new_fb_idx].ref_count > 0)
+      cm->frame_bufs[cm->new_fb_idx].ref_count--;
     return retcode;
   }
 
@@ -370,7 +392,13 @@ int vp9_receive_compressed_data(VP9D_PTR ptr,
 #endif
 
   if (!pbi->do_loopfilter_inline) {
-    vp9_loop_filter_frame(cm, &pbi->mb, pbi->common.lf.filter_level, 0, 0);
+    // If multiple threads are used to decode tiles, then we use those threads
+    // to do parallel loopfiltering.
+    if (pbi->num_tile_workers) {
+      vp9_loop_filter_frame_mt(pbi, cm, &pbi->mb, cm->lf.filter_level, 0, 0);
+    } else {
+      vp9_loop_filter_frame(cm, &pbi->mb, cm->lf.filter_level, 0, 0);
+    }
   }
 
 #if WRITE_RECON_BUFFER == 2
@@ -390,7 +418,11 @@ int vp9_receive_compressed_data(VP9D_PTR ptr,
 
   vp9_clear_system_state();
 
-  cm->last_show_frame = cm->show_frame;
+  cm->last_width = cm->width;
+  cm->last_height = cm->height;
+
+  if (!cm->show_existing_frame)
+    cm->last_show_frame = cm->show_frame;
   if (cm->show_frame) {
     if (!cm->show_existing_frame) {
       // current mip will be the prev_mip for the next frame
