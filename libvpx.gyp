@@ -175,9 +175,6 @@
           'includes': [
             'libvpx_srcs_mips.gypi',
           ],
-          'cflags': [
-            '-EL -static -mips32',
-          ],
           'include_dirs': [
             'source/config/<(OS_CATEGORY)/<(target_arch_full)',
             'source/config',
