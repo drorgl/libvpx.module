@@ -8,23 +8,24 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <limits.h>
 #include <assert.h>
+#include <limits.h>
 #include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "vpx_mem/vpx_mem.h"
 
 #include "vp9/common/vp9_alloccommon.h"
 #include "vp9/common/vp9_common.h"
-#include "vp9/encoder/vp9_ratectrl.h"
 #include "vp9/common/vp9_entropymode.h"
-#include "vpx_mem/vpx_mem.h"
-#include "vp9/common/vp9_systemdependent.h"
-#include "vp9/encoder/vp9_encodemv.h"
 #include "vp9/common/vp9_quant_common.h"
 #include "vp9/common/vp9_seg_common.h"
+#include "vp9/common/vp9_systemdependent.h"
+
+#include "vp9/encoder/vp9_encodemv.h"
+#include "vp9/encoder/vp9_ratectrl.h"
 
 #define LIMIT_QRANGE_FOR_ALTREF_AND_KEY 1
 
@@ -354,7 +355,7 @@ void vp9_rc_update_rate_correction_factors(VP9_COMP *cpi, int damp_var) {
   int projected_size_based_on_q = 0;
 
   // Clear down mmx registers to allow floating point in what follows
-  vp9_clear_system_state();  // __asm emms;
+  vp9_clear_system_state();
 
   // Work out how big we would have expected the frame to be at this Q given
   // the current correction factor.
@@ -500,9 +501,9 @@ static int calc_active_worst_quality_one_pass_cbr(const VP9_COMP *cpi) {
   const VP9_CONFIG *oxcf = &cpi->oxcf;
   const RATE_CONTROL *rc = &cpi->rc;
   // Buffer level below which we push active_worst to worst_quality.
-  int critical_level = oxcf->optimal_buffer_level >> 2;
+  int64_t critical_level = oxcf->optimal_buffer_level >> 2;
+  int64_t buff_lvl_step = 0;
   int adjustment = 0;
-  int buff_lvl_step = 0;
   int active_worst_quality;
   if (cpi->common.frame_type == KEY_FRAME)
     return rc->worst_quality;
@@ -517,8 +518,8 @@ static int calc_active_worst_quality_one_pass_cbr(const VP9_COMP *cpi) {
     // Maximum limit for down adjustment, ~30%.
     int max_adjustment_down = active_worst_quality / 3;
     if (max_adjustment_down) {
-      buff_lvl_step = (int)((oxcf->maximum_buffer_size -
-          oxcf->optimal_buffer_level) / max_adjustment_down);
+      buff_lvl_step = ((oxcf->maximum_buffer_size -
+                        oxcf->optimal_buffer_level) / max_adjustment_down);
       if (buff_lvl_step)
         adjustment = (int)((rc->buffer_level - oxcf->optimal_buffer_level) /
                             buff_lvl_step);
@@ -529,9 +530,10 @@ static int calc_active_worst_quality_one_pass_cbr(const VP9_COMP *cpi) {
     if (critical_level) {
       buff_lvl_step = (oxcf->optimal_buffer_level - critical_level);
       if (buff_lvl_step) {
-        adjustment = (rc->worst_quality - rc->avg_frame_qindex[INTER_FRAME]) *
-                         (oxcf->optimal_buffer_level - rc->buffer_level) /
-                             buff_lvl_step;
+        adjustment =
+            (int)((rc->worst_quality - rc->avg_frame_qindex[INTER_FRAME]) *
+                  (oxcf->optimal_buffer_level - rc->buffer_level) /
+                  buff_lvl_step);
       }
       active_worst_quality = rc->avg_frame_qindex[INTER_FRAME] + adjustment;
     }
@@ -957,17 +959,10 @@ static int rc_pick_q_and_bounds_two_pass(const VP9_COMP *cpi,
   }
 
   // Clip the active best and worst quality values to limits.
-  if (active_worst_quality > rc->worst_quality)
-    active_worst_quality = rc->worst_quality;
-
-  if (active_best_quality < rc->best_quality)
-    active_best_quality = rc->best_quality;
-
-  if (active_best_quality > rc->worst_quality)
-    active_best_quality = rc->worst_quality;
-
-  if (active_worst_quality < active_best_quality)
-    active_worst_quality = active_best_quality;
+  active_best_quality = clamp(active_best_quality,
+                              rc->best_quality, rc->worst_quality);
+  active_worst_quality = clamp(active_worst_quality,
+                               active_best_quality, rc->worst_quality);
 
   *top_index = active_worst_quality;
   *bottom_index = active_best_quality;
@@ -1040,7 +1035,7 @@ int vp9_rc_pick_q_and_bounds(const VP9_COMP *cpi,
   // JBB : This is realtime mode.  In real time mode the first frame
   // should be larger. Q of 0 is disabled because we force tx size to be
   // 16x16...
-  if (cpi->sf.use_pick_mode) {
+  if (cpi->sf.use_nonrd_pick_mode) {
     if (cpi->common.current_video_frame == 0)
       q /= 3;
     if (q == 0)
@@ -1150,7 +1145,7 @@ void vp9_rc_postencode_update(VP9_COMP *cpi, uint64_t bytes_used) {
 
   cm->last_frame_type = cm->frame_type;
   // Update rate control heuristics
-  rc->projected_frame_size = (bytes_used << 3);
+  rc->projected_frame_size = (int)(bytes_used << 3);
 
   // Post encode loop adjustment of Q prediction.
   vp9_rc_update_rate_correction_factors(
@@ -1309,7 +1304,7 @@ static int calc_pframe_target_size_one_pass_cbr(const VP9_COMP *cpi) {
   const VP9_CONFIG *oxcf = &cpi->oxcf;
   const RATE_CONTROL *rc = &cpi->rc;
   const int64_t diff = oxcf->optimal_buffer_level - rc->buffer_level;
-  const int one_pct_bits = 1 + oxcf->optimal_buffer_level / 100;
+  const int64_t one_pct_bits = 1 + oxcf->optimal_buffer_level / 100;
   int min_frame_target = MAX(rc->av_per_frame_bandwidth >> 4,
                              FRAME_OVERHEAD_BITS);
   int target = rc->av_per_frame_bandwidth;
@@ -1325,11 +1320,11 @@ static int calc_pframe_target_size_one_pass_cbr(const VP9_COMP *cpi) {
   }
   if (diff > 0) {
     // Lower the target bandwidth for this frame.
-    const int pct_low = MIN(diff / one_pct_bits, oxcf->under_shoot_pct);
+    const int pct_low = (int)MIN(diff / one_pct_bits, oxcf->under_shoot_pct);
     target -= (target * pct_low) / 200;
   } else if (diff < 0) {
     // Increase the target bandwidth for this frame.
-    const int pct_high = MIN(-diff / one_pct_bits, oxcf->over_shoot_pct);
+    const int pct_high = (int)MIN(-diff / one_pct_bits, oxcf->over_shoot_pct);
     target += (target * pct_high) / 200;
   }
   return MAX(min_frame_target, target);
@@ -1337,9 +1332,11 @@ static int calc_pframe_target_size_one_pass_cbr(const VP9_COMP *cpi) {
 
 static int calc_iframe_target_size_one_pass_cbr(const VP9_COMP *cpi) {
   const RATE_CONTROL *rc = &cpi->rc;
+  int target;
 
   if (cpi->common.current_video_frame == 0) {
-    return cpi->oxcf.starting_buffer_level / 2;
+    target = ((cpi->oxcf.starting_buffer_level / 2) > INT_MAX)
+      ? INT_MAX : (int)(cpi->oxcf.starting_buffer_level / 2);
   } else {
     const int initial_boost = 32;
     int kf_boost = MAX(initial_boost, (int)(2 * cpi->output_framerate - 16));
@@ -1347,8 +1344,9 @@ static int calc_iframe_target_size_one_pass_cbr(const VP9_COMP *cpi) {
       kf_boost = (int)(kf_boost * rc->frames_since_key /
                        (cpi->output_framerate / 2));
     }
-    return ((16 + kf_boost) * rc->av_per_frame_bandwidth) >> 4;
+    target = ((16 + kf_boost) * rc->av_per_frame_bandwidth) >> 4;
   }
+  return vp9_rc_clamp_iframe_target_size(cpi, target);
 }
 
 void vp9_rc_get_svc_params(VP9_COMP *cpi) {

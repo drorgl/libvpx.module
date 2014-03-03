@@ -41,23 +41,29 @@ struct RateControlMetrics {
   // Number of encoded non-key frames per layer.
   int layer_enc_frames[VPX_TS_MAX_LAYERS];
   // Framerate per layer layer (cumulative).
-  float layer_framerate[VPX_TS_MAX_LAYERS];
+  double layer_framerate[VPX_TS_MAX_LAYERS];
   // Target average frame size per layer (per-frame-bandwidth per layer).
-  float layer_pfb[VPX_TS_MAX_LAYERS];
+  double layer_pfb[VPX_TS_MAX_LAYERS];
   // Actual average frame size per layer.
-  float layer_avg_frame_size[VPX_TS_MAX_LAYERS];
+  double layer_avg_frame_size[VPX_TS_MAX_LAYERS];
   // Average rate mismatch per layer (|target - actual| / target).
-  float layer_avg_rate_mismatch[VPX_TS_MAX_LAYERS];
+  double layer_avg_rate_mismatch[VPX_TS_MAX_LAYERS];
   // Actual encoding bitrate per layer (cumulative).
-  float layer_encoding_bitrate[VPX_TS_MAX_LAYERS];
+  double layer_encoding_bitrate[VPX_TS_MAX_LAYERS];
 };
 
+// Note: these rate control metrics assume only 1 key frame in the
+// sequence (i.e., first frame only). So for temporal pattern# 7
+// (which has key frame for every frame on base layer), the metrics
+// computation will be off/wrong.
+// TODO(marpan): Update these metrics to account for multiple key frames
+// in the stream.
 static void set_rate_control_metrics(struct RateControlMetrics *rc,
                                      vpx_codec_enc_cfg_t *cfg) {
-  int i = 0;
+  unsigned int i = 0;
   // Set the layer (cumulative) framerate and the target layer (non-cumulative)
   // per-frame-bandwidth, for the rate control encoding stats below.
-  float framerate = cfg->g_timebase.den / cfg->g_timebase.num;
+  const double framerate = cfg->g_timebase.den / cfg->g_timebase.num;
   rc->layer_framerate[0] = framerate / cfg->ts_rate_decimator[0];
   rc->layer_pfb[0] = 1000.0 * cfg->ts_target_bitrate[0] /
       rc->layer_framerate[0];
@@ -80,8 +86,8 @@ static void set_rate_control_metrics(struct RateControlMetrics *rc,
 static void printout_rate_control_summary(struct RateControlMetrics *rc,
                                           vpx_codec_enc_cfg_t *cfg,
                                           int frame_cnt) {
-  int i = 0;
-  int check_num_frames = 0;
+  unsigned int i = 0;
+  int tot_num_frames = 0;
   printf("Total number of processed frames: %d\n\n", frame_cnt -1);
   printf("Rate control layer stats for %d layer(s):\n\n",
       cfg->ts_number_layers);
@@ -89,8 +95,9 @@ static void printout_rate_control_summary(struct RateControlMetrics *rc,
     const int num_dropped = (i > 0) ?
         (rc->layer_input_frames[i] - rc->layer_enc_frames[i]) :
         (rc->layer_input_frames[i] - rc->layer_enc_frames[i] - 1);
+    tot_num_frames += rc->layer_input_frames[i];
     rc->layer_encoding_bitrate[i] = 0.001 * rc->layer_framerate[i] *
-        rc->layer_encoding_bitrate[i] / rc->layer_tot_enc_frames[i];
+        rc->layer_encoding_bitrate[i] / tot_num_frames;
     rc->layer_avg_frame_size[i] = rc->layer_avg_frame_size[i] /
         rc->layer_enc_frames[i];
     rc->layer_avg_rate_mismatch[i] = 100.0 * rc->layer_avg_rate_mismatch[i] /
@@ -105,10 +112,9 @@ static void printout_rate_control_summary(struct RateControlMetrics *rc,
         "and perc dropped frames: %d %d %f \n", rc->layer_input_frames[i],
         rc->layer_enc_frames[i],
         100.0 * num_dropped / rc->layer_input_frames[i]);
-    check_num_frames += rc->layer_input_frames[i];
     printf("\n");
   }
-  if ((frame_cnt - 1) != check_num_frames)
+  if ((frame_cnt - 1) != tot_num_frames)
     die("Error: Number of input frames not equal to output! \n");
 }
 
@@ -432,7 +438,7 @@ int main(int argc, char **argv) {
   int frame_avail;
   int got_data;
   int flags = 0;
-  int i;
+  unsigned int i;
   int pts = 0;  // PTS starts at 0.
   int frame_duration = 1;  // 1 timebase tick per frame.
   int layering_mode = 0;
@@ -492,7 +498,7 @@ int main(int argc, char **argv) {
   cfg.g_timebase.num = strtol(argv[6], NULL, 0);
   cfg.g_timebase.den = strtol(argv[7], NULL, 0);
 
-  for (i = 10; i < 10 + mode_to_num_layers[layering_mode]; ++i) {
+  for (i = 10; (int)i < 10 + mode_to_num_layers[layering_mode]; ++i) {
     cfg.ts_target_bitrate[i - 10] = strtol(argv[i], NULL, 0);
   }
 
@@ -516,15 +522,16 @@ int main(int argc, char **argv) {
   // Disable automatic keyframe placement.
   cfg.kf_min_dist = cfg.kf_max_dist = 3000;
 
-  // Default setting for bitrate: used in special case of 1 layer (case 0).
-  cfg.rc_target_bitrate = cfg.ts_target_bitrate[0];
-
   set_temporal_layer_pattern(layering_mode,
                              &cfg,
                              layer_flags,
                              &flag_periodicity);
 
   set_rate_control_metrics(&rc, &cfg);
+
+  // Target bandwidth for the whole stream.
+  // Set to ts_target_bitrate for highest layer (total bitrate).
+  cfg.rc_target_bitrate = cfg.ts_target_bitrate[cfg.ts_number_layers - 1];
 
   // Open input file.
   if (!(infile = fopen(argv[1], "rb"))) {
@@ -564,6 +571,9 @@ int main(int argc, char **argv) {
   }
   vpx_codec_control(&codec, VP8E_SET_STATIC_THRESHOLD, 1);
   vpx_codec_control(&codec, VP8E_SET_TOKEN_PARTITIONS, 1);
+  // This controls the maximum target size of the key frame.
+  // For generating smaller key frames, use a smaller max_intra_size_pct
+  // value, like 100 or 200.
   max_intra_size_pct = (int) (((double)cfg.rc_buf_optimal_sz * 0.5)
       * ((double) cfg.g_timebase.den / cfg.g_timebase.num) / 10.0);
   vpx_codec_control(&codec, VP8E_SET_MAX_INTRA_BITRATE_PCT, max_intra_size_pct);

@@ -386,10 +386,10 @@ prototype unsigned int vp9_variance4x4 "const uint8_t *src_ptr, int source_strid
 specialize vp9_variance4x4 mmx $sse2_x86inc
 
 prototype unsigned int vp9_sub_pixel_variance64x64 "const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse"
-specialize vp9_sub_pixel_variance64x64 $sse2_x86inc $ssse3_x86inc
+specialize vp9_sub_pixel_variance64x64 $sse2_x86inc $ssse3_x86inc avx2
 
 prototype unsigned int vp9_sub_pixel_avg_variance64x64 "const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, const uint8_t *second_pred"
-specialize vp9_sub_pixel_avg_variance64x64 $sse2_x86inc $ssse3_x86inc
+specialize vp9_sub_pixel_avg_variance64x64 $sse2_x86inc $ssse3_x86inc avx2
 
 prototype unsigned int vp9_sub_pixel_variance32x64 "const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse"
 specialize vp9_sub_pixel_variance32x64 $sse2_x86inc $ssse3_x86inc
@@ -416,10 +416,10 @@ prototype unsigned int vp9_sub_pixel_avg_variance16x32 "const uint8_t *src_ptr, 
 specialize vp9_sub_pixel_avg_variance16x32 $sse2_x86inc $ssse3_x86inc
 
 prototype unsigned int vp9_sub_pixel_variance32x32 "const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse"
-specialize vp9_sub_pixel_variance32x32 $sse2_x86inc $ssse3_x86inc
+specialize vp9_sub_pixel_variance32x32 $sse2_x86inc $ssse3_x86inc avx2
 
 prototype unsigned int vp9_sub_pixel_avg_variance32x32 "const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, const uint8_t *second_pred"
-specialize vp9_sub_pixel_avg_variance32x32 $sse2_x86inc $ssse3_x86inc
+specialize vp9_sub_pixel_avg_variance32x32 $sse2_x86inc $ssse3_x86inc avx2
 
 prototype unsigned int vp9_sub_pixel_variance16x16 "const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse"
 specialize vp9_sub_pixel_variance16x16 $sse2_x86inc $ssse3_x86inc
@@ -683,7 +683,7 @@ prototype unsigned int vp9_get_mb_ss "const int16_t *"
 specialize vp9_get_mb_ss mmx sse2
 # ENCODEMB INVOKE
 
-prototype int64_t vp9_block_error "int16_t *coeff, int16_t *dqcoeff, intptr_t block_size, int64_t *ssz"
+prototype int64_t vp9_block_error "const int16_t *coeff, const int16_t *dqcoeff, intptr_t block_size, int64_t *ssz"
 specialize vp9_block_error $sse2_x86inc
 
 prototype void vp9_subtract_block "int rows, int cols, int16_t *diff_ptr, ptrdiff_t diff_stride, const uint8_t *src_ptr, ptrdiff_t src_stride, const uint8_t *pred_ptr, ptrdiff_t pred_stride"
@@ -737,7 +737,7 @@ specialize vp9_fdct32x32_rd sse2 avx2
 #
 # Motion search
 #
-prototype int vp9_full_search_sad "const struct macroblock *x, const struct mv *ref_mv, int sad_per_bit, int distance, const struct vp9_variance_vtable *fn_ptr, DEC_MVCOSTS, const struct mv *center_mv, int n"
+prototype int vp9_full_search_sad "const struct macroblock *x, const struct mv *ref_mv, int sad_per_bit, int distance, const struct vp9_variance_vtable *fn_ptr, DEC_MVCOSTS, const struct mv *center_mv, struct mv *best_mv"
 specialize vp9_full_search_sad sse3 sse4_1
 vp9_full_search_sad_sse3=vp9_full_search_sadx3
 vp9_full_search_sad_sse4_1=vp9_full_search_sadx8

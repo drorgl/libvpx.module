@@ -118,9 +118,6 @@ void die_codec(vpx_codec_ctx_t *ctx, const char *s);
 /* The tool including this file must define usage_exit() */
 void usage_exit();
 
-uint16_t mem_get_le16(const void *data);
-uint32_t mem_get_le32(const void *data);
-
 int read_yuv_frame(struct VpxInputContext *input_ctx, vpx_image_t *yuv_frame);
 
 typedef struct VpxInterface {
@@ -144,6 +141,8 @@ int vpx_img_plane_width(const vpx_image_t *img, int plane);
 int vpx_img_plane_height(const vpx_image_t *img, int plane);
 void vpx_img_write(const vpx_image_t *img, FILE *file);
 int vpx_img_read(vpx_image_t *img, FILE *file);
+
+double sse_to_psnr(double samples, double peak, double mse);
 
 #ifdef __cplusplus
 }  /* extern "C" */

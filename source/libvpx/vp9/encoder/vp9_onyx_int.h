@@ -136,7 +136,8 @@ typedef enum {
   NSTEP = 1,
   HEX = 2,
   BIGDIA = 3,
-  SQUARE = 4
+  SQUARE = 4,
+  FAST_HEX = 5
 } SEARCH_METHODS;
 
 typedef enum {
@@ -216,6 +217,22 @@ typedef enum {
   // encode_breakout is enabled with small max_thresh limit.
   ENCODE_BREAKOUT_LIMITED = 2
 } ENCODE_BREAKOUT_TYPE;
+
+typedef enum {
+  // Search partitions using RD/NONRD criterion
+  SEARCH_PARTITION = 0,
+
+  // Always use a fixed size partition
+  FIXED_PARTITION = 1,
+
+  // Use a fixed size partition in every 64X64 SB, where the size is
+  // determined based on source variance
+  VAR_BASED_FIXED_PARTITION = 2,
+
+  // Use an arbitrary partitioning scheme based on source variance within
+  // a 64X64 SB
+  VAR_BASED_PARTITION
+} PARTITION_SEARCH_TYPE;
 
 typedef struct {
   // Frame level coding parameter update
@@ -303,16 +320,6 @@ typedef struct {
 
   // TODO(JBB): remove this as its no longer used.
 
-  // If set partition size will always be always_this_block_size.
-  int use_one_partition_size_always;
-
-  // Skip rectangular partition test when partition type none gives better
-  // rd than partition type split.
-  int less_rectangular_check;
-
-  // Disable testing non square partitions. (eg 16x32)
-  int use_square_partition_only;
-
   // After looking at the first set of modes (set by index here), skip
   // checking modes for reference frames that don't match the reference frame
   // of the best so far.
@@ -321,8 +328,17 @@ typedef struct {
   // TODO(JBB): Remove this.
   int reference_masking;
 
-  // Used in conjunction with use_one_partition_size_always.
+  PARTITION_SEARCH_TYPE partition_search_type;
+
+  // Used if partition_search_type = FIXED_SIZE_PARTITION
   BLOCK_SIZE always_this_block_size;
+
+  // Skip rectangular partition test when partition type none gives better
+  // rd than partition type split.
+  int less_rectangular_check;
+
+  // Disable testing non square partitions. (eg 16x32)
+  int use_square_partition_only;
 
   // Sets min and max partition sizes for this 64x64 region based on the
   // same 64x64 in last encoded frame, and the left and above neighbor.
@@ -395,11 +411,15 @@ typedef struct {
   int use_fast_coef_updates;  // 0: 2-loop, 1: 1-loop, 2: 1-loop reduced
 
   // This flag controls the use of non-RD mode decision.
-  int use_pick_mode;
+  int use_nonrd_pick_mode;
 
   // This variable sets the encode_breakout threshold. Currently, it is only
   // enabled in real time mode.
   int encode_breakout_thresh;
+
+  // A binary mask indicating if NEARESTMV, NEARMV, ZEROMV, NEWMV
+  // modes are disabled in order from LSB to MSB for each BLOCK_SIZE.
+  int disable_inter_mode_mask[BLOCK_SIZES];
 } SPEED_FEATURES;
 
 typedef struct {
@@ -445,7 +465,7 @@ typedef struct VP9_COMP {
   YV12_BUFFER_CONFIG *un_scaled_source;
   YV12_BUFFER_CONFIG scaled_source;
 
-  unsigned int key_frame_frequency;
+  int key_frame_frequency;
 
   int gold_is_last;  // gold same as last frame ( short circuit gold searches)
   int alt_is_last;  // Alt same as last ( short circuit altref search)
@@ -485,12 +505,6 @@ typedef struct VP9_COMP {
 
   // Ambient reconstruction err target for force key frames
   int ambient_err;
-
-  unsigned int mode_chosen_counts[MAX_MODES];
-  unsigned int sub8x8_mode_chosen_counts[MAX_REFS];
-  int64_t mode_skip_mask;
-  int ref_frame_mask;
-  int set_ref_frame_mask;
 
   int rd_threshes[MAX_SEGMENTS][BLOCK_SIZES][MAX_MODES];
   int rd_thresh_freq_fact[BLOCK_SIZES][MAX_MODES];
@@ -589,6 +603,8 @@ typedef struct VP9_COMP {
   int fixed_divide[512];
 
 #if CONFIG_INTERNAL_STATS
+  unsigned int mode_chosen_counts[MAX_MODES];
+
   int    count;
   double total_y;
   double total_u;
@@ -701,8 +717,6 @@ static YV12_BUFFER_CONFIG *get_ref_frame_buffer(VP9_COMP *cpi,
 }
 
 void vp9_encode_frame(VP9_COMP *cpi);
-
-void vp9_pack_bitstream(VP9_COMP *cpi, uint8_t *dest, size_t *size);
 
 void vp9_set_speed_features(VP9_COMP *cpi);
 

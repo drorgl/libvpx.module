@@ -112,7 +112,6 @@ extern "C" {
     int auto_key;  // autodetect cut scenes and set the keyframes
     int key_freq;  // maximum distance to key frame.
 
-    int allow_lag;  // allow lagged compression (if 0 lagin frames is ignored)
     int lag_in_frames;  // how many frames lag before we start encoding
 
     // ----------------------------------------------------------------
@@ -150,6 +149,8 @@ extern "C" {
     // Spatial and temporal scalability.
     int ss_number_layers;  // Number of spatial layers.
     int ts_number_layers;  // Number of temporal layers.
+    // Bitrate allocation for spatial layers.
+    int ss_target_bitrate[VPX_SS_MAX_LAYERS];
     // Bitrate allocation (CBR mode) and framerate factor, for temporal layers.
     int ts_target_bitrate[VPX_TS_MAX_LAYERS];
     int ts_rate_decimator[VPX_TS_MAX_LAYERS];

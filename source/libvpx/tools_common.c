@@ -8,12 +8,13 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include "tools_common.h"
-
+#include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "./tools_common.h"
 
 #if CONFIG_VP8_ENCODER || CONFIG_VP9_ENCODER
 #include "vpx/vp8cx.h"
@@ -75,26 +76,6 @@ void die_codec(vpx_codec_ctx_t *ctx, const char *s) {
   if (detail)
     printf("    %s\n", detail);
   exit(EXIT_FAILURE);
-}
-
-uint16_t mem_get_le16(const void *data) {
-  uint16_t val;
-  const uint8_t *mem = (const uint8_t*)data;
-
-  val = mem[1] << 8;
-  val |= mem[0];
-  return val;
-}
-
-uint32_t mem_get_le32(const void *data) {
-  uint32_t val;
-  const uint8_t *mem = (const uint8_t*)data;
-
-  val = mem[3] << 24;
-  val |= mem[2] << 16;
-  val |= mem[1] << 8;
-  val |= mem[0];
-  return val;
 }
 
 int read_yuv_frame(struct VpxInputContext *input_ctx, vpx_image_t *yuv_frame) {
@@ -273,3 +254,14 @@ int vpx_img_read(vpx_image_t *img, FILE *file) {
   return 1;
 }
 
+// TODO(dkovalev) change sse_to_psnr signature: double -> int64_t
+double sse_to_psnr(double samples, double peak, double sse) {
+  static const double kMaxPSNR = 100.0;
+
+  if (sse > 0.0) {
+    const double psnr = 10.0 * log10(samples * peak * peak / sse);
+    return psnr > kMaxPSNR ? kMaxPSNR : psnr;
+  } else {
+    return kMaxPSNR;
+  }
+}

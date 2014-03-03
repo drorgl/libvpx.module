@@ -156,6 +156,10 @@ generate_filter() {
                 objf=$(echo ${f%.*}.obj | sed -e 's/^[\./]\+//g' -e 's,/,_,g')
 
                 if ([ "$pat" == "asm" ] || [ "$pat" == "s" ]) && $asm_use_custom_step; then
+                    # Avoid object file name collisions, i.e. vpx_config.c and
+                    # vpx_config.asm produce the same object file without
+                    # this additional suffix.
+                    objf=${objf%.obj}_asm.obj
                     open_tag CustomBuild \
                         Include=".\\$f"
                     for plat in "${platforms[@]}"; do
@@ -430,6 +434,14 @@ generate_vcxproj() {
                 Condition="'\$(Configuration)|\$(Platform)'=='$config|$plat'"
             tag_content OutDir "\$(SolutionDir)$plat_no_ws\\\$(Configuration)\\"
             tag_content IntDir "$plat_no_ws\\\$(Configuration)\\${name}\\"
+            if [ "$proj_kind" == "lib" ]; then
+              if [ "$config" == "Debug" ]; then
+                config_suffix=d
+              else
+                config_suffix=""
+              fi
+              tag_content TargetName "${name}${lib_sfx}${config_suffix}"
+            fi
             close_tag PropertyGroup
         done
     done
@@ -438,9 +450,13 @@ generate_vcxproj() {
         for config in Debug Release; do
             open_tag ItemDefinitionGroup \
                 Condition="'\$(Configuration)|\$(Platform)'=='$config|$plat'"
-            if [ "$name" = "vpx" ]; then
+            if [ "$name" == "vpx" ]; then
+                hostplat=$plat
+                if [ "$hostplat" == "ARM" ]; then
+                    hostplat=Win32
+                fi
                 open_tag PreBuildEvent
-                tag_content Command "call obj_int_extract.bat $src_path_bare"
+                tag_content Command "call obj_int_extract.bat $src_path_bare $hostplat\\\$(Configuration)"
                 close_tag PreBuildEvent
             fi
             open_tag ClCompile
@@ -448,7 +464,6 @@ generate_vcxproj() {
                 opt=Disabled
                 runtime=$debug_runtime
                 curlibs=$debug_libs
-                confsuffix=d
                 case "$name" in
                 obj_int_extract)
                     debug=DEBUG
@@ -461,7 +476,6 @@ generate_vcxproj() {
                 opt=MaxSpeed
                 runtime=$release_runtime
                 curlibs=$libs
-                confsuffix=""
                 tag_content FavorSizeOrSpeed Speed
                 debug=NDEBUG
             fi
@@ -483,9 +497,7 @@ generate_vcxproj() {
             case "$proj_kind" in
             exe)
                 open_tag Link
-                if [ "$name" = "obj_int_extract" ]; then
-                    tag_content OutputFile "${name}.exe"
-                else
+                if [ "$name" != "obj_int_extract" ]; then
                     tag_content AdditionalDependencies "$curlibs"
                     tag_content AdditionalLibraryDirectories "$libdirs;%(AdditionalLibraryDirectories)"
                 fi
@@ -499,9 +511,6 @@ generate_vcxproj() {
                 close_tag Link
                 ;;
             lib)
-                open_tag Lib
-                tag_content OutputFile "\$(OutDir)${name}${lib_sfx}${confsuffix}.lib"
-                close_tag Lib
                 ;;
             esac
             close_tag ItemDefinitionGroup

@@ -14,7 +14,7 @@
 #include <cstdlib>
 #include <new>
 #include <string>
-#include "nestegg/include/nestegg/nestegg.h"
+#include "third_party/nestegg/include/nestegg/nestegg.h"
 #include "test/video_source.h"
 
 namespace libvpx_test {
@@ -108,7 +108,7 @@ class WebMVideoSource : public CompressedVideoSource {
 
     nestegg_io io = {nestegg_read_cb, nestegg_seek_cb, nestegg_tell_cb,
                      input_file_};
-    ASSERT_FALSE(nestegg_init(&nestegg_ctx_, io, NULL))
+    ASSERT_FALSE(nestegg_init(&nestegg_ctx_, io, NULL, -1))
         << "nestegg_init failed";
 
     unsigned int n;
@@ -169,8 +169,8 @@ class WebMVideoSource : public CompressedVideoSource {
   virtual const uint8_t *cxdata() const {
     return end_of_file_ ? NULL : buf_;
   }
-  virtual const unsigned int frame_size() const { return buf_sz_; }
-  virtual const unsigned int frame_number() const { return frame_; }
+  virtual size_t frame_size() const { return buf_sz_; }
+  virtual unsigned int frame_number() const { return frame_; }
 
  protected:
   std::string file_name_;

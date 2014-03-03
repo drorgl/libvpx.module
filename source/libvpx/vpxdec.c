@@ -23,6 +23,7 @@
 #define VPX_CODEC_DISABLE_COMPAT 1
 #include "./vpx_config.h"
 #include "vpx/vpx_decoder.h"
+#include "vpx_ports/mem_ops.h"
 #include "vpx_ports/vpx_timer.h"
 
 #if CONFIG_VP8_DECODER || CONFIG_VP9_DECODER
@@ -298,10 +299,11 @@ int file_is_raw(struct VpxInputContext *input) {
   return is_raw;
 }
 
-void show_progress(int frame_in, int frame_out, unsigned long dx_time) {
-  fprintf(stderr, "%d decoded frames/%d showed frames in %lu us (%.2f fps)\r",
+void show_progress(int frame_in, int frame_out, uint64_t dx_time) {
+  fprintf(stderr,
+          "%d decoded frames/%d showed frames in %"PRId64" us (%.2f fps)\r",
           frame_in, frame_out, dx_time,
-          (float)frame_out * 1000000.0 / (float)dx_time);
+          (double)frame_out * 1000000.0 / (double)dx_time);
 }
 
 struct ExternalFrameBuffer {
@@ -482,6 +484,7 @@ static FILE *open_outfile(const char *name) {
 int main_loop(int argc, const char **argv_) {
   vpx_codec_ctx_t       decoder;
   char                  *fn = NULL;
+  int                    i;
   uint8_t               *buf = NULL;
   size_t                 bytes_in_buffer = 0, buffer_size = 0;
   FILE                  *infile;
@@ -492,7 +495,7 @@ int main_loop(int argc, const char **argv_) {
   int                    ec_enabled = 0;
   const VpxInterface *interface = NULL;
   const VpxInterface *fourcc_interface = NULL;
-  unsigned long          dx_time = 0;
+  uint64_t dx_time = 0;
   struct arg               arg;
   char                   **argv, **argi, **argj;
 
@@ -790,7 +793,8 @@ int main_loop(int argc, const char **argv_) {
 
         vpx_usec_timer_start(&timer);
 
-        if (vpx_codec_decode(&decoder, buf, bytes_in_buffer, NULL, 0)) {
+        if (vpx_codec_decode(&decoder, buf, (unsigned int)bytes_in_buffer,
+                             NULL, 0)) {
           const char *detail = vpx_codec_error_detail(&decoder);
           warn("Failed to decode frame %d: %s",
                frame_in, vpx_codec_error(&decoder));
@@ -801,7 +805,7 @@ int main_loop(int argc, const char **argv_) {
         }
 
         vpx_usec_timer_mark(&timer);
-        dx_time += (unsigned int)vpx_usec_timer_elapsed(&timer);
+        dx_time += vpx_usec_timer_elapsed(&timer);
       }
     }
 
@@ -872,7 +876,7 @@ int main_loop(int argc, const char **argv_) {
                                         vpx_input_ctx.height,
                                         &vpx_input_ctx.framerate, img->fmt);
             if (do_md5) {
-              MD5Update(&md5_ctx, (md5byte *)buf, len);
+              MD5Update(&md5_ctx, (md5byte *)buf, (unsigned int)len);
             } else {
               fputs(buf, outfile);
             }
@@ -881,7 +885,7 @@ int main_loop(int argc, const char **argv_) {
           // Y4M frame header
           len = y4m_write_frame_header(buf, sizeof(buf));
           if (do_md5) {
-            MD5Update(&md5_ctx, (md5byte *)buf, len);
+            MD5Update(&md5_ctx, (md5byte *)buf, (unsigned int)len);
           } else {
             fputs(buf, outfile);
           }

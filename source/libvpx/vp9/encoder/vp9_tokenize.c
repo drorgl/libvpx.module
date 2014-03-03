@@ -23,8 +23,8 @@
 
 static TOKENVALUE dct_value_tokens[DCT_MAX_VALUE * 2];
 const TOKENVALUE *vp9_dct_value_tokens_ptr;
-static int dct_value_cost[DCT_MAX_VALUE * 2];
-const int *vp9_dct_value_cost_ptr;
+static int16_t dct_value_cost[DCT_MAX_VALUE * 2];
+const int16_t *vp9_dct_value_cost_ptr;
 
 // Array indices are identical to previously-existing CONTEXT_NODE indices
 const vp9_tree_index vp9_coef_tree[TREE_SIZE(ENTROPY_TOKENS)] = {
@@ -199,6 +199,12 @@ static INLINE void add_token_no_extra(TOKENEXTRA **t,
   ++counts[token];
 }
 
+static INLINE int get_tx_eob(const struct segmentation *seg, int segment_id,
+                             TX_SIZE tx_size) {
+  const int eob_max = 16 << (tx_size << 1);
+  return vp9_segfeature_active(seg, segment_id, SEG_LVL_SKIP) ? 0 : eob_max;
+}
+
 static void tokenize_b(int plane, int block, BLOCK_SIZE plane_bsize,
                        TX_SIZE tx_size, void *arg) {
   struct tokenize_b_args* const args = arg;
@@ -214,7 +220,7 @@ static void tokenize_b(int plane, int block, BLOCK_SIZE plane_bsize,
   TOKENEXTRA *t = *tp;        /* store tokens starting here */
   int eob = p->eobs[block];
   const PLANE_TYPE type = pd->plane_type;
-  const int16_t *qcoeff_ptr = BLOCK_OFFSET(p->qcoeff, block);
+  const int16_t *qcoeff = BLOCK_OFFSET(p->qcoeff, block);
   const int segment_id = mbmi->segment_id;
   const int16_t *scan, *nb;
   const scan_order *so;
@@ -241,7 +247,7 @@ static void tokenize_b(int plane, int block, BLOCK_SIZE plane_bsize,
   while (c < eob) {
     int v = 0;
     int skip_eob = 0;
-    v = qcoeff_ptr[scan[c]];
+    v = qcoeff[scan[c]];
 
     while (!v) {
       add_token_no_extra(&t, coef_probs[band[c]][pt], ZERO_TOKEN, skip_eob,
@@ -252,12 +258,13 @@ static void tokenize_b(int plane, int block, BLOCK_SIZE plane_bsize,
       token_cache[scan[c]] = 0;
       ++c;
       pt = get_coef_context(nb, token_cache, c);
-      v = qcoeff_ptr[scan[c]];
+      v = qcoeff[scan[c]];
     }
 
     add_token(&t, coef_probs[band[c]][pt],
               vp9_dct_value_tokens_ptr[v].extra,
-              vp9_dct_value_tokens_ptr[v].token, skip_eob,
+              (uint8_t)vp9_dct_value_tokens_ptr[v].token,
+              (uint8_t)skip_eob,
               counts[band[c]][pt]);
     eob_branch[band[c]][pt] += !skip_eob;
 

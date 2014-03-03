@@ -19,6 +19,8 @@ LIBYUV_SRCS +=  third_party/libyuv/include/libyuv/basic_types.h  \
 # while EXAMPLES demonstrate specific portions of the API.
 UTILS-$(CONFIG_DECODERS)    += vpxdec.c
 vpxdec.SRCS                 += md5_utils.c md5_utils.h
+vpxdec.SRCS                 += vpx_ports/mem_ops.h
+vpxdec.SRCS                 += vpx_ports/mem_ops_aligned.h
 vpxdec.SRCS                 += vpx_ports/vpx_timer.h
 vpxdec.SRCS                 += vpx/vpx_integer.h
 vpxdec.SRCS                 += args.c args.h
@@ -26,13 +28,13 @@ vpxdec.SRCS                 += ivfdec.c ivfdec.h
 vpxdec.SRCS                 += tools_common.c tools_common.h
 vpxdec.SRCS                 += webmdec.c webmdec.h
 vpxdec.SRCS                 += y4menc.c y4menc.h
-vpxdec.SRCS                 += nestegg/halloc/halloc.h
-vpxdec.SRCS                 += nestegg/halloc/src/align.h
-vpxdec.SRCS                 += nestegg/halloc/src/halloc.c
-vpxdec.SRCS                 += nestegg/halloc/src/hlist.h
-vpxdec.SRCS                 += nestegg/halloc/src/macros.h
-vpxdec.SRCS                 += nestegg/include/nestegg/nestegg.h
-vpxdec.SRCS                 += nestegg/src/nestegg.c
+vpxdec.SRCS                 += third_party/nestegg/halloc/halloc.h
+vpxdec.SRCS                 += third_party/nestegg/halloc/src/align.h
+vpxdec.SRCS                 += third_party/nestegg/halloc/src/halloc.c
+vpxdec.SRCS                 += third_party/nestegg/halloc/src/hlist.h
+vpxdec.SRCS                 += third_party/nestegg/halloc/src/macros.h
+vpxdec.SRCS                 += third_party/nestegg/include/nestegg/nestegg.h
+vpxdec.SRCS                 += third_party/nestegg/src/nestegg.c
 vpxdec.SRCS                 += $(LIBYUV_SRCS)
 vpxdec.GUID                  = BA5FE66F-38DD-E034-F542-B1578C5FB950
 vpxdec.DESCRIPTION           = Full featured decoder
@@ -54,7 +56,7 @@ vpxenc.SRCS                 += third_party/libmkv/EbmlWriter.h
 vpxenc.SRCS                 += $(LIBYUV_SRCS)
 vpxenc.GUID                  = 548DEC74-7A15-4B2B-AFC3-AA102E7C25C1
 vpxenc.DESCRIPTION           = Full featured encoder
-UTILS-$(CONFIG_VP9_ENCODER)    += vp9_spatial_scalable_encoder.c
+EXAMPLES-$(CONFIG_VP9_ENCODER)    += vp9_spatial_scalable_encoder.c
 vp9_spatial_scalable_encoder.SRCS += args.c args.h
 vp9_spatial_scalable_encoder.SRCS += ivfenc.c ivfenc.h
 vp9_spatial_scalable_encoder.SRCS += tools_common.c tools_common.h
@@ -85,12 +87,16 @@ simple_decoder.SRCS                += ivfdec.h ivfdec.c
 simple_decoder.SRCS                += tools_common.h tools_common.c
 simple_decoder.SRCS                += video_common.h
 simple_decoder.SRCS                += video_reader.h video_reader.c
+simple_decoder.SRCS                += vpx_ports/mem_ops.h
+simple_decoder.SRCS                += vpx_ports/mem_ops_aligned.h
 simple_decoder.DESCRIPTION          = Simplified decoder loop
 EXAMPLES-$(CONFIG_VP8_DECODER)     += postproc.c
 postproc.SRCS                      += ivfdec.h ivfdec.c
 postproc.SRCS                      += tools_common.h tools_common.c
 postproc.SRCS                      += video_common.h
 postproc.SRCS                      += video_reader.h video_reader.c
+postproc.SRCS                      += vpx_ports/mem_ops.h
+postproc.SRCS                      += vpx_ports/mem_ops_aligned.h
 postproc.GUID                       = 65E33355-F35E-4088-884D-3FD4905881D7
 postproc.DESCRIPTION                = Decoder postprocessor control
 EXAMPLES-$(CONFIG_VP8_DECODER)     += decode_to_md5.c
@@ -99,6 +105,8 @@ decode_to_md5.SRCS                 += ivfdec.h ivfdec.c
 decode_to_md5.SRCS                 += tools_common.h tools_common.c
 decode_to_md5.SRCS                 += video_common.h
 decode_to_md5.SRCS                 += video_reader.h video_reader.c
+decode_to_md5.SRCS                 += vpx_ports/mem_ops.h
+decode_to_md5.SRCS                 += vpx_ports/mem_ops_aligned.h
 decode_to_md5.GUID                  = 59120B9B-2735-4BFE-B022-146CA340FE42
 decode_to_md5.DESCRIPTION           = Frame by frame MD5 checksum
 EXAMPLES-$(CONFIG_VP8_ENCODER)  += simple_encoder.c
@@ -124,6 +132,8 @@ decode_with_drops.SRCS          += ivfdec.h ivfdec.c
 decode_with_drops.SRCS          += tools_common.h tools_common.c
 decode_with_drops.SRCS          += video_common.h
 decode_with_drops.SRCS          += video_reader.h video_reader.c
+decode_with_drops.SRCS          += vpx_ports/mem_ops.h
+decode_with_drops.SRCS          += vpx_ports/mem_ops_aligned.h
 endif
 decode_with_drops.GUID           = CE5C53C4-8DDA-438A-86ED-0DDD3CDB8D26
 decode_with_drops.DESCRIPTION    = Drops frames while decoding
@@ -132,11 +142,11 @@ EXAMPLES-$(CONFIG_ERROR_CONCEALMENT)    += decode_with_partial_drops.c
 endif
 decode_with_partial_drops.GUID           = 61C2D026-5754-46AC-916F-1343ECC5537E
 decode_with_partial_drops.DESCRIPTION    = Drops parts of frames while decoding
-EXAMPLES-$(CONFIG_VP8_ENCODER)  += error_resilient.c
-error_resilient.GUID             = DF5837B9-4145-4F92-A031-44E4F832E00C
-error_resilient.DESCRIPTION      = Error Resiliency Feature
-
 EXAMPLES-$(CONFIG_VP8_ENCODER)     += vp8_set_maps.c
+vp8_set_maps.SRCS                  += ivfenc.h ivfenc.c
+vp8_set_maps.SRCS                  += tools_common.h tools_common.c
+vp8_set_maps.SRCS                  += video_common.h
+vp8_set_maps.SRCS                  += video_writer.h video_writer.c
 vp8_set_maps.GUID                   = ECB2D24D-98B8-4015-A465-A4AF3DCC145F
 vp8_set_maps.DESCRIPTION            = VP8 set active and ROI maps
 EXAMPLES-$(CONFIG_VP8_ENCODER)     += vp8cx_set_ref.c
@@ -281,3 +291,36 @@ INSTALL-BINS-$(CONFIG_MSVS) += $(foreach p,$(VS_PLATFORMS),\
                                $(addprefix bin/$(p)/,$(ALL_EXAMPLES_BASENAME:.c=.exe)))
 $(foreach proj,$(call enabled,PROJECTS),\
     $(eval $(call vcproj_template,$(proj))))
+
+#
+# Documentation Rules
+#
+%.dox: %.c
+	@echo "    [DOXY] $@"
+	@echo "/*!\page example_$(@F:.dox=) $(@F:.dox=)" > $@
+	@echo "   \includelineno $(<F)" >> $@
+	@echo "*/" >> $@
+
+samples.dox: examples.mk
+	@echo "    [DOXY] $@"
+	@echo "/*!\page samples Sample Code" > $@
+	@echo "    This SDK includes a number of sample applications."\
+	      "Each sample documents a feature of the SDK in both prose"\
+	      "and the associated C code."\
+	      "The following samples are included: ">>$@
+	@$(foreach ex,$(sort $(notdir $(EXAMPLES:.c=))),\
+	   echo "     - \subpage example_$(ex) $($(ex).DESCRIPTION)" >> $@;)
+	@echo >> $@
+	@echo "    In addition, the SDK contains a number of utilities."\
+              "Since these utilities are built upon the concepts described"\
+              "in the sample code listed above, they are not documented in"\
+              "pieces like the samples are. Their source is included here"\
+              "for reference. The following utilities are included:" >> $@
+	@$(foreach ex,$(sort $(UTILS:.c=)),\
+	   echo "     - \subpage example_$(ex) $($(ex).DESCRIPTION)" >> $@;)
+	@echo "*/" >> $@
+
+CLEAN-OBJS += examples.doxy samples.dox $(ALL_EXAMPLES:.c=.dox)
+DOCS-yes += examples.doxy samples.dox
+examples.doxy: samples.dox $(ALL_EXAMPLES:.c=.dox)
+	@echo "INPUT += $^" > $@

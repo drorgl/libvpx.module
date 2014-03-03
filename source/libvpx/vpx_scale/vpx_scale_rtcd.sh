@@ -6,7 +6,7 @@ EOF
 forward_decls vpx_scale_forward_decls
 
 # Scaler functions
-if [ "CONFIG_SPATIAL_RESAMPLING" != "yes" ]; then
+if [ "$CONFIG_SPATIAL_RESAMPLING" = "yes" ]; then
     prototype void vp8_horizontal_line_5_4_scale "const unsigned char *source, unsigned int source_width, unsigned char *dest, unsigned int dest_width"
     prototype void vp8_vertical_band_5_4_scale "unsigned char *source, unsigned int src_pitch, unsigned char *dest, unsigned int dest_pitch, unsigned int dest_width"
     prototype void vp8_horizontal_line_5_3_scale "const unsigned char *source, unsigned int source_width, unsigned char *dest, unsigned int dest_width"
@@ -26,9 +26,9 @@ prototype void vpx_yv12_copy_y "const struct yv12_buffer_config *src_ybc, struct
 specialize vpx_yv12_copy_y neon
 
 if [ "$CONFIG_VP9" = "yes" ]; then
-    prototype void vp9_extend_frame_borders "struct yv12_buffer_config *ybf, int subsampling_x, int subsampling_y"
+    prototype void vp9_extend_frame_borders "struct yv12_buffer_config *ybf"
     specialize vp9_extend_frame_borders dspr2
 
-    prototype void vp9_extend_frame_inner_borders "struct yv12_buffer_config *ybf, int subsampling_x, int subsampling_y"
+    prototype void vp9_extend_frame_inner_borders "struct yv12_buffer_config *ybf"
     specialize vp9_extend_frame_inner_borders dspr2
 fi

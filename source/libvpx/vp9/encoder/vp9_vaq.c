@@ -44,7 +44,7 @@ unsigned int vp9_vaq_segment_id(int energy) {
 double vp9_vaq_rdmult_ratio(int energy) {
   ENERGY_IN_BOUNDS(energy);
 
-  vp9_clear_system_state();  // __asm emms;
+  vp9_clear_system_state();
 
   return RDMULT_RATIO(energy);
 }
@@ -52,7 +52,7 @@ double vp9_vaq_rdmult_ratio(int energy) {
 double vp9_vaq_inv_q_ratio(int energy) {
   ENERGY_IN_BOUNDS(energy);
 
-  vp9_clear_system_state();  // __asm emms;
+  vp9_clear_system_state();
 
   return Q_RATIO(-energy);
 }
@@ -63,7 +63,7 @@ void vp9_vaq_init() {
 
   assert(ENERGY_SPAN <= MAX_SEGMENTS);
 
-  vp9_clear_system_state();  // __asm emms;
+  vp9_clear_system_state();
 
   base_ratio = 1.5;
 
@@ -75,20 +75,20 @@ void vp9_vaq_init() {
 void vp9_vaq_frame_setup(VP9_COMP *cpi) {
   VP9_COMMON *cm = &cpi->common;
   struct segmentation *seg = &cm->seg;
-  int base_q = vp9_convert_qindex_to_q(cm->base_qindex);
-  int base_rdmult = vp9_compute_rd_mult(cpi, cm->base_qindex +
-                                        cm->y_dc_delta_q);
+  const double base_q = vp9_convert_qindex_to_q(cm->base_qindex);
+  const int base_rdmult = vp9_compute_rd_mult(cpi, cm->base_qindex +
+                                              cm->y_dc_delta_q);
   int i;
 
   if (cm->frame_type == KEY_FRAME ||
       cpi->refresh_alt_ref_frame ||
       (cpi->refresh_golden_frame && !cpi->rc.is_src_frame_alt_ref)) {
-    vp9_enable_segmentation((VP9_PTR)cpi);
+    vp9_enable_segmentation(seg);
     vp9_clearall_segfeatures(seg);
 
     seg->abs_delta = SEGMENT_DELTADATA;
 
-    vp9_clear_system_state();  // __asm emms;
+  vp9_clear_system_state();
 
     for (i = ENERGY_MIN; i <= ENERGY_MAX; i++) {
       int qindex_delta, segment_rdmult;
@@ -141,11 +141,8 @@ int vp9_block_energy(VP9_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs) {
   double energy;
   unsigned int var = block_variance(cpi, x, bs);
 
-  vp9_clear_system_state();  // __asm emms;
+  vp9_clear_system_state();
 
-  // if (var <= 1000)
-  //   return 0;
-
-  energy = 0.9*(logf(var + 1) - 10.0);
-  return clamp(round(energy), ENERGY_MIN, ENERGY_MAX);
+  energy = 0.9 * (log(var + 1.0) - 10.0);
+  return clamp((int)round(energy), ENERGY_MIN, ENERGY_MAX);
 }
