@@ -11,12 +11,12 @@
   ],
   'targets': [
     {
-      'target_name': 'libvpx_untrusted',
+      'target_name': 'libvpx_nacl',
       'type': 'none',
       'variables': {
-        'nlib_target': 'libvpx_untrusted.a',
-        'build_glibc': 1,
-        'build_newlib': 1,
+        'nlib_target': 'libvpx_nacl.a',
+        'build_glibc': 0,
+        'build_newlib': 0,
         'build_pnacl_newlib': 1,
       },
       'dependencies': [
@@ -31,6 +31,6 @@
         '<(libvpx_source)/vp8/encoder',
       ],
       'includes': ['libvpx_srcs_nacl.gypi', ],
-    },  # end of target 'libvpx_untrusted'
+    },  # end of target 'libvpx_nacl'
   ],
 }
