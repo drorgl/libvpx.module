@@ -46,7 +46,7 @@
         '-d', '<(unpack_lib_output_dir)',
         '-f', '<(unpack_lib_name)',
         '<@(unpack_lib_search_path_list)',
-        '<(ar_cmd)',
+        '<@(ar_cmd)',
       ],
       'process_output_as_sources': 1,
     },
