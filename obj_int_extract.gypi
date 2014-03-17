@@ -5,6 +5,9 @@
 # Rule to extract integer values for each symbol from an object file.
 # The output file name is the input file name with extension replaced with
 # asm or h.
+#
+# The target include this rule must dependent on libvpx_obj_int_extract#host.
+#
 # The following gyp variables must be set before including this gypi:
 #   output_format, the output format of integer value.
 #   output_dir, the full path where the output file should be created.
@@ -41,7 +44,6 @@
       'rule_name': 'obj_int_extract',
       'extension': '<(asm_obj_extension)',
       'inputs': [
-        '<(PRODUCT_DIR)/libvpx_obj_int_extract',
         'obj_int_extract.py',
       ],
       'outputs': [
