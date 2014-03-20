@@ -330,6 +330,14 @@
                 '<(libvpx_source)/third_party/libmkv/EbmlWriter.h',
               ],
             }],
+            ['OS == "ios"', {
+              'xcode_settings': {
+                'OTHER_CFLAGS!': [
+                  # Breaks at least boolhuff_armv5te:token_high_bit_not_set_ev.
+                  '-fstack-protector-all',  # Implies -fstack-protector
+                ],
+              },
+            }],
           ],
         },
       ],
