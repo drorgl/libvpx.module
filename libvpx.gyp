@@ -375,6 +375,16 @@
           'xcode_settings': { 'OTHER_CFLAGS!': [ '-fsanitize=address' ] },
           'ldflags!': [ '-fsanitize=address' ],
         }],
+        ['OS=="win"', {
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              # Clang uses -fdata-sections when function level linking is
+              # enabled, but libvpx_obj_int_extract expects all data to
+              # reside in the same section on Windows.
+              'EnableFunctionLevelLinking': 'false',
+            },
+          },
+        }],
       ],
       'sources': [
         '<(libvpx_source)/vp8/encoder/vp8_asm_enc_offsets.c',
