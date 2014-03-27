@@ -25,11 +25,11 @@
         '<(libvpx_source)/vp9/common/arm/neon/vp9_loopfilter_16_neon.c',
       ],
       'conditions': [
-        ['os_posix==1 and OS!="mac"', {
+        ['os_posix==1 and OS!="mac" and OS!="ios"', {
           'cflags!': [ '-mfpu=vfpv3-d16' ],
           'cflags': [ '-mfpu=neon', ],
         }],
-        ['OS=="mac"', {
+        ['OS=="mac" or OS=="ios"', {
           'xcode_settings': {
             'OTHER_CFLAGS': [ '-mfpu=neon', ],
           },

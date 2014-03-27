@@ -19,11 +19,11 @@
         '<(libvpx_source)/vp9/encoder/x86/vp9_variance_mmx.c',
       ],
       'conditions': [
-        ['os_posix==1 and OS!="mac"', {
+        ['os_posix==1 and OS!="mac" and OS!="ios"', {
           'cflags!': [ '-mfpu=vfpv3-d16' ],
           'cflags': [ '-mmmx', ],
         }],
-        ['OS=="mac"', {
+        ['OS=="mac" or OS=="ios"', {
           'xcode_settings': {
             'OTHER_CFLAGS': [ '-mmmx', ],
           },
@@ -51,11 +51,11 @@
         '<(libvpx_source)/vp9/encoder/x86/vp9_variance_sse2.c',
       ],
       'conditions': [
-        ['os_posix==1 and OS!="mac"', {
+        ['os_posix==1 and OS!="mac" and OS!="ios"', {
           'cflags!': [ '-mfpu=vfpv3-d16' ],
           'cflags': [ '-msse2', ],
         }],
-        ['OS=="mac"', {
+        ['OS=="mac" or OS=="ios"', {
           'xcode_settings': {
             'OTHER_CFLAGS': [ '-msse2', ],
           },
@@ -74,11 +74,11 @@
         '<(libvpx_source)/vp9/common/x86/vp9_subpixel_8t_intrin_ssse3.c',
       ],
       'conditions': [
-        ['os_posix==1 and OS!="mac"', {
+        ['os_posix==1 and OS!="mac" and OS!="ios"', {
           'cflags!': [ '-mfpu=vfpv3-d16' ],
           'cflags': [ '-mssse3', ],
         }],
-        ['OS=="mac"', {
+        ['OS=="mac" or OS=="ios"', {
           'xcode_settings': {
             'OTHER_CFLAGS': [ '-mssse3', ],
           },
