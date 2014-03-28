@@ -15,6 +15,7 @@
 #
 # !!! It's highly recommended to install yasm before running this script.
 
+export LC_ALL=C
 BASE_DIR=`pwd`
 LIBVPX_SRC_DIR="source/libvpx"
 LIBVPX_CONFIG_DIR="source/config"

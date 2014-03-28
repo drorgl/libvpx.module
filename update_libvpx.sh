@@ -19,6 +19,8 @@
 # 2. svn
 # 3. git
 
+export LC_ALL=C
+
 # Location for the remote git repository.
 GIT_REPO="http://git.chromium.org/webm/libvpx.git"
 
