@@ -28,6 +28,9 @@
               }],
             ],
           }],
+          ['OS=="android" and target_arch=="arm64"', {
+            'target_arch_full': 'generic',
+          }],
         ],
       }],
 
