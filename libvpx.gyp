@@ -134,6 +134,9 @@
                 #'libvpx_intrinsics_avx2',
               ],
             }],
+            ['target_arch=="arm64"', {
+              'includes': [ 'libvpx_srcs_generic.gypi', ],
+            }],
             ['target_arch=="x64"', {
               'conditions': [
                 ['msan==1', {
