@@ -9,8 +9,8 @@
  */
 
 
-#ifndef __INC_VP8_INT_H
-#define __INC_VP8_INT_H
+#ifndef VP8_ENCODER_ONYX_INT_H_
+#define VP8_ENCODER_ONYX_INT_H_
 
 #include <stdio.h>
 #include "vpx_config.h"
@@ -31,6 +31,10 @@
 #include "lookahead.h"
 #if CONFIG_TEMPORAL_DENOISING
 #include "vp8/encoder/denoising.h"
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 #define MIN_GF_INTERVAL             4
@@ -232,7 +236,7 @@ enum
 typedef struct
 {
     /* Layer configuration */
-    double frame_rate;
+    double framerate;
     int target_bandwidth;
 
     /* Layer specific coding parameters */
@@ -320,6 +324,7 @@ typedef struct VP8_COMP
     YV12_BUFFER_CONFIG scaled_source;
     YV12_BUFFER_CONFIG *last_frame_unscaled_source;
 
+    unsigned int frames_till_alt_ref_frame;
     /* frame in src_buffers has been identified to be encoded as an alt ref */
     int source_alt_ref_pending;
     /* an alt ref frame has been encoded and is usable */
@@ -369,6 +374,7 @@ typedef struct VP8_COMP
     double key_frame_rate_correction_factor;
     double gf_rate_correction_factor;
 
+    unsigned int frames_since_golden;
     /* Count down till next GF */
     int frames_till_gf_update_due;
 
@@ -401,7 +407,7 @@ typedef struct VP8_COMP
     /* Minimum allocation that should be used for any frame */
     int min_frame_bandwidth;
     int inter_frame_target;
-    double output_frame_rate;
+    double output_framerate;
     int64_t last_time_stamp_seen;
     int64_t last_end_time_stamp_seen;
     int64_t first_time_stamp_ever;
@@ -415,8 +421,8 @@ typedef struct VP8_COMP
 
     int buffered_mode;
 
-    double frame_rate;
-    double ref_frame_rate;
+    double framerate;
+    double ref_framerate;
     int64_t buffer_level;
     int64_t bits_off_target;
 
@@ -719,4 +725,8 @@ void vp8_set_speed_features(VP8_COMP *cpi);
                                "Failed to allocate "#lval);\
     } while(0)
 #endif
+#ifdef __cplusplus
+}  // extern "C"
 #endif
+
+#endif  // VP8_ENCODER_ONYX_INT_H_

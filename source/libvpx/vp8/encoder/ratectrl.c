@@ -174,14 +174,6 @@ static const int kf_gf_boost_qlimits[QINDEX_RANGE] =
     600, 600, 600, 600, 600, 600, 600, 600,
 };
 
-/* % adjustment to target kf size based on seperation from previous frame */
-static const int kf_boost_seperation_adjustment[16] =
-{
-    30,   40,   50,   55,   60,   65,   70,   75,
-    80,   85,   90,   95,  100,  100,  100,  100,
-};
-
-
 static const int gf_adjust_table[101] =
 {
     100,
@@ -234,7 +226,7 @@ void vp8_save_coding_context(VP8_COMP *cpi)
     cc->frames_since_key          = cpi->frames_since_key;
     cc->filter_level             = cpi->common.filter_level;
     cc->frames_till_gf_update_due   = cpi->frames_till_gf_update_due;
-    cc->frames_since_golden       = cpi->common.frames_since_golden;
+    cc->frames_since_golden       = cpi->frames_since_golden;
 
     vp8_copy(cc->mvc,      cpi->common.fc.mvc);
     vp8_copy(cc->mvcosts,  cpi->rd_costs.mvcosts);
@@ -271,7 +263,7 @@ void vp8_restore_coding_context(VP8_COMP *cpi)
     cpi->frames_since_key         =   cc->frames_since_key;
     cpi->common.filter_level     =   cc->filter_level;
     cpi->frames_till_gf_update_due  =   cc->frames_till_gf_update_due;
-    cpi->common.frames_since_golden       =   cc->frames_since_golden;
+    cpi->frames_since_golden       =   cc->frames_since_golden;
 
     vp8_copy(cpi->common.fc.mvc, cc->mvc);
 
@@ -388,7 +380,7 @@ static void calc_iframe_target_size(VP8_COMP *cpi)
         int initial_boost = 32; /* |3.0 * per_frame_bandwidth| */
         /* Boost depends somewhat on frame rate: only used for 1 layer case. */
         if (cpi->oxcf.number_of_layers == 1) {
-          kf_boost = MAX(initial_boost, (int)(2 * cpi->output_frame_rate - 16));
+          kf_boost = MAX(initial_boost, (int)(2 * cpi->output_framerate - 16));
         }
         else {
           /* Initial factor: set target size to: |3.0 * per_frame_bandwidth|. */
@@ -399,9 +391,9 @@ static void calc_iframe_target_size(VP8_COMP *cpi)
         kf_boost = kf_boost * kf_boost_qadjustment[Q] / 100;
 
         /* frame separation adjustment ( down) */
-        if (cpi->frames_since_key  < cpi->output_frame_rate / 2)
+        if (cpi->frames_since_key  < cpi->output_framerate / 2)
             kf_boost = (int)(kf_boost
-                       * cpi->frames_since_key / (cpi->output_frame_rate / 2));
+                       * cpi->frames_since_key / (cpi->output_framerate / 2));
 
         /* Minimal target size is |2* per_frame_bandwidth|. */
         if (kf_boost < 16)
@@ -715,7 +707,7 @@ static void calc_pframe_target_size(VP8_COMP *cpi)
                 if (Adjustment > (cpi->this_frame_target - min_frame_target))
                     Adjustment = (cpi->this_frame_target - min_frame_target);
 
-                if (cpi->common.frames_since_golden == (cpi->current_gf_interval >> 1))
+                if (cpi->frames_since_golden == (cpi->current_gf_interval >> 1))
                     cpi->this_frame_target += ((cpi->current_gf_interval - 1) * Adjustment);
                 else
                     cpi->this_frame_target -= Adjustment;
@@ -956,6 +948,21 @@ static void calc_pframe_target_size(VP8_COMP *cpi)
             if (cpi->bits_off_target > cpi->oxcf.maximum_buffer_size)
               cpi->bits_off_target = (int)cpi->oxcf.maximum_buffer_size;
             cpi->buffer_level = cpi->bits_off_target;
+
+            if (cpi->oxcf.number_of_layers > 1) {
+              unsigned int i;
+
+              // Propagate bits saved by dropping the frame to higher layers.
+              for (i = cpi->current_layer + 1; i < cpi->oxcf.number_of_layers;
+                  i++) {
+                LAYER_CONTEXT *lc = &cpi->layer_context[i];
+                lc->bits_off_target += (int)(lc->target_bandwidth /
+                                             lc->framerate);
+                if (lc->bits_off_target > lc->maximum_buffer_size)
+                  lc->bits_off_target = lc->maximum_buffer_size;
+                lc->buffer_level = lc->bits_off_target;
+              }
+            }
         }
     }
 
@@ -1223,7 +1230,6 @@ int vp8_regulate_q(VP8_COMP *cpi, int target_bits_per_frame)
         {
             Q = cpi->oxcf.gold_q;
         }
-
     }
     else
     {
@@ -1360,7 +1366,7 @@ static int estimate_keyframe_frequency(VP8_COMP *cpi)
          * whichever is smaller.
          */
         int key_freq = cpi->oxcf.key_freq>0 ? cpi->oxcf.key_freq : 1;
-        av_key_frame_frequency = 1 + (int)cpi->output_frame_rate * 2;
+        av_key_frame_frequency = 1 + (int)cpi->output_framerate * 2;
 
         if (cpi->oxcf.auto_key && av_key_frame_frequency > key_freq)
             av_key_frame_frequency = key_freq;

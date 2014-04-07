@@ -12,7 +12,7 @@
 #define TEST_DECODE_TEST_DRIVER_H_
 #include <cstring>
 #include "third_party/googletest/src/include/gtest/gtest.h"
-#include "vpx_config.h"
+#include "./vpx_config.h"
 #include "vpx/vpx_decoder.h"
 
 namespace libvpx_test {
@@ -36,9 +36,8 @@ class DxDataIterator {
 };
 
 // Provides a simplified interface to manage one video decoding.
-//
-// TODO: similar to Encoder class, the exact services should be
-// added as more tests are added.
+// Similar to Encoder class, the exact services should be added
+// as more tests are added.
 class Decoder {
  public:
   Decoder(vpx_codec_dec_cfg_t cfg, unsigned long deadline)
@@ -50,7 +49,7 @@ class Decoder {
     vpx_codec_destroy(&decoder_);
   }
 
-  vpx_codec_err_t DecodeFrame(const uint8_t *cxdata, int size);
+  vpx_codec_err_t DecodeFrame(const uint8_t *cxdata, size_t size);
 
   DxDataIterator GetDxData() {
     return DxDataIterator(&decoder_);
@@ -77,8 +76,17 @@ class Decoder {
     return detail ? detail : vpx_codec_error(&decoder_);
   }
 
+  // Passes the external frame buffer information to libvpx.
+  vpx_codec_err_t SetFrameBufferFunctions(
+      vpx_get_frame_buffer_cb_fn_t cb_get,
+      vpx_release_frame_buffer_cb_fn_t cb_release, void *user_priv) {
+    InitOnce();
+    return vpx_codec_set_frame_buffer_functions(
+        &decoder_, cb_get, cb_release, user_priv);
+  }
+
  protected:
-  virtual const vpx_codec_iface_t* CodecInterface() const = 0;
+  virtual vpx_codec_iface_t* CodecInterface() const = 0;
 
   void InitOnce() {
     if (!init_done_) {
@@ -101,6 +109,10 @@ class DecoderTest {
  public:
   // Main decoding loop
   virtual void RunLoop(CompressedVideoSource *video);
+
+  // Hook to be called before decompressing every frame.
+  virtual void PreDecodeFrameHook(const CompressedVideoSource& video,
+                                  Decoder *decoder) {}
 
   // Hook to be called on every decompressed frame.
   virtual void DecompressedFrameHook(const vpx_image_t& img,

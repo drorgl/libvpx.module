@@ -209,6 +209,10 @@ common_top() {
 #define RTCD_EXTERN extern
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 $(process_forward_decls)
 
 $(declare_function_pointers c $ALL_ARCHS)
@@ -219,6 +223,11 @@ EOF
 
 common_bottom() {
   cat <<EOF
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
 #endif
 EOF
 }
@@ -290,8 +299,14 @@ static void setup_rtcd_internal(void)
 {
 $(set_function_pointers c $ALL_ARCHS)
 #if HAVE_DSPR2
+#if CONFIG_VP8
 void dsputil_static_init();
 dsputil_static_init();
+#endif
+#if CONFIG_VP9
+void vp9_dsputil_static_init();
+vp9_dsputil_static_init();
+#endif
 #endif
 }
 #endif
@@ -318,14 +333,15 @@ EOF
 #
 # Main Driver
 #
+ALL_FUNCS=$(export LC_ALL=C; echo $ALL_FUNCS | tr ' ' '\n' | sort |tr '\n' ' ')
 require c
 case $arch in
   x86)
-    ALL_ARCHS=$(filter mmx sse sse2 sse3 ssse3 sse4_1)
+    ALL_ARCHS=$(filter mmx sse sse2 sse3 ssse3 sse4_1 avx avx2)
     x86
     ;;
   x86_64)
-    ALL_ARCHS=$(filter mmx sse sse2 sse3 ssse3 sse4_1)
+    ALL_ARCHS=$(filter mmx sse sse2 sse3 ssse3 sse4_1 avx avx2)
     REQUIRES=${REQUIRES:-mmx sse sse2}
     require $(filter $REQUIRES)
     x86

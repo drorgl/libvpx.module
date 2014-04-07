@@ -8,14 +8,18 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef VP9_READ_BIT_BUFFER_
-#define VP9_READ_BIT_BUFFER_
+#ifndef VP9_DECODER_VP9_READ_BIT_BUFFER_H_
+#define VP9_DECODER_VP9_READ_BIT_BUFFER_H_
 
 #include <limits.h>
 
 #include "vpx/vpx_integer.h"
 
-typedef void (*vp9_rb_error_handler)(void *data, size_t bit_offset);
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef void (*vp9_rb_error_handler)(void *data);
 
 struct vp9_read_bit_buffer {
   const uint8_t *bit_buffer;
@@ -35,7 +39,7 @@ static int vp9_rb_read_bit(struct vp9_read_bit_buffer *rb) {
   const size_t p = off / CHAR_BIT;
   const int q = CHAR_BIT - 1 - (int)off % CHAR_BIT;
   if (rb->bit_buffer + p >= rb->bit_buffer_end) {
-    rb->error_handler(rb->error_handler_data, rb->bit_offset);
+    rb->error_handler(rb->error_handler_data);
     return 0;
   } else {
     const int bit = (rb->bit_buffer[p] & (1 << q)) >> q;
@@ -51,4 +55,14 @@ static int vp9_rb_read_literal(struct vp9_read_bit_buffer *rb, int bits) {
   return value;
 }
 
-#endif  // VP9_READ_BIT_BUFFER_
+static int vp9_rb_read_signed_literal(struct vp9_read_bit_buffer *rb,
+                                      int bits) {
+  const int value = vp9_rb_read_literal(rb, bits);
+  return vp9_rb_read_bit(rb) ? -value : value;
+}
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
+#endif  // VP9_DECODER_VP9_READ_BIT_BUFFER_H_

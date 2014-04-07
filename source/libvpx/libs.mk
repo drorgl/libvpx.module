@@ -115,6 +115,7 @@ ifeq ($(CONFIG_VP9_ENCODER),yes)
   CODEC_EXPORTS-yes += $(addprefix $(VP9_PREFIX),$(VP9_CX_EXPORTS))
   CODEC_SRCS-yes += $(VP9_PREFIX)vp9cx.mk vpx/vp8.h vpx/vp8cx.h
   INSTALL-LIBS-yes += include/vpx/vp8.h include/vpx/vp8cx.h
+  INSTALL-LIBS-yes += include/vpx/svc_context.h
   INSTALL_MAPS += include/vpx/% $(SRC_PATH_BARE)/$(VP9_PREFIX)/%
   CODEC_DOC_SRCS += vpx/vp8.h vpx/vp8cx.h
   CODEC_DOC_SECTIONS += vp9 vp9_encoder
@@ -163,6 +164,8 @@ endif
 CODEC_SRCS-$(BUILD_LIBVPX) += build/make/version.sh
 CODEC_SRCS-$(BUILD_LIBVPX) += build/make/rtcd.sh
 CODEC_SRCS-$(BUILD_LIBVPX) += vpx_ports/emmintrin_compat.h
+CODEC_SRCS-$(BUILD_LIBVPX) += vpx_ports/mem_ops.h
+CODEC_SRCS-$(BUILD_LIBVPX) += vpx_ports/mem_ops_aligned.h
 CODEC_SRCS-$(BUILD_LIBVPX) += vpx_ports/vpx_once.h
 CODEC_SRCS-$(BUILD_LIBVPX) += $(BUILD_PFX)vpx_config.c
 INSTALL-SRCS-no += $(BUILD_PFX)vpx_config.c
@@ -174,10 +177,9 @@ CODEC_EXPORTS-$(CONFIG_ENCODERS) += vpx/exports_enc
 CODEC_EXPORTS-$(CONFIG_DECODERS) += vpx/exports_dec
 
 INSTALL-LIBS-yes += include/vpx/vpx_codec.h
+INSTALL-LIBS-yes += include/vpx/vpx_frame_buffer.h
 INSTALL-LIBS-yes += include/vpx/vpx_image.h
 INSTALL-LIBS-yes += include/vpx/vpx_integer.h
-INSTALL-LIBS-yes += include/vpx/vpx_codec_impl_top.h
-INSTALL-LIBS-yes += include/vpx/vpx_codec_impl_bottom.h
 INSTALL-LIBS-$(CONFIG_DECODERS) += include/vpx/vpx_decoder.h
 INSTALL-LIBS-$(CONFIG_ENCODERS) += include/vpx/vpx_encoder.h
 ifeq ($(CONFIG_EXTERNAL_BUILD),yes)
@@ -202,13 +204,17 @@ INSTALL-SRCS-$(CONFIG_CODEC_SRCS) += $(call enabled,CODEC_EXPORTS)
 libvpx_srcs.txt:
 	@echo "    [CREATE] $@"
 	@echo $(CODEC_SRCS) | xargs -n1 echo | sort -u > $@
+CLEAN-OBJS += libvpx_srcs.txt
 
 
 ifeq ($(CONFIG_EXTERNAL_BUILD),yes)
 ifeq ($(CONFIG_MSVS),yes)
 
+obj_int_extract.bat: $(SRC_PATH_BARE)/build/$(MSVS_ARCH_DIR)/obj_int_extract.bat
+	@cp $^ $@
+
+obj_int_extract.$(VCPROJ_SFX): obj_int_extract.bat
 obj_int_extract.$(VCPROJ_SFX): $(SRC_PATH_BARE)/build/make/obj_int_extract.c
-	@cp $(SRC_PATH_BARE)/build/$(MSVS_ARCH_DIR)/obj_int_extract.bat .
 	@echo "    [CREATE] $@"
 	$(qexec)$(GEN_VCPROJ) \
     --exe \
@@ -382,7 +388,12 @@ LIBVPX_TEST_DATA=$(addprefix $(LIBVPX_TEST_DATA_PATH)/,\
                      $(call enabled,LIBVPX_TEST_DATA))
 libvpx_test_data_url=http://downloads.webmproject.org/test_data/libvpx/$(1)
 
-$(LIBVPX_TEST_DATA):
+libvpx_test_srcs.txt:
+	@echo "    [CREATE] $@"
+	@echo $(LIBVPX_TEST_SRCS) | xargs -n1 echo | sort -u > $@
+CLEAN-OBJS += libvpx_test_srcs.txt
+
+$(LIBVPX_TEST_DATA): $(SRC_PATH_BARE)/test/test-data.sha1
 	@echo "    [DOWNLOAD] $@"
 	$(qexec)trap 'rm -f $@' INT TERM &&\
             curl -L -o $@ $(call libvpx_test_data_url,$(@F))
@@ -442,7 +453,10 @@ else
 include $(SRC_PATH_BARE)/third_party/googletest/gtest.mk
 GTEST_SRCS := $(addprefix third_party/googletest/src/,$(call enabled,GTEST_SRCS))
 GTEST_OBJS=$(call objs,$(GTEST_SRCS))
+ifeq ($(filter win%,$(TGT_OS)),$(TGT_OS))
+# Disabling pthreads globally will cause issues on darwin and possibly elsewhere
 $(GTEST_OBJS) $(GTEST_OBJS:.o=.d): CXXFLAGS += -DGTEST_HAS_PTHREAD=0
+endif
 $(GTEST_OBJS) $(GTEST_OBJS:.o=.d): CXXFLAGS += -I$(SRC_PATH_BARE)/third_party/googletest/src
 $(GTEST_OBJS) $(GTEST_OBJS:.o=.d): CXXFLAGS += -I$(SRC_PATH_BARE)/third_party/googletest/src/include
 OBJS-$(BUILD_LIBVPX) += $(GTEST_OBJS)
@@ -454,11 +468,6 @@ $(LIBVPX_TEST_OBJS) $(LIBVPX_TEST_OBJS:.o=.d): CXXFLAGS += -I$(SRC_PATH_BARE)/th
 $(LIBVPX_TEST_OBJS) $(LIBVPX_TEST_OBJS:.o=.d): CXXFLAGS += -I$(SRC_PATH_BARE)/third_party/googletest/src/include
 OBJS-$(BUILD_LIBVPX) += $(LIBVPX_TEST_OBJS)
 BINS-$(BUILD_LIBVPX) += $(LIBVPX_TEST_BINS)
-
-# Install test sources only if codec source is included
-INSTALL-SRCS-$(CONFIG_CODEC_SRCS) += $(patsubst $(SRC_PATH_BARE)/%,%,\
-    $(shell find $(SRC_PATH_BARE)/third_party/googletest -type f))
-INSTALL-SRCS-$(CONFIG_CODEC_SRCS) += $(LIBVPX_TEST_SRCS)
 
 CODEC_LIB=$(if $(CONFIG_DEBUG_LIBS),vpx_g,vpx)
 CODEC_LIB_SUF=$(if $(CONFIG_SHARED),.so,.a)
@@ -472,6 +481,11 @@ $(foreach bin,$(LIBVPX_TEST_BINS),\
     $(if $(LIPO_LIBS),$(eval $(call lipo_bin_template,$(bin))))\
 
 endif
+
+# Install test sources only if codec source is included
+INSTALL-SRCS-$(CONFIG_CODEC_SRCS) += $(patsubst $(SRC_PATH_BARE)/%,%,\
+    $(shell find $(SRC_PATH_BARE)/third_party/googletest -type f))
+INSTALL-SRCS-$(CONFIG_CODEC_SRCS) += $(LIBVPX_TEST_SRCS)
 
 define test_shard_template
 test:: test_shard.$(1)

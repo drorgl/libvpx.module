@@ -10,54 +10,42 @@
 
 #include "vp9/common/vp9_tile_common.h"
 
-#define MIN_TILE_WIDTH 256
-#define MAX_TILE_WIDTH 4096
-#define MIN_TILE_WIDTH_SBS (MIN_TILE_WIDTH >> 6)
-#define MAX_TILE_WIDTH_SBS (MAX_TILE_WIDTH >> 6)
+#include "vp9/common/vp9_onyxc_int.h"
 
-static void vp9_get_tile_offsets(VP9_COMMON *cm, int *min_tile_off,
-                                 int *max_tile_off, int tile_idx,
-                                 int log2_n_tiles, int n_mis) {
-  const int n_sbs = (n_mis + 7) >> 3;
-  const int sb_off1 =  (tile_idx      * n_sbs) >> log2_n_tiles;
-  const int sb_off2 = ((tile_idx + 1) * n_sbs) >> log2_n_tiles;
+#define MIN_TILE_WIDTH_B64 4
+#define MAX_TILE_WIDTH_B64 64
 
-  *min_tile_off = MIN(sb_off1 << 3, n_mis);
-  *max_tile_off = MIN(sb_off2 << 3, n_mis);
+static int get_tile_offset(int idx, int mis, int log2) {
+  const int sb_cols = mi_cols_aligned_to_sb(mis) >> MI_BLOCK_SIZE_LOG2;
+  const int offset = ((idx * sb_cols) >> log2) << MI_BLOCK_SIZE_LOG2;
+  return MIN(offset, mis);
 }
 
-void vp9_get_tile_col_offsets(VP9_COMMON *cm, int tile_col_idx) {
-  cm->cur_tile_col_idx = tile_col_idx;
-  vp9_get_tile_offsets(cm, &cm->cur_tile_mi_col_start,
-                       &cm->cur_tile_mi_col_end, tile_col_idx,
-                       cm->log2_tile_columns, cm->mi_cols);
+void vp9_tile_init(TileInfo *tile, const VP9_COMMON *cm, int row, int col) {
+  tile->mi_row_start = get_tile_offset(row, cm->mi_rows, cm->log2_tile_rows);
+  tile->mi_row_end = get_tile_offset(row + 1, cm->mi_rows, cm->log2_tile_rows);
+  tile->mi_col_start = get_tile_offset(col, cm->mi_cols, cm->log2_tile_cols);
+  tile->mi_col_end = get_tile_offset(col + 1, cm->mi_cols, cm->log2_tile_cols);
 }
 
-void vp9_get_tile_row_offsets(VP9_COMMON *cm, int tile_row_idx) {
-  cm->cur_tile_row_idx = tile_row_idx;
-  vp9_get_tile_offsets(cm, &cm->cur_tile_mi_row_start,
-                       &cm->cur_tile_mi_row_end, tile_row_idx,
-                       cm->log2_tile_rows, cm->mi_rows);
-}
+void vp9_get_tile_n_bits(int mi_cols,
+                         int *min_log2_tile_cols, int *max_log2_tile_cols) {
+  const int sb_cols = mi_cols_aligned_to_sb(mi_cols) >> MI_BLOCK_SIZE_LOG2;
+  int min_log2 = 0, max_log2 = 0;
 
+  // max
+  while ((sb_cols >> max_log2) >= MIN_TILE_WIDTH_B64)
+    ++max_log2;
+  --max_log2;
+  if (max_log2 < 0)
+    max_log2 = 0;
 
-void vp9_get_tile_n_bits(VP9_COMMON *cm, int *min_log2_n_tiles_ptr,
-                         int *delta_log2_n_tiles) {
-  const int sb_cols = (cm->mb_cols + 3) >> 2;
-  int min_log2_n_tiles, max_log2_n_tiles;
+  // min
+  while ((MAX_TILE_WIDTH_B64 << min_log2) < sb_cols)
+    ++min_log2;
 
-  for (max_log2_n_tiles = 0;
-       (sb_cols >> max_log2_n_tiles) >= MIN_TILE_WIDTH_SBS;
-       max_log2_n_tiles++) {}
-  max_log2_n_tiles--;
-  if (max_log2_n_tiles <  0)
-    max_log2_n_tiles = 0;
+  assert(min_log2 <= max_log2);
 
-  for (min_log2_n_tiles = 0;
-       (MAX_TILE_WIDTH_SBS << min_log2_n_tiles) < sb_cols;
-       min_log2_n_tiles++) {}
-
-  assert(max_log2_n_tiles >= min_log2_n_tiles);
-  *min_log2_n_tiles_ptr = min_log2_n_tiles;
-  *delta_log2_n_tiles = max_log2_n_tiles - min_log2_n_tiles;
+  *min_log2_tile_cols = min_log2;
+  *max_log2_tile_cols = max_log2;
 }

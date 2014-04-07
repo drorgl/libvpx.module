@@ -10,53 +10,58 @@
 
 #ifndef VP9_DECODER_VP9_ONYXD_INT_H_
 #define VP9_DECODER_VP9_ONYXD_INT_H_
-#include "./vpx_config.h"
-#include "vp9/decoder/vp9_onyxd.h"
-#include "vp9/decoder/vp9_treereader.h"
-#include "vp9/common/vp9_onyxc_int.h"
-#include "vp9/decoder/vp9_idct_blk.h"
 
-// #define DEC_DEBUG
+#include "./vpx_config.h"
+
+#include "vp9/common/vp9_onyxc_int.h"
+#include "vp9/decoder/vp9_dthread.h"
+#include "vp9/decoder/vp9_onyxd.h"
+#include "vp9/decoder/vp9_thread.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct VP9Decompressor {
   DECLARE_ALIGNED(16, MACROBLOCKD, mb);
 
   DECLARE_ALIGNED(16, VP9_COMMON, common);
 
+  DECLARE_ALIGNED(16, int16_t,  dqcoeff[MAX_MB_PLANE][64 * 64]);
+
   VP9D_CONFIG oxcf;
 
   const uint8_t *source;
-  uint32_t source_sz;
+  size_t source_sz;
 
-  vp9_reader *mbc;
   int64_t last_time_stamp;
   int ready_for_new_data;
 
   int refresh_frame_flags;
-  vp9_prob prob_skip_false;
 
   int decoded_key_frame;
 
   int initial_width;
   int initial_height;
+
+  int do_loopfilter_inline;  // apply loopfilter to available rows immediately
+  VP9Worker lf_worker;
+
+  VP9Worker *tile_workers;
+  int num_tile_workers;
+
+  VP9LfSync lf_row_sync;
+
+  /* Each tile column has its own MODE_INFO stream. This array indexes them by
+     tile column index. */
+  MODE_INFO **mi_streams;
+
+  ENTROPY_CONTEXT *above_context[MAX_MB_PLANE];
+  PARTITION_CONTEXT *above_seg_context;
 } VP9D_COMP;
 
-
-#if CONFIG_DEBUG
-#define CHECK_MEM_ERROR(lval,expr) do {\
-    lval = (expr); \
-    if(!lval) \
-      vpx_internal_error(&pbi->common.error, VPX_CODEC_MEM_ERROR,\
-                         "Failed to allocate "#lval" at %s:%d", \
-                         __FILE__,__LINE__);\
-  } while(0)
-#else
-#define CHECK_MEM_ERROR(lval,expr) do {\
-    lval = (expr); \
-    if(!lval) \
-      vpx_internal_error(&pbi->common.error, VPX_CODEC_MEM_ERROR,\
-                         "Failed to allocate "#lval);\
-  } while(0)
+#ifdef __cplusplus
+}  // extern "C"
 #endif
 
-#endif  // VP9_DECODER_VP9_TREEREADER_H_
+#endif  // VP9_DECODER_VP9_ONYXD_INT_H_

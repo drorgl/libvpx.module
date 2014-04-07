@@ -31,10 +31,6 @@ class KeyframeTest : public ::libvpx_test::EncoderTest,
     set_cpu_used_ = 0;
   }
 
-  virtual bool Continue() const {
-    return !HasFatalFailure() && !abort_;
-  }
-
   virtual void PreEncodeFrameHook(::libvpx_test::VideoSource *video,
                                   ::libvpx_test::Encoder *encoder) {
     if (kf_do_force_kf_)
@@ -136,7 +132,6 @@ TEST_P(KeyframeTest, TestAutoKeyframe) {
   // Verify that keyframes match the file keyframes in the file.
   for (std::vector<vpx_codec_pts_t>::const_iterator iter = kf_pts_list_.begin();
        iter != kf_pts_list_.end(); ++iter) {
-
     if (deadline_ == VPX_DL_REALTIME && *iter > 0)
       EXPECT_EQ(0, (*iter - 1) % 30) << "Unexpected keyframe at frame "
         << *iter;

@@ -71,11 +71,6 @@ static const unsigned char MV_REFERENCE_FRAME_colors[MAX_REF_FRAMES][3] =
 };
 #endif
 
-static const short kernel5[] =
-{
-    1, 1, 4, 1, 1
-};
-
 const short vp8_rv[] =
 {
     8, 5, 2, 2, 8, 12, 4, 9, 8, 3,
@@ -923,7 +918,7 @@ int vp8_post_proc_frame(VP8_COMMON *oci, YV12_BUFFER_CONFIG *dest, vp8_ppflags_t
     if (flags & VP8D_DEBUG_TXT_RATE_INFO)
     {
         char message[512];
-        sprintf(message, "Bitrate: %10.2f frame_rate: %10.2f ", oci->bitrate, oci->framerate);
+        sprintf(message, "Bitrate: %10.2f framerate: %10.2f ", oci->bitrate, oci->framerate);
         vp8_blit_text(message, oci->post_proc_buffer.y_buffer, oci->post_proc_buffer.y_stride);
     }
 

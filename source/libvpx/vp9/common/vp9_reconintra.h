@@ -14,17 +14,17 @@
 #include "vpx/vpx_integer.h"
 #include "vp9/common/vp9_blockd.h"
 
-MB_PREDICTION_MODE vp9_find_dominant_direction(uint8_t *ptr,
-                                               int stride, int n,
-                                               int tx, int ty);
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-MB_PREDICTION_MODE vp9_find_bpred_context(MACROBLOCKD *xd, int block,
-                                          uint8_t *ptr, int stride);
+void vp9_predict_intra_block(const MACROBLOCKD *xd, int block_idx, int bwl_in,
+                             TX_SIZE tx_size, int mode,
+                             const uint8_t *ref, int ref_stride,
+                             uint8_t *dst, int dst_stride,
+                             int aoff, int loff, int plane);
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
-void vp9_predict_intra_block(MACROBLOCKD *xd,
-                            int block_idx,
-                            int bwl_in,
-                            TX_SIZE tx_size,
-                            int mode,
-                            uint8_t *predictor, int pre_stride);
 #endif  // VP9_COMMON_VP9_RECONINTRA_H_

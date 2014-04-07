@@ -8,20 +8,21 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-
-#include "./vpx_config.h"
-#include "vpx_scale/yv12config.h"
-#include "vp9/common/vp9_postproc.h"
-#include "vp9/common/vp9_textblit.h"
-#include "vpx_scale/vpx_scale.h"
-#include "vp9/common/vp9_systemdependent.h"
-#include "./vp9_rtcd.h"
-#include "./vpx_scale_rtcd.h"
-
-
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
+
+#include "./vpx_config.h"
+#include "./vpx_scale_rtcd.h"
+#include "./vp9_rtcd.h"
+
+#include "vpx_scale/vpx_scale.h"
+#include "vpx_scale/yv12config.h"
+
+#include "vp9/common/vp9_onyxc_int.h"
+#include "vp9/common/vp9_postproc.h"
+#include "vp9/common/vp9_systemdependent.h"
+#include "vp9/common/vp9_textblit.h"
 
 #define RGB_TO_YUV(t)                                            \
   ( (0.257*(float)(t >> 16))  + (0.504*(float)(t >> 8 & 0xff)) + \
@@ -53,7 +54,7 @@ static const unsigned char MB_PREDICTION_MODE_colors[MB_MODE_COUNT][3] = {
   { RGB_TO_YUV(0xCC33FF) },   /* Magenta */
 };
 
-static const unsigned char B_PREDICTION_MODE_colors[VP9_INTRA_MODES][3] = {
+static const unsigned char B_PREDICTION_MODE_colors[INTRA_MODES][3] = {
   { RGB_TO_YUV(0x6633ff) },   /* Purple */
   { RGB_TO_YUV(0xcc33ff) },   /* Magenta */
   { RGB_TO_YUV(0xff33cc) },   /* Pink */
@@ -129,9 +130,6 @@ const short vp9_rv[] = {
   0, 9, 5, 5, 11, 10, 13, 9, 10, 13,
 };
 
-
-/****************************************************************************
- */
 void vp9_post_proc_down_and_across_c(const uint8_t *src_ptr,
                                      uint8_t *dst_ptr,
                                      int src_pixels_per_line,
@@ -155,7 +153,6 @@ void vp9_post_proc_down_and_across_c(const uint8_t *src_ptr,
     p_dst = dst_ptr;
 
     for (col = 0; col < cols; col++) {
-
       int kernel = 4;
       int v = p_src[col];
 
@@ -257,7 +254,7 @@ void vp9_mbpost_proc_across_ip_c(uint8_t *src, int pitch,
 void vp9_mbpost_proc_down_c(uint8_t *dst, int pitch,
                             int rows, int cols, int flimit) {
   int r, c, i;
-  const short *rv3 = &vp9_rv[63 & rand()];
+  const short *rv3 = &vp9_rv[63 & rand()]; // NOLINT
 
   for (c = 0; c < cols; c++) {
     uint8_t *s = &dst[c];
@@ -374,7 +371,7 @@ void vp9_denoise(const YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *dst,
   }
 }
 
-double vp9_gaussian(double sigma, double mu, double x) {
+static double gaussian(double sigma, double mu, double x) {
   return 1 / (sigma * sqrt(2.0 * 3.14159265)) *
          (exp(-(x - mu) * (x - mu) / (2 * sigma * sigma)));
 }
@@ -399,7 +396,7 @@ static void fillrd(struct postproc_state *state, int q, int a) {
     next = 0;
 
     for (i = -32; i < 32; i++) {
-      int a = (int)(.5 + 256 * vp9_gaussian(sigma, 0, i));
+      int a = (int)(0.5 + 256 * gaussian(sigma, 0, i));
 
       if (a) {
         for (j = 0; j < a; j++) {
@@ -408,15 +405,14 @@ static void fillrd(struct postproc_state *state, int q, int a) {
 
         next = next + j;
       }
-
     }
 
-    for (next = next; next < 256; next++)
+    for (; next < 256; next++)
       char_dist[next] = 0;
   }
 
   for (i = 0; i < 3072; i++) {
-    state->noise[i] = char_dist[rand() & 0xff];
+    state->noise[i] = char_dist[rand() & 0xff];  // NOLINT
   }
 
   for (i = 0; i < 16; i++) {
@@ -429,27 +425,6 @@ static void fillrd(struct postproc_state *state, int q, int a) {
   state->last_noise = a;
 }
 
-/****************************************************************************
- *
- *  ROUTINE       : plane_add_noise_c
- *
- *  INPUTS        : unsigned char *Start  starting address of buffer to
- *                                        add gaussian noise to
- *                  unsigned int width    width of plane
- *                  unsigned int height   height of plane
- *                  int  pitch    distance between subsequent lines of frame
- *                  int  q        quantizer used to determine amount of noise
- *                                  to add
- *
- *  OUTPUTS       : None.
- *
- *  RETURNS       : void.
- *
- *  FUNCTION      : adds gaussian noise to a plane of pixels
- *
- *  SPECIAL NOTES : None.
- *
- ****************************************************************************/
 void vp9_plane_add_noise_c(uint8_t *start, char *noise,
                            char blackclamp[16],
                            char whiteclamp[16],
@@ -630,75 +605,65 @@ static void constrain_line(int x0, int *x1, int y0, int *y1,
   }
 }
 
-int vp9_post_proc_frame(VP9_COMMON *oci, YV12_BUFFER_CONFIG *dest,
-                        vp9_ppflags_t *ppflags) {
-  int q = oci->filter_level * 10 / 6;
-  int flags = ppflags->post_proc_flag;
-  int deblock_level = ppflags->deblocking_level;
-  int noise_level = ppflags->noise_level;
+int vp9_post_proc_frame(struct VP9Common *cm,
+                        YV12_BUFFER_CONFIG *dest, vp9_ppflags_t *ppflags) {
+  const int q = MIN(63, cm->lf.filter_level * 10 / 6);
+  const int flags = ppflags->post_proc_flag;
+  YV12_BUFFER_CONFIG *const ppbuf = &cm->post_proc_buffer;
+  struct postproc_state *const ppstate = &cm->postproc_state;
 
-  if (!oci->frame_to_show)
+  if (!cm->frame_to_show)
     return -1;
 
-  if (q > 63)
-    q = 63;
-
   if (!flags) {
-    *dest = *oci->frame_to_show;
+    *dest = *cm->frame_to_show;
     return 0;
   }
 
-#if ARCH_X86||ARCH_X86_64
-  vpx_reset_mmx_state();
-#endif
+  vp9_clear_system_state();
 
   if (flags & VP9D_DEMACROBLOCK) {
-    deblock_and_de_macro_block(oci->frame_to_show, &oci->post_proc_buffer,
-                               q + (deblock_level - 5) * 10, 1, 0);
+    deblock_and_de_macro_block(cm->frame_to_show, ppbuf,
+                               q + (ppflags->deblocking_level - 5) * 10, 1, 0);
   } else if (flags & VP9D_DEBLOCK) {
-    vp9_deblock(oci->frame_to_show, &oci->post_proc_buffer, q);
+    vp9_deblock(cm->frame_to_show, ppbuf, q);
   } else {
-    vp8_yv12_copy_frame(oci->frame_to_show, &oci->post_proc_buffer);
+    vp8_yv12_copy_frame(cm->frame_to_show, ppbuf);
   }
 
   if (flags & VP9D_ADDNOISE) {
-    if (oci->postproc_state.last_q != q
-        || oci->postproc_state.last_noise != noise_level) {
-      fillrd(&oci->postproc_state, 63 - q, noise_level);
+    const int noise_level = ppflags->noise_level;
+    if (ppstate->last_q != q ||
+        ppstate->last_noise != noise_level) {
+      fillrd(ppstate, 63 - q, noise_level);
     }
 
-    vp9_plane_add_noise(oci->post_proc_buffer.y_buffer,
-                        oci->postproc_state.noise,
-                        oci->postproc_state.blackclamp,
-                        oci->postproc_state.whiteclamp,
-                        oci->postproc_state.bothclamp,
-                        oci->post_proc_buffer.y_width,
-                        oci->post_proc_buffer.y_height,
-                        oci->post_proc_buffer.y_stride);
+    vp9_plane_add_noise(ppbuf->y_buffer, ppstate->noise, ppstate->blackclamp,
+                        ppstate->whiteclamp, ppstate->bothclamp,
+                        ppbuf->y_width, ppbuf->y_height, ppbuf->y_stride);
   }
 
 #if 0 && CONFIG_POSTPROC_VISUALIZER
   if (flags & VP9D_DEBUG_TXT_FRAME_INFO) {
     char message[512];
-    sprintf(message, "F%1dG%1dQ%3dF%3dP%d_s%dx%d",
-            (oci->frame_type == KEY_FRAME),
-            oci->refresh_golden_frame,
-            oci->base_qindex,
-            oci->filter_level,
-            flags,
-            oci->mb_cols, oci->mb_rows);
-    vp9_blit_text(message, oci->post_proc_buffer.y_buffer,
-                  oci->post_proc_buffer.y_stride);
+    snprintf(message, sizeof(message) -1,
+             "F%1dG%1dQ%3dF%3dP%d_s%dx%d",
+             (cm->frame_type == KEY_FRAME),
+             cm->refresh_golden_frame,
+             cm->base_qindex,
+             cm->filter_level,
+             flags,
+             cm->mb_cols, cm->mb_rows);
+    vp9_blit_text(message, ppbuf->y_buffer, ppbuf->y_stride);
   }
 
   if (flags & VP9D_DEBUG_TXT_MBLK_MODES) {
     int i, j;
     uint8_t *y_ptr;
-    YV12_BUFFER_CONFIG *post = &oci->post_proc_buffer;
-    int mb_rows = post->y_height >> 4;
-    int mb_cols = post->y_width  >> 4;
+    int mb_rows = ppbuf->y_height >> 4;
+    int mb_cols = ppbuf->y_width  >> 4;
     int mb_index = 0;
-    MODE_INFO *mi = oci->mi;
+    MODE_INFO *mi = cm->mi;
 
     y_ptr = post->y_buffer + 4 * post->y_stride + 4;
 
@@ -707,7 +672,7 @@ int vp9_post_proc_frame(VP9_COMMON *oci, YV12_BUFFER_CONFIG *dest,
       for (j = 0; j < mb_cols; j++) {
         char zz[4];
 
-        sprintf(zz, "%c", mi[mb_index].mbmi.mode + 'a');
+        snprintf(zz, sizeof(zz) - 1, "%c", mi[mb_index].mbmi.mode + 'a');
 
         vp9_blit_text(zz, y_ptr, post->y_stride);
         mb_index++;
@@ -716,18 +681,16 @@ int vp9_post_proc_frame(VP9_COMMON *oci, YV12_BUFFER_CONFIG *dest,
 
       mb_index++; /* border */
       y_ptr += post->y_stride  * 16 - post->y_width;
-
     }
   }
 
   if (flags & VP9D_DEBUG_TXT_DC_DIFF) {
     int i, j;
     uint8_t *y_ptr;
-    YV12_BUFFER_CONFIG *post = &oci->post_proc_buffer;
-    int mb_rows = post->y_height >> 4;
-    int mb_cols = post->y_width  >> 4;
+    int mb_rows = ppbuf->y_height >> 4;
+    int mb_cols = ppbuf->y_width  >> 4;
     int mb_index = 0;
-    MODE_INFO *mi = oci->mi;
+    MODE_INFO *mi = cm->mi;
 
     y_ptr = post->y_buffer + 4 * post->y_stride + 4;
 
@@ -737,12 +700,12 @@ int vp9_post_proc_frame(VP9_COMMON *oci, YV12_BUFFER_CONFIG *dest,
         char zz[4];
         int dc_diff = !(mi[mb_index].mbmi.mode != I4X4_PRED &&
                         mi[mb_index].mbmi.mode != SPLITMV &&
-                        mi[mb_index].mbmi.mb_skip_coeff);
+                        mi[mb_index].mbmi.skip);
 
-        if (oci->frame_type == KEY_FRAME)
-          sprintf(zz, "a");
+        if (cm->frame_type == KEY_FRAME)
+          snprintf(zz, sizeof(zz) - 1, "a");
         else
-          sprintf(zz, "%c", dc_diff + '0');
+          snprintf(zz, sizeof(zz) - 1, "%c", dc_diff + '0');
 
         vp9_blit_text(zz, y_ptr, post->y_stride);
         mb_index++;
@@ -751,27 +714,24 @@ int vp9_post_proc_frame(VP9_COMMON *oci, YV12_BUFFER_CONFIG *dest,
 
       mb_index++; /* border */
       y_ptr += post->y_stride  * 16 - post->y_width;
-
     }
   }
 
   if (flags & VP9D_DEBUG_TXT_RATE_INFO) {
     char message[512];
     snprintf(message, sizeof(message),
-             "Bitrate: %10.2f frame_rate: %10.2f ",
-             oci->bitrate, oci->framerate);
-    vp9_blit_text(message, oci->post_proc_buffer.y_buffer,
-                  oci->post_proc_buffer.y_stride);
+             "Bitrate: %10.2f framerate: %10.2f ",
+             cm->bitrate, cm->framerate);
+    vp9_blit_text(message, ppbuf->y_buffer, ppbuf->y_stride);
   }
 
   /* Draw motion vectors */
   if ((flags & VP9D_DEBUG_DRAW_MV) && ppflags->display_mv_flag) {
-    YV12_BUFFER_CONFIG *post = &oci->post_proc_buffer;
-    int width  = post->y_width;
-    int height = post->y_height;
-    uint8_t *y_buffer = oci->post_proc_buffer.y_buffer;
-    int y_stride = oci->post_proc_buffer.y_stride;
-    MODE_INFO *mi = oci->mi;
+    int width  = ppbuf->y_width;
+    int height = ppbuf->y_height;
+    uint8_t *y_buffer = ppbuf->y_buffer;
+    int y_stride = ppbuf->y_stride;
+    MODE_INFO *mi = cm->mi;
     int x0, y0;
 
     for (y0 = 0; y0 < height; y0 += 16) {
@@ -880,7 +840,7 @@ int vp9_post_proc_frame(VP9_COMMON *oci, YV12_BUFFER_CONFIG *dest,
               }
             }
           }
-        } else if (mi->mbmi.mode >= NEARESTMV) {
+        } else if (is_inter_mode(mi->mbmi.mode)) {
           MV *mv = &mi->mbmi.mv.as_mv;
           const int lx0 = x0 + 8;
           const int ly0 = y0 + 8;
@@ -894,8 +854,9 @@ int vp9_post_proc_frame(VP9_COMMON *oci, YV12_BUFFER_CONFIG *dest,
 
             constrain_line(lx0, &x1, ly0 + 1, &y1, width, height);
             vp9_blit_line(lx0,  x1, ly0 + 1,  y1, y_buffer, y_stride);
-          } else
+          } else {
             vp9_blit_line(lx0,  x1, ly0,  y1, y_buffer, y_stride);
+          }
         }
 
         mi++;
@@ -908,14 +869,13 @@ int vp9_post_proc_frame(VP9_COMMON *oci, YV12_BUFFER_CONFIG *dest,
   if ((flags & VP9D_DEBUG_CLR_BLK_MODES)
       && (ppflags->display_mb_modes_flag || ppflags->display_b_modes_flag)) {
     int y, x;
-    YV12_BUFFER_CONFIG *post = &oci->post_proc_buffer;
-    int width  = post->y_width;
-    int height = post->y_height;
-    uint8_t *y_ptr = oci->post_proc_buffer.y_buffer;
-    uint8_t *u_ptr = oci->post_proc_buffer.u_buffer;
-    uint8_t *v_ptr = oci->post_proc_buffer.v_buffer;
-    int y_stride = oci->post_proc_buffer.y_stride;
-    MODE_INFO *mi = oci->mi;
+    int width  = ppbuf->y_width;
+    int height = ppbuf->y_height;
+    uint8_t *y_ptr = ppbuf->y_buffer;
+    uint8_t *u_ptr = ppbuf->u_buffer;
+    uint8_t *v_ptr = ppbuf->v_buffer;
+    int y_stride = ppbuf->y_stride;
+    MODE_INFO *mi = cm->mi;
 
     for (y = 0; y < height; y += 16) {
       for (x = 0; x < width; x += 16) {
@@ -936,9 +896,9 @@ int vp9_post_proc_frame(VP9_COMMON *oci, YV12_BUFFER_CONFIG *dest,
             for (bx = 0; bx < 16; bx += 4) {
               if ((ppflags->display_b_modes_flag & (1 << mi->mbmi.mode))
                   || (ppflags->display_mb_modes_flag & I4X4_PRED)) {
-                Y = B_PREDICTION_MODE_colors[bmi->as_mode.first][0];
-                U = B_PREDICTION_MODE_colors[bmi->as_mode.first][1];
-                V = B_PREDICTION_MODE_colors[bmi->as_mode.first][2];
+                Y = B_PREDICTION_MODE_colors[bmi->as_mode][0];
+                U = B_PREDICTION_MODE_colors[bmi->as_mode][1];
+                V = B_PREDICTION_MODE_colors[bmi->as_mode][2];
 
                 vp9_blend_b(yl + bx, ul + (bx >> 1), vl + (bx >> 1), Y, U, V,
                     0xc000, y_stride);
@@ -973,14 +933,13 @@ int vp9_post_proc_frame(VP9_COMMON *oci, YV12_BUFFER_CONFIG *dest,
   if ((flags & VP9D_DEBUG_CLR_FRM_REF_BLKS) &&
       ppflags->display_ref_frame_flag) {
     int y, x;
-    YV12_BUFFER_CONFIG *post = &oci->post_proc_buffer;
-    int width  = post->y_width;
-    int height = post->y_height;
-    uint8_t *y_ptr = oci->post_proc_buffer.y_buffer;
-    uint8_t *u_ptr = oci->post_proc_buffer.u_buffer;
-    uint8_t *v_ptr = oci->post_proc_buffer.v_buffer;
-    int y_stride = oci->post_proc_buffer.y_stride;
-    MODE_INFO *mi = oci->mi;
+    int width  = ppbuf->y_width;
+    int height = ppbuf->y_height;
+    uint8_t *y_ptr = ppbuf->y_buffer;
+    uint8_t *u_ptr = ppbuf->u_buffer;
+    uint8_t *v_ptr = ppbuf->v_buffer;
+    int y_stride = ppbuf->y_stride;
+    MODE_INFO *mi = cm->mi;
 
     for (y = 0; y < height; y += 16) {
       for (x = 0; x < width; x += 16) {
@@ -1006,12 +965,13 @@ int vp9_post_proc_frame(VP9_COMMON *oci, YV12_BUFFER_CONFIG *dest,
   }
 #endif
 
-  *dest = oci->post_proc_buffer;
+  *dest = *ppbuf;
 
   /* handle problem with extending borders */
-  dest->y_width = oci->width;
-  dest->y_height = oci->height;
-  dest->uv_height = dest->y_height / 2;
+  dest->y_width = cm->width;
+  dest->y_height = cm->height;
+  dest->uv_width = dest->y_width >> cm->subsampling_x;
+  dest->uv_height = dest->y_height >> cm->subsampling_y;
 
   return 0;
 }

@@ -11,18 +11,17 @@
 #ifndef VP9_COMMON_VP9_ONYX_H_
 #define VP9_COMMON_VP9_ONYX_H_
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 #include "./vpx_config.h"
 #include "vpx/internal/vpx_codec_internal.h"
 #include "vpx/vp8cx.h"
 #include "vpx_scale/yv12config.h"
 #include "vp9/common/vp9_ppflags.h"
 
-#define MAX_MB_SEGMENTS 8
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define MAX_SEGMENTS 8
 
   typedef int *VP9_PTR;
 
@@ -33,7 +32,6 @@ extern "C"
     FOURFIVE    = 1,
     THREEFIVE   = 2,
     ONETWO      = 3
-
   } VPX_SCALING;
 
   typedef enum {
@@ -44,9 +42,10 @@ extern "C"
 
 
   typedef enum {
-    USAGE_STREAM_FROM_SERVER    = 0x0,
-    USAGE_LOCAL_FILE_PLAYBACK   = 0x1,
-    USAGE_CONSTRAINED_QUALITY   = 0x2
+    USAGE_LOCAL_FILE_PLAYBACK   = 0x0,
+    USAGE_STREAM_FROM_SERVER    = 0x1,
+    USAGE_CONSTRAINED_QUALITY   = 0x2,
+    USAGE_CONSTANT_QUALITY      = 0x3,
   } END_USAGE;
 
 
@@ -56,6 +55,7 @@ extern "C"
     MODE_FIRSTPASS      = 0x3,
     MODE_SECONDPASS     = 0x4,
     MODE_SECONDPASS_BEST = 0x5,
+    MODE_REALTIME       = 0x6,
   } MODE;
 
   typedef enum {
@@ -64,33 +64,12 @@ extern "C"
     FRAMEFLAGS_ALTREF = 4,
   } FRAMETYPE_FLAGS;
 
-
-#include <assert.h>
-  static INLINE void Scale2Ratio(int mode, int *hr, int *hs) {
-    switch (mode) {
-      case    NORMAL:
-        *hr = 1;
-        *hs = 1;
-        break;
-      case    FOURFIVE:
-        *hr = 4;
-        *hs = 5;
-        break;
-      case    THREEFIVE:
-        *hr = 3;
-        *hs = 5;
-        break;
-      case    ONETWO:
-        *hr = 1;
-        *hs = 2;
-        break;
-      default:
-        *hr = 1;
-        *hs = 1;
-        assert(0);
-        break;
-    }
-  }
+  typedef enum {
+    NO_AQ = 0,
+    VARIANCE_AQ = 1,
+    COMPLEXITY_AQ = 2,
+    AQ_MODES_COUNT  // This should always be the last member of the enum
+  } AQ_MODES;
 
   typedef struct {
     int version;  // 4 versions of bitstream defined:
@@ -98,42 +77,47 @@ extern "C"
                   //   3 - lowest quality/fastest decode
     int width;  // width of data passed to the compressor
     int height;  // height of data passed to the compressor
-    double frame_rate;       // set to passed in framerate
-    int64_t target_bandwidth;    // bandwidth to be used in kilobits per second
+    double framerate;  // set to passed in framerate
+    int64_t target_bandwidth;  // bandwidth to be used in kilobits per second
 
-    int noise_sensitivity;   // parameter used for applying pre processing blur: recommendation 0
-    int Sharpness;          // parameter used for sharpening output: recommendation 0:
+    int noise_sensitivity;  // pre processing blur: recommendation 0
+    int sharpness;  // sharpening output: recommendation 0:
     int cpu_used;
     unsigned int rc_max_intra_bitrate_pct;
 
     // mode ->
-    // (0)=Realtime/Live Encoding. This mode is optimized for realtim encoding (for example, capturing
-    //    a television signal or feed from a live camera). ( speed setting controls how fast )
-    // (1)=Good Quality Fast Encoding. The encoder balances quality with the amount of time it takes to
-    //    encode the output. ( speed setting controls how fast )
-    // (2)=One Pass - Best Quality. The encoder places priority on the quality of the output over encoding
-    //    speed. The output is compressed at the highest possible quality. This option takes the longest
-    //    amount of time to encode. ( speed setting ignored )
-    // (3)=Two Pass - First Pass. The encoder generates a file of statistics for use in the second encoding
-    //    pass. ( speed setting controls how fast )
-    // (4)=Two Pass - Second Pass. The encoder uses the statistics that were generated in the first encoding
-    //    pass to create the compressed output. ( speed setting controls how fast )
-    // (5)=Two Pass - Second Pass Best.  The encoder uses the statistics that were generated in the first
-    //    encoding pass to create the compressed output using the highest possible quality, and taking a
+    // (0)=Realtime/Live Encoding. This mode is optimized for realtime
+    //     encoding (for example, capturing a television signal or feed from
+    //     a live camera). ( speed setting controls how fast )
+    // (1)=Good Quality Fast Encoding. The encoder balances quality with the
+    //     amount of time it takes to encode the output. ( speed setting
+    //     controls how fast )
+    // (2)=One Pass - Best Quality. The encoder places priority on the
+    //     quality of the output over encoding speed. The output is compressed
+    //     at the highest possible quality. This option takes the longest
+    //     amount of time to encode. ( speed setting ignored )
+    // (3)=Two Pass - First Pass. The encoder generates a file of statistics
+    //     for use in the second encoding pass. ( speed setting controls how
+    //     fast )
+    // (4)=Two Pass - Second Pass. The encoder uses the statistics that were
+    //     generated in the first encoding pass to create the compressed
+    //     output. ( speed setting controls how fast )
+    // (5)=Two Pass - Second Pass Best.  The encoder uses the statistics that
+    //     were generated in the first encoding pass to create the compressed
+    //     output using the highest possible quality, and taking a
     //    longer amount of time to encode.. ( speed setting ignored )
-    int Mode;               //
+    int mode;
 
     // Key Framing Operations
-    int auto_key;            // automatically detect cut scenes and set the keyframes
-    int key_freq;            // maximum distance to key frame.
+    int auto_key;  // autodetect cut scenes and set the keyframes
+    int key_freq;  // maximum distance to key frame.
 
-    int allow_lag;           // allow lagged compression (if 0 lagin frames is ignored)
-    int lag_in_frames;        // how many frames lag before we start encoding
+    int lag_in_frames;  // how many frames lag before we start encoding
 
     // ----------------------------------------------------------------
     // DATARATE CONTROL OPTIONS
 
-    int end_usage; // vbr or cbr
+    int end_usage;  // vbr or cbr
 
     // buffer targeting aggressiveness
     int under_shoot_pct;
@@ -144,12 +128,16 @@ extern "C"
     int64_t optimal_buffer_level;
     int64_t maximum_buffer_size;
 
+    // Frame drop threshold.
+    int drop_frames_water_mark;
+
     // controlling quality
     int fixed_q;
     int worst_allowed_q;
     int best_allowed_q;
     int cq_level;
     int lossless;
+    int aq_mode;  // Adaptive Quantization mode
 
     // two pass datarate control
     int two_pass_vbrbias;        // two pass datarate control tweaks
@@ -158,12 +146,20 @@ extern "C"
     // END DATARATE CONTROL OPTIONS
     // ----------------------------------------------------------------
 
+    // Spatial and temporal scalability.
+    int ss_number_layers;  // Number of spatial layers.
+    int ts_number_layers;  // Number of temporal layers.
+    // Bitrate allocation for spatial layers.
+    int ss_target_bitrate[VPX_SS_MAX_LAYERS];
+    // Bitrate allocation (CBR mode) and framerate factor, for temporal layers.
+    int ts_target_bitrate[VPX_TS_MAX_LAYERS];
+    int ts_rate_decimator[VPX_TS_MAX_LAYERS];
 
     // these parameters aren't to be used in final build don't use!!!
     int play_alternate;
     int alt_freq;
 
-    int encode_breakout;  // early breakout encode threshold : for video conf recommend 800
+    int encode_breakout;  // early breakout : for video conf recommend 800
 
     /* Bitfield defining the error resiliency features to enable.
      * Can provide decodable frames after losses in previous
@@ -198,14 +194,14 @@ extern "C"
 
   void vp9_change_config(VP9_PTR onyx, VP9_CONFIG *oxcf);
 
-// receive a frames worth of data caller can assume that a copy of this frame is made
-// and not just a copy of the pointer..
+  // receive a frames worth of data. caller can assume that a copy of this
+  // frame is made and not just a copy of the pointer..
   int vp9_receive_raw_frame(VP9_PTR comp, unsigned int frame_flags,
                             YV12_BUFFER_CONFIG *sd, int64_t time_stamp,
                             int64_t end_time_stamp);
 
   int vp9_get_compressed_data(VP9_PTR comp, unsigned int *frame_flags,
-                              unsigned long *size, unsigned char *dest,
+                              size_t *size, uint8_t *dest,
                               int64_t *time_stamp, int64_t *time_end,
                               int flush);
 
@@ -228,9 +224,9 @@ extern "C"
 
   int vp9_set_roimap(VP9_PTR comp, unsigned char *map,
                      unsigned int rows, unsigned int cols,
-                     int delta_q[MAX_MB_SEGMENTS],
-                     int delta_lf[MAX_MB_SEGMENTS],
-                     unsigned int threshold[MAX_MB_SEGMENTS]);
+                     int delta_q[MAX_SEGMENTS],
+                     int delta_lf[MAX_SEGMENTS],
+                     unsigned int threshold[MAX_SEGMENTS]);
 
   int vp9_set_active_map(VP9_PTR comp, unsigned char *map,
                          unsigned int rows, unsigned int cols);
@@ -238,10 +234,15 @@ extern "C"
   int vp9_set_internal_size(VP9_PTR comp,
                             VPX_SCALING horiz_mode, VPX_SCALING vert_mode);
 
+  int vp9_set_size_literal(VP9_PTR comp, unsigned int width,
+                           unsigned int height);
+
+  void vp9_set_svc(VP9_PTR comp, int use_svc);
+
   int vp9_get_quantizer(VP9_PTR c);
 
 #ifdef __cplusplus
-}
+}  // extern "C"
 #endif
 
 #endif  // VP9_COMMON_VP9_ONYX_H_
