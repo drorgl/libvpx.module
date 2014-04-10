@@ -18,6 +18,8 @@
 #include <string.h>
 
 #define VPX_CODEC_DISABLE_COMPAT 1
+#include "./vpx_config.h"
+#include "vpx_ports/vpx_timer.h"
 #include "vpx/vp8cx.h"
 #include "vpx/vpx_encoder.h"
 
@@ -435,6 +437,7 @@ int main(int argc, char **argv) {
   vpx_codec_err_t res;
   unsigned int width;
   unsigned int height;
+  int speed;
   int frame_avail;
   int got_data;
   int flags = 0;
@@ -449,12 +452,13 @@ int main(int argc, char **argv) {
   const VpxInterface *encoder = NULL;
   FILE *infile = NULL;
   struct RateControlMetrics rc;
+  int64_t cx_time = 0;
 
   exec_name = argv[0];
   // Check usage and arguments.
   if (argc < 11) {
     die("Usage: %s <infile> <outfile> <codec_type(vp8/vp9)> <width> <height> "
-        "<rate_num> <rate_den>  <frame_drop_threshold> <mode> "
+        "<rate_num> <rate_den> <speed> <frame_drop_threshold> <mode> "
         "<Rate_0> ... <Rate_nlayers-1> \n", argv[0]);
   }
 
@@ -470,12 +474,12 @@ int main(int argc, char **argv) {
     die("Invalid resolution: %d x %d", width, height);
   }
 
-  layering_mode = strtol(argv[9], NULL, 0);
+  layering_mode = strtol(argv[10], NULL, 0);
   if (layering_mode < 0 || layering_mode > 12) {
-    die("Invalid mode (0..12) %s", argv[9]);
+    die("Invalid layering mode (0..12) %s", argv[10]);
   }
 
-  if (argc != 10 + mode_to_num_layers[layering_mode]) {
+  if (argc != 11 + mode_to_num_layers[layering_mode]) {
     die("Invalid number of arguments");
   }
 
@@ -498,12 +502,17 @@ int main(int argc, char **argv) {
   cfg.g_timebase.num = strtol(argv[6], NULL, 0);
   cfg.g_timebase.den = strtol(argv[7], NULL, 0);
 
-  for (i = 10; (int)i < 10 + mode_to_num_layers[layering_mode]; ++i) {
-    cfg.ts_target_bitrate[i - 10] = strtol(argv[i], NULL, 0);
+  speed = strtol(argv[8], NULL, 0);
+  if (speed < 0) {
+    die("Invalid speed setting: must be positive");
+  }
+
+  for (i = 11; (int)i < 11 + mode_to_num_layers[layering_mode]; ++i) {
+    cfg.ts_target_bitrate[i - 11] = strtol(argv[i], NULL, 0);
   }
 
   // Real time parameters.
-  cfg.rc_dropframe_thresh = strtol(argv[8], NULL, 0);
+  cfg.rc_dropframe_thresh = strtol(argv[9], NULL, 0);
   cfg.rc_end_usage = VPX_CBR;
   cfg.rc_resize_allowed = 0;
   cfg.rc_min_quantizer = 2;
@@ -560,13 +569,16 @@ int main(int argc, char **argv) {
   if (vpx_codec_enc_init(&codec, encoder->interface(), &cfg, 0))
     die_codec(&codec, "Failed to initialize encoder");
 
-  vpx_codec_control(&codec, VP8E_SET_CPUUSED, -6);
-  vpx_codec_control(&codec, VP8E_SET_NOISE_SENSITIVITY, 1);
-  if (strncmp(encoder->name, "vp9", 3) == 0) {
-    vpx_codec_control(&codec, VP8E_SET_CPUUSED, 3);
-    vpx_codec_control(&codec, VP8E_SET_NOISE_SENSITIVITY, 0);
-    if (vpx_codec_control(&codec, VP9E_SET_SVC, 1)) {
-      die_codec(&codec, "Failed to set SVC");
+  if (strncmp(encoder->name, "vp8", 3) == 0) {
+    vpx_codec_control(&codec, VP8E_SET_CPUUSED, -speed);
+    vpx_codec_control(&codec, VP8E_SET_NOISE_SENSITIVITY, 1);
+  } else if (strncmp(encoder->name, "vp9", 3) == 0) {
+      vpx_codec_control(&codec, VP8E_SET_CPUUSED, speed);
+      vpx_codec_control(&codec, VP9E_SET_AQ_MODE, 3);
+      vpx_codec_control(&codec, VP9E_SET_FRAME_PERIODIC_BOOST, 0);
+      vpx_codec_control(&codec, VP8E_SET_NOISE_SENSITIVITY, 0);
+      if (vpx_codec_control(&codec, VP9E_SET_SVC, 1)) {
+        die_codec(&codec, "Failed to set SVC");
     }
   }
   vpx_codec_control(&codec, VP8E_SET_STATIC_THRESHOLD, 1);
@@ -576,10 +588,13 @@ int main(int argc, char **argv) {
   // value, like 100 or 200.
   max_intra_size_pct = (int) (((double)cfg.rc_buf_optimal_sz * 0.5)
       * ((double) cfg.g_timebase.den / cfg.g_timebase.num) / 10.0);
+  // For low-quality key frame.
+  max_intra_size_pct = 200;
   vpx_codec_control(&codec, VP8E_SET_MAX_INTRA_BITRATE_PCT, max_intra_size_pct);
 
   frame_avail = 1;
   while (frame_avail || got_data) {
+    struct vpx_usec_timer timer;
     vpx_codec_iter_t iter = NULL;
     const vpx_codec_cx_pkt_t *pkt;
     // Update the temporal layer_id. No spatial layers in this test.
@@ -593,10 +608,13 @@ int main(int argc, char **argv) {
     frame_avail = vpx_img_read(&raw, infile);
     if (frame_avail)
       ++rc.layer_input_frames[layer_id.temporal_layer_id];
+    vpx_usec_timer_start(&timer);
     if (vpx_codec_encode(&codec, frame_avail? &raw : NULL, pts, 1, flags,
         VPX_DL_REALTIME)) {
       die_codec(&codec, "Failed to encode frame");
     }
+    vpx_usec_timer_mark(&timer);
+    cx_time += vpx_usec_timer_elapsed(&timer);
     // Reset KF flag.
     if (layering_mode != 7) {
       layer_flags[0] &= ~VPX_EFLAG_FORCE_KF;
@@ -632,6 +650,11 @@ int main(int argc, char **argv) {
   }
   fclose(infile);
   printout_rate_control_summary(&rc, &cfg, frame_cnt);
+  printf("\n");
+  printf("Frame cnt and encoding time/FPS stats for encoding: %d %f %f \n",
+          frame_cnt,
+          1000 * (float)cx_time / (double)(frame_cnt * 1000000),
+          1000000 * (double)frame_cnt / (double)cx_time);
 
   if (vpx_codec_destroy(&codec))
     die_codec(&codec, "Failed to destroy codec");

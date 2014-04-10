@@ -32,7 +32,7 @@ if [ -n "$1" ]; then
   GIT_BRANCH="$1"
 fi
 
-prev_hash="$(egrep "Commit: [a-Z0-9]" README.chromium | awk '{ print $2 }')"
+prev_hash="$(egrep "^Commit: [[:alnum:]]" README.chromium | awk '{ print $2 }')"
 echo "prev_hash:$prev_hash"
 
 rm -rf $(svn ls $LIBVPX_SRC_DIR)

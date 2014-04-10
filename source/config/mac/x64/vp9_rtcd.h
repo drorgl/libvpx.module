@@ -271,6 +271,10 @@ unsigned int vp9_get_mb_ss_mmx(const int16_t *);
 unsigned int vp9_get_mb_ss_sse2(const int16_t *);
 #define vp9_get_mb_ss vp9_get_mb_ss_sse2
 
+void vp9_get_sse_sum_16x16_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, int *sum);
+void vp9_get16x16var_sse2(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, int *sum);
+#define vp9_get_sse_sum_16x16 vp9_get16x16var_sse2
+
 void vp9_get_sse_sum_8x8_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, int *sum);
 void vp9_get8x8var_sse2(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, int *sum);
 #define vp9_get_sse_sum_8x8 vp9_get8x8var_sse2
@@ -912,315 +916,129 @@ static void setup_rtcd_internal(void)
 
     (void)flags;
 
-
-
-
-
     vp9_convolve8 = vp9_convolve8_sse2;
     if (flags & HAS_SSSE3) vp9_convolve8 = vp9_convolve8_ssse3;
-
     vp9_convolve8_avg = vp9_convolve8_avg_sse2;
     if (flags & HAS_SSSE3) vp9_convolve8_avg = vp9_convolve8_avg_ssse3;
-
     vp9_convolve8_avg_horiz = vp9_convolve8_avg_horiz_sse2;
     if (flags & HAS_SSSE3) vp9_convolve8_avg_horiz = vp9_convolve8_avg_horiz_ssse3;
-
     vp9_convolve8_avg_vert = vp9_convolve8_avg_vert_sse2;
     if (flags & HAS_SSSE3) vp9_convolve8_avg_vert = vp9_convolve8_avg_vert_ssse3;
-
     vp9_convolve8_horiz = vp9_convolve8_horiz_sse2;
     if (flags & HAS_SSSE3) vp9_convolve8_horiz = vp9_convolve8_horiz_ssse3;
-
     vp9_convolve8_vert = vp9_convolve8_vert_sse2;
     if (flags & HAS_SSSE3) vp9_convolve8_vert = vp9_convolve8_vert_ssse3;
-
-
-
-
-
-
-
-
-
-
-
     vp9_d153_predictor_16x16 = vp9_d153_predictor_16x16_c;
     if (flags & HAS_SSSE3) vp9_d153_predictor_16x16 = vp9_d153_predictor_16x16_ssse3;
-
-
     vp9_d153_predictor_4x4 = vp9_d153_predictor_4x4_c;
     if (flags & HAS_SSSE3) vp9_d153_predictor_4x4 = vp9_d153_predictor_4x4_ssse3;
-
     vp9_d153_predictor_8x8 = vp9_d153_predictor_8x8_c;
     if (flags & HAS_SSSE3) vp9_d153_predictor_8x8 = vp9_d153_predictor_8x8_ssse3;
-
     vp9_d207_predictor_16x16 = vp9_d207_predictor_16x16_c;
     if (flags & HAS_SSSE3) vp9_d207_predictor_16x16 = vp9_d207_predictor_16x16_ssse3;
-
     vp9_d207_predictor_32x32 = vp9_d207_predictor_32x32_c;
     if (flags & HAS_SSSE3) vp9_d207_predictor_32x32 = vp9_d207_predictor_32x32_ssse3;
-
     vp9_d207_predictor_4x4 = vp9_d207_predictor_4x4_c;
     if (flags & HAS_SSSE3) vp9_d207_predictor_4x4 = vp9_d207_predictor_4x4_ssse3;
-
     vp9_d207_predictor_8x8 = vp9_d207_predictor_8x8_c;
     if (flags & HAS_SSSE3) vp9_d207_predictor_8x8 = vp9_d207_predictor_8x8_ssse3;
-
     vp9_d45_predictor_16x16 = vp9_d45_predictor_16x16_c;
     if (flags & HAS_SSSE3) vp9_d45_predictor_16x16 = vp9_d45_predictor_16x16_ssse3;
-
     vp9_d45_predictor_32x32 = vp9_d45_predictor_32x32_c;
     if (flags & HAS_SSSE3) vp9_d45_predictor_32x32 = vp9_d45_predictor_32x32_ssse3;
-
     vp9_d45_predictor_4x4 = vp9_d45_predictor_4x4_c;
     if (flags & HAS_SSSE3) vp9_d45_predictor_4x4 = vp9_d45_predictor_4x4_ssse3;
-
     vp9_d45_predictor_8x8 = vp9_d45_predictor_8x8_c;
     if (flags & HAS_SSSE3) vp9_d45_predictor_8x8 = vp9_d45_predictor_8x8_ssse3;
-
     vp9_d63_predictor_16x16 = vp9_d63_predictor_16x16_c;
     if (flags & HAS_SSSE3) vp9_d63_predictor_16x16 = vp9_d63_predictor_16x16_ssse3;
-
     vp9_d63_predictor_32x32 = vp9_d63_predictor_32x32_c;
     if (flags & HAS_SSSE3) vp9_d63_predictor_32x32 = vp9_d63_predictor_32x32_ssse3;
-
     vp9_d63_predictor_4x4 = vp9_d63_predictor_4x4_c;
     if (flags & HAS_SSSE3) vp9_d63_predictor_4x4 = vp9_d63_predictor_4x4_ssse3;
-
     vp9_d63_predictor_8x8 = vp9_d63_predictor_8x8_c;
     if (flags & HAS_SSSE3) vp9_d63_predictor_8x8 = vp9_d63_predictor_8x8_ssse3;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     vp9_diamond_search_sad = vp9_diamond_search_sad_c;
     if (flags & HAS_SSE3) vp9_diamond_search_sad = vp9_diamond_search_sadx4;
-
-
-
-
-
-
-
-
-
-
     vp9_full_search_sad = vp9_full_search_sad_c;
     if (flags & HAS_SSE3) vp9_full_search_sad = vp9_full_search_sadx3;
     if (flags & HAS_SSE4_1) vp9_full_search_sad = vp9_full_search_sadx8;
-
-
-
-
     vp9_h_predictor_16x16 = vp9_h_predictor_16x16_c;
     if (flags & HAS_SSSE3) vp9_h_predictor_16x16 = vp9_h_predictor_16x16_ssse3;
-
     vp9_h_predictor_32x32 = vp9_h_predictor_32x32_c;
     if (flags & HAS_SSSE3) vp9_h_predictor_32x32 = vp9_h_predictor_32x32_ssse3;
-
     vp9_h_predictor_4x4 = vp9_h_predictor_4x4_c;
     if (flags & HAS_SSSE3) vp9_h_predictor_4x4 = vp9_h_predictor_4x4_ssse3;
-
     vp9_h_predictor_8x8 = vp9_h_predictor_8x8_c;
     if (flags & HAS_SSSE3) vp9_h_predictor_8x8 = vp9_h_predictor_8x8_ssse3;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     vp9_quantize_b = vp9_quantize_b_c;
     if (flags & HAS_SSSE3) vp9_quantize_b = vp9_quantize_b_ssse3;
-
     vp9_quantize_b_32x32 = vp9_quantize_b_32x32_c;
     if (flags & HAS_SSSE3) vp9_quantize_b_32x32 = vp9_quantize_b_32x32_ssse3;
-
     vp9_refining_search_sad = vp9_refining_search_sad_c;
     if (flags & HAS_SSE3) vp9_refining_search_sad = vp9_refining_search_sadx4;
-
-
-
     vp9_sad16x16x3 = vp9_sad16x16x3_c;
     if (flags & HAS_SSE3) vp9_sad16x16x3 = vp9_sad16x16x3_sse3;
     if (flags & HAS_SSSE3) vp9_sad16x16x3 = vp9_sad16x16x3_ssse3;
-
-
-
-
-
-
-
-
     vp9_sad16x8x3 = vp9_sad16x8x3_c;
     if (flags & HAS_SSE3) vp9_sad16x8x3 = vp9_sad16x8x3_sse3;
     if (flags & HAS_SSSE3) vp9_sad16x8x3 = vp9_sad16x8x3_ssse3;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     vp9_sad4x4x3 = vp9_sad4x4x3_c;
     if (flags & HAS_SSE3) vp9_sad4x4x3 = vp9_sad4x4x3_sse3;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     vp9_sad8x16x3 = vp9_sad8x16x3_c;
     if (flags & HAS_SSE3) vp9_sad8x16x3 = vp9_sad8x16x3_sse3;
-
-
-
-
-
-
-
-
-
     vp9_sad8x8x3 = vp9_sad8x8x3_c;
     if (flags & HAS_SSE3) vp9_sad8x8x3 = vp9_sad8x8x3_sse3;
-
-
-
     vp9_sub_pixel_avg_variance16x16 = vp9_sub_pixel_avg_variance16x16_sse2;
     if (flags & HAS_SSSE3) vp9_sub_pixel_avg_variance16x16 = vp9_sub_pixel_avg_variance16x16_ssse3;
-
     vp9_sub_pixel_avg_variance16x32 = vp9_sub_pixel_avg_variance16x32_sse2;
     if (flags & HAS_SSSE3) vp9_sub_pixel_avg_variance16x32 = vp9_sub_pixel_avg_variance16x32_ssse3;
-
     vp9_sub_pixel_avg_variance16x8 = vp9_sub_pixel_avg_variance16x8_sse2;
     if (flags & HAS_SSSE3) vp9_sub_pixel_avg_variance16x8 = vp9_sub_pixel_avg_variance16x8_ssse3;
-
     vp9_sub_pixel_avg_variance32x16 = vp9_sub_pixel_avg_variance32x16_sse2;
     if (flags & HAS_SSSE3) vp9_sub_pixel_avg_variance32x16 = vp9_sub_pixel_avg_variance32x16_ssse3;
-
     vp9_sub_pixel_avg_variance32x32 = vp9_sub_pixel_avg_variance32x32_sse2;
     if (flags & HAS_SSSE3) vp9_sub_pixel_avg_variance32x32 = vp9_sub_pixel_avg_variance32x32_ssse3;
-
     vp9_sub_pixel_avg_variance32x64 = vp9_sub_pixel_avg_variance32x64_sse2;
     if (flags & HAS_SSSE3) vp9_sub_pixel_avg_variance32x64 = vp9_sub_pixel_avg_variance32x64_ssse3;
-
     vp9_sub_pixel_avg_variance4x4 = vp9_sub_pixel_avg_variance4x4_sse;
     if (flags & HAS_SSSE3) vp9_sub_pixel_avg_variance4x4 = vp9_sub_pixel_avg_variance4x4_ssse3;
-
     vp9_sub_pixel_avg_variance4x8 = vp9_sub_pixel_avg_variance4x8_sse;
     if (flags & HAS_SSSE3) vp9_sub_pixel_avg_variance4x8 = vp9_sub_pixel_avg_variance4x8_ssse3;
-
     vp9_sub_pixel_avg_variance64x32 = vp9_sub_pixel_avg_variance64x32_sse2;
     if (flags & HAS_SSSE3) vp9_sub_pixel_avg_variance64x32 = vp9_sub_pixel_avg_variance64x32_ssse3;
-
     vp9_sub_pixel_avg_variance64x64 = vp9_sub_pixel_avg_variance64x64_sse2;
     if (flags & HAS_SSSE3) vp9_sub_pixel_avg_variance64x64 = vp9_sub_pixel_avg_variance64x64_ssse3;
-
     vp9_sub_pixel_avg_variance8x16 = vp9_sub_pixel_avg_variance8x16_sse2;
     if (flags & HAS_SSSE3) vp9_sub_pixel_avg_variance8x16 = vp9_sub_pixel_avg_variance8x16_ssse3;
-
     vp9_sub_pixel_avg_variance8x4 = vp9_sub_pixel_avg_variance8x4_sse2;
     if (flags & HAS_SSSE3) vp9_sub_pixel_avg_variance8x4 = vp9_sub_pixel_avg_variance8x4_ssse3;
-
     vp9_sub_pixel_avg_variance8x8 = vp9_sub_pixel_avg_variance8x8_sse2;
     if (flags & HAS_SSSE3) vp9_sub_pixel_avg_variance8x8 = vp9_sub_pixel_avg_variance8x8_ssse3;
-
-
-
     vp9_sub_pixel_variance16x16 = vp9_sub_pixel_variance16x16_sse2;
     if (flags & HAS_SSSE3) vp9_sub_pixel_variance16x16 = vp9_sub_pixel_variance16x16_ssse3;
-
     vp9_sub_pixel_variance16x32 = vp9_sub_pixel_variance16x32_sse2;
     if (flags & HAS_SSSE3) vp9_sub_pixel_variance16x32 = vp9_sub_pixel_variance16x32_ssse3;
-
     vp9_sub_pixel_variance16x8 = vp9_sub_pixel_variance16x8_sse2;
     if (flags & HAS_SSSE3) vp9_sub_pixel_variance16x8 = vp9_sub_pixel_variance16x8_ssse3;
-
     vp9_sub_pixel_variance32x16 = vp9_sub_pixel_variance32x16_sse2;
     if (flags & HAS_SSSE3) vp9_sub_pixel_variance32x16 = vp9_sub_pixel_variance32x16_ssse3;
-
     vp9_sub_pixel_variance32x32 = vp9_sub_pixel_variance32x32_sse2;
     if (flags & HAS_SSSE3) vp9_sub_pixel_variance32x32 = vp9_sub_pixel_variance32x32_ssse3;
-
     vp9_sub_pixel_variance32x64 = vp9_sub_pixel_variance32x64_sse2;
     if (flags & HAS_SSSE3) vp9_sub_pixel_variance32x64 = vp9_sub_pixel_variance32x64_ssse3;
-
     vp9_sub_pixel_variance4x4 = vp9_sub_pixel_variance4x4_sse;
     if (flags & HAS_SSSE3) vp9_sub_pixel_variance4x4 = vp9_sub_pixel_variance4x4_ssse3;
-
     vp9_sub_pixel_variance4x8 = vp9_sub_pixel_variance4x8_sse;
     if (flags & HAS_SSSE3) vp9_sub_pixel_variance4x8 = vp9_sub_pixel_variance4x8_ssse3;
-
     vp9_sub_pixel_variance64x32 = vp9_sub_pixel_variance64x32_sse2;
     if (flags & HAS_SSSE3) vp9_sub_pixel_variance64x32 = vp9_sub_pixel_variance64x32_ssse3;
-
     vp9_sub_pixel_variance64x64 = vp9_sub_pixel_variance64x64_sse2;
     if (flags & HAS_SSSE3) vp9_sub_pixel_variance64x64 = vp9_sub_pixel_variance64x64_ssse3;
-
     vp9_sub_pixel_variance8x16 = vp9_sub_pixel_variance8x16_sse2;
     if (flags & HAS_SSSE3) vp9_sub_pixel_variance8x16 = vp9_sub_pixel_variance8x16_ssse3;
-
     vp9_sub_pixel_variance8x4 = vp9_sub_pixel_variance8x4_sse2;
     if (flags & HAS_SSSE3) vp9_sub_pixel_variance8x4 = vp9_sub_pixel_variance8x4_ssse3;
-
     vp9_sub_pixel_variance8x8 = vp9_sub_pixel_variance8x8_sse2;
     if (flags & HAS_SSSE3) vp9_sub_pixel_variance8x8 = vp9_sub_pixel_variance8x8_ssse3;
 }

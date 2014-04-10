@@ -490,151 +490,67 @@ static void setup_rtcd_internal(void)
 
     vp8_bilinear_predict16x16 = vp8_bilinear_predict16x16_sse2;
     if (flags & HAS_SSSE3) vp8_bilinear_predict16x16 = vp8_bilinear_predict16x16_ssse3;
-
-
-
     vp8_bilinear_predict8x8 = vp8_bilinear_predict8x8_sse2;
     if (flags & HAS_SSSE3) vp8_bilinear_predict8x8 = vp8_bilinear_predict8x8_ssse3;
-
-
-
-
-
     vp8_build_intra_predictors_mbuv_s = vp8_build_intra_predictors_mbuv_s_sse2;
     if (flags & HAS_SSSE3) vp8_build_intra_predictors_mbuv_s = vp8_build_intra_predictors_mbuv_s_ssse3;
-
     vp8_build_intra_predictors_mby_s = vp8_build_intra_predictors_mby_s_sse2;
     if (flags & HAS_SSSE3) vp8_build_intra_predictors_mby_s = vp8_build_intra_predictors_mby_s_ssse3;
-
-
     vp8_copy32xn = vp8_copy32xn_sse2;
     if (flags & HAS_SSE3) vp8_copy32xn = vp8_copy32xn_sse3;
-
-
-
-
-
-
-
-
-
-
     vp8_diamond_search_sad = vp8_diamond_search_sad_c;
     if (flags & HAS_SSE3) vp8_diamond_search_sad = vp8_diamond_search_sadx4;
-
     vp8_fast_quantize_b = vp8_fast_quantize_b_sse2;
     if (flags & HAS_SSSE3) vp8_fast_quantize_b = vp8_fast_quantize_b_ssse3;
-
-
-
-
-
     vp8_full_search_sad = vp8_full_search_sad_c;
     if (flags & HAS_SSE3) vp8_full_search_sad = vp8_full_search_sadx3;
     if (flags & HAS_SSE4_1) vp8_full_search_sad = vp8_full_search_sadx8;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     vp8_refining_search_sad = vp8_refining_search_sad_c;
     if (flags & HAS_SSE3) vp8_refining_search_sad = vp8_refining_search_sadx4;
-
-
-
     vp8_sad16x16 = vp8_sad16x16_wmt;
     if (flags & HAS_SSE3) vp8_sad16x16 = vp8_sad16x16_sse3;
-
     vp8_sad16x16x3 = vp8_sad16x16x3_c;
     if (flags & HAS_SSE3) vp8_sad16x16x3 = vp8_sad16x16x3_sse3;
     if (flags & HAS_SSSE3) vp8_sad16x16x3 = vp8_sad16x16x3_ssse3;
-
     vp8_sad16x16x4d = vp8_sad16x16x4d_c;
     if (flags & HAS_SSE3) vp8_sad16x16x4d = vp8_sad16x16x4d_sse3;
-
     vp8_sad16x16x8 = vp8_sad16x16x8_c;
     if (flags & HAS_SSE4_1) vp8_sad16x16x8 = vp8_sad16x16x8_sse4;
-
-
     vp8_sad16x8x3 = vp8_sad16x8x3_c;
     if (flags & HAS_SSE3) vp8_sad16x8x3 = vp8_sad16x8x3_sse3;
     if (flags & HAS_SSSE3) vp8_sad16x8x3 = vp8_sad16x8x3_ssse3;
-
     vp8_sad16x8x4d = vp8_sad16x8x4d_c;
     if (flags & HAS_SSE3) vp8_sad16x8x4d = vp8_sad16x8x4d_sse3;
-
     vp8_sad16x8x8 = vp8_sad16x8x8_c;
     if (flags & HAS_SSE4_1) vp8_sad16x8x8 = vp8_sad16x8x8_sse4;
-
-
     vp8_sad4x4x3 = vp8_sad4x4x3_c;
     if (flags & HAS_SSE3) vp8_sad4x4x3 = vp8_sad4x4x3_sse3;
-
     vp8_sad4x4x4d = vp8_sad4x4x4d_c;
     if (flags & HAS_SSE3) vp8_sad4x4x4d = vp8_sad4x4x4d_sse3;
-
     vp8_sad4x4x8 = vp8_sad4x4x8_c;
     if (flags & HAS_SSE4_1) vp8_sad4x4x8 = vp8_sad4x4x8_sse4;
-
-
     vp8_sad8x16x3 = vp8_sad8x16x3_c;
     if (flags & HAS_SSE3) vp8_sad8x16x3 = vp8_sad8x16x3_sse3;
-
     vp8_sad8x16x4d = vp8_sad8x16x4d_c;
     if (flags & HAS_SSE3) vp8_sad8x16x4d = vp8_sad8x16x4d_sse3;
-
     vp8_sad8x16x8 = vp8_sad8x16x8_c;
     if (flags & HAS_SSE4_1) vp8_sad8x16x8 = vp8_sad8x16x8_sse4;
-
-
     vp8_sad8x8x3 = vp8_sad8x8x3_c;
     if (flags & HAS_SSE3) vp8_sad8x8x3 = vp8_sad8x8x3_sse3;
-
     vp8_sad8x8x4d = vp8_sad8x8x4d_c;
     if (flags & HAS_SSE3) vp8_sad8x8x4d = vp8_sad8x8x4d_sse3;
-
     vp8_sad8x8x8 = vp8_sad8x8x8_c;
     if (flags & HAS_SSE4_1) vp8_sad8x8x8 = vp8_sad8x8x8_sse4;
-
-
-
-
-
-
-
     vp8_sixtap_predict16x16 = vp8_sixtap_predict16x16_sse2;
     if (flags & HAS_SSSE3) vp8_sixtap_predict16x16 = vp8_sixtap_predict16x16_ssse3;
-
     vp8_sixtap_predict4x4 = vp8_sixtap_predict4x4_mmx;
     if (flags & HAS_SSSE3) vp8_sixtap_predict4x4 = vp8_sixtap_predict4x4_ssse3;
-
     vp8_sixtap_predict8x4 = vp8_sixtap_predict8x4_sse2;
     if (flags & HAS_SSSE3) vp8_sixtap_predict8x4 = vp8_sixtap_predict8x4_ssse3;
-
     vp8_sixtap_predict8x8 = vp8_sixtap_predict8x8_sse2;
     if (flags & HAS_SSSE3) vp8_sixtap_predict8x8 = vp8_sixtap_predict8x8_ssse3;
-
-
     vp8_sub_pixel_variance16x16 = vp8_sub_pixel_variance16x16_wmt;
     if (flags & HAS_SSSE3) vp8_sub_pixel_variance16x16 = vp8_sub_pixel_variance16x16_ssse3;
-
     vp8_sub_pixel_variance16x8 = vp8_sub_pixel_variance16x8_wmt;
     if (flags & HAS_SSSE3) vp8_sub_pixel_variance16x8 = vp8_sub_pixel_variance16x8_ssse3;
 }

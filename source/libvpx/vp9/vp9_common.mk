@@ -12,7 +12,6 @@ VP9_COMMON_SRCS-yes += vp9_common.mk
 VP9_COMMON_SRCS-yes += vp9_iface_common.h
 VP9_COMMON_SRCS-yes += common/vp9_pragmas.h
 VP9_COMMON_SRCS-yes += common/vp9_ppflags.h
-VP9_COMMON_SRCS-yes += common/vp9_onyx.h
 VP9_COMMON_SRCS-yes += common/vp9_alloccommon.c
 VP9_COMMON_SRCS-yes += common/vp9_blockd.c
 VP9_COMMON_SRCS-yes += common/vp9_convolve.c
@@ -45,7 +44,7 @@ VP9_COMMON_SRCS-yes += common/vp9_quant_common.h
 VP9_COMMON_SRCS-yes += common/vp9_reconinter.h
 VP9_COMMON_SRCS-yes += common/vp9_reconintra.h
 VP9_COMMON_SRCS-yes += common/vp9_rtcd.c
-VP9_COMMON_SRCS-yes += common/vp9_rtcd_defs.sh
+VP9_COMMON_SRCS-yes += common/vp9_rtcd_defs.pl
 VP9_COMMON_SRCS-yes += common/vp9_scale.h
 VP9_COMMON_SRCS-yes += common/vp9_scale.c
 VP9_COMMON_SRCS-yes += common/vp9_seg_common.h
@@ -145,4 +144,4 @@ VP9_COMMON_SRCS-$(HAVE_NEON) += common/arm/neon/vp9_avg_neon$(ASM)
 VP9_COMMON_SRCS-$(HAVE_NEON) += common/arm/neon/vp9_save_reg_neon$(ASM)
 VP9_COMMON_SRCS-$(HAVE_NEON) += common/arm/neon/vp9_reconintra_neon$(ASM)
 
-$(eval $(call rtcd_h_template,vp9_rtcd,vp9/common/vp9_rtcd_defs.sh))
+$(eval $(call rtcd_h_template,vp9_rtcd,vp9/common/vp9_rtcd_defs.pl))

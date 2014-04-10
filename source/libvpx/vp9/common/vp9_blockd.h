@@ -120,23 +120,23 @@ static INLINE int mi_width_log2(BLOCK_SIZE sb_type) {
 
 // This structure now relates to 8x8 block regions.
 typedef struct {
-  MB_PREDICTION_MODE mode, uv_mode;
-  MV_REFERENCE_FRAME ref_frame[2];
-  TX_SIZE tx_size;
-  int_mv mv[2];                // for each reference frame used
-  int_mv ref_mvs[MAX_REF_FRAMES][MAX_MV_REF_CANDIDATES];
-
-  uint8_t mode_context[MAX_REF_FRAMES];
-
-  unsigned char skip;    // 0=need to decode coeffs, 1=no coefficients
-  unsigned char segment_id;    // Segment id for this block.
-
-  // Flags used for prediction status of various bit-stream signals
-  unsigned char seg_id_predicted;
-
-  INTERP_FILTER interp_filter;
-
+  // Common for both INTER and INTRA blocks
   BLOCK_SIZE sb_type;
+  MB_PREDICTION_MODE mode;
+  TX_SIZE tx_size;
+  uint8_t skip;
+  uint8_t segment_id;
+  uint8_t seg_id_predicted;  // valid only when temporal_update is enabled
+
+  // Only for INTRA blocks
+  MB_PREDICTION_MODE uv_mode;
+
+  // Only for INTER blocks
+  MV_REFERENCE_FRAME ref_frame[2];
+  int_mv mv[2];
+  int_mv ref_mvs[MAX_REF_FRAMES][MAX_MV_REF_CANDIDATES];
+  uint8_t mode_context[MAX_REF_FRAMES];
+  INTERP_FILTER interp_filter;
 } MB_MODE_INFO;
 
 typedef struct {
@@ -204,13 +204,10 @@ typedef struct RefBuffer {
 typedef struct macroblockd {
   struct macroblockd_plane plane[MAX_MB_PLANE];
 
-  MODE_INFO *last_mi;
-  int mode_info_stride;
+  int mi_stride;
 
   // A NULL indicates that the 8x8 is not part of the image
-  MODE_INFO **mi_8x8;
-  MODE_INFO **prev_mi_8x8;
-  MODE_INFO *mi_stream;
+  MODE_INFO **mi;
 
   int up_available;
   int left_available;
@@ -234,19 +231,16 @@ typedef struct macroblockd {
   /* Inverse transform function pointers. */
   void (*itxm_add)(const int16_t *input, uint8_t *dest, int stride, int eob);
 
-  const InterpKernel *interp_kernel;
-
   int corrupted;
 
-  /* Y,U,V,(A) */
+  DECLARE_ALIGNED(16, int16_t, dqcoeff[MAX_MB_PLANE][64 * 64]);
+
   ENTROPY_CONTEXT *above_context[MAX_MB_PLANE];
   ENTROPY_CONTEXT left_context[MAX_MB_PLANE][16];
 
   PARTITION_CONTEXT *above_seg_context;
   PARTITION_CONTEXT left_seg_context[8];
 } MACROBLOCKD;
-
-
 
 static INLINE BLOCK_SIZE get_subsize(BLOCK_SIZE bsize,
                                      PARTITION_TYPE partition) {
@@ -255,28 +249,25 @@ static INLINE BLOCK_SIZE get_subsize(BLOCK_SIZE bsize,
   return subsize;
 }
 
-extern const TX_TYPE mode2txfm_map[MB_MODE_COUNT];
+extern const TX_TYPE intra_mode_to_tx_type_lookup[INTRA_MODES];
+
+static INLINE TX_TYPE get_tx_type(PLANE_TYPE plane_type,
+                                  const MACROBLOCKD *xd) {
+  const MB_MODE_INFO *const mbmi = &xd->mi[0]->mbmi;
+
+  if (plane_type != PLANE_TYPE_Y || is_inter_block(mbmi))
+    return DCT_DCT;
+  return intra_mode_to_tx_type_lookup[mbmi->mode];
+}
 
 static INLINE TX_TYPE get_tx_type_4x4(PLANE_TYPE plane_type,
                                       const MACROBLOCKD *xd, int ib) {
-  const MODE_INFO *const mi = xd->mi_8x8[0];
+  const MODE_INFO *const mi = xd->mi[0];
 
   if (plane_type != PLANE_TYPE_Y || xd->lossless || is_inter_block(&mi->mbmi))
     return DCT_DCT;
 
-  return mode2txfm_map[get_y_mode(mi, ib)];
-}
-
-static INLINE TX_TYPE get_tx_type_8x8(PLANE_TYPE plane_type,
-                                      const MACROBLOCKD *xd) {
-  return plane_type == PLANE_TYPE_Y ? mode2txfm_map[xd->mi_8x8[0]->mbmi.mode]
-                                    : DCT_DCT;
-}
-
-static INLINE TX_TYPE get_tx_type_16x16(PLANE_TYPE plane_type,
-                                        const MACROBLOCKD *xd) {
-  return plane_type == PLANE_TYPE_Y ? mode2txfm_map[xd->mi_8x8[0]->mbmi.mode]
-                                    : DCT_DCT;
+  return intra_mode_to_tx_type_lookup[get_y_mode(mi, ib)];
 }
 
 void vp9_setup_block_planes(MACROBLOCKD *xd, int ss_x, int ss_y);

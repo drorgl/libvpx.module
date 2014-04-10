@@ -23,11 +23,6 @@ extern "C" {
   (((128 + ((int64_t)R) * (RM)) >> 8) + (D << DM))
 #define QIDX_SKIP_THRESH     115
 
-#define RD_THRESH_MAX_FACT 64
-#define RD_THRESH_INC      1
-#define RD_THRESH_POW      1.25
-#define RD_MULT_EPB_RATIO  64
-
 #define MV_COST_WEIGHT      108
 #define MV_COST_WEIGHT_SUB  120
 
@@ -35,11 +30,17 @@ extern "C" {
 
 struct TileInfo;
 
-int vp9_compute_rd_mult(VP9_COMP *cpi, int qindex);
+int vp9_compute_rd_mult(const VP9_COMP *cpi, int qindex);
 
 void vp9_initialize_rd_consts(VP9_COMP *cpi);
 
 void vp9_initialize_me_consts(VP9_COMP *cpi, int qindex);
+
+void vp9_model_rd_from_var_lapndz(unsigned int var, unsigned int n,
+                                  unsigned int qstep, int *rate,
+                                  int64_t *dist);
+
+int vp9_get_switchable_rate(const MACROBLOCK *x);
 
 void vp9_setup_buffer_inter(VP9_COMP *cpi, MACROBLOCK *x,
                             const TileInfo *const tile,
@@ -76,9 +77,6 @@ int64_t vp9_rd_pick_inter_mode_sub8x8(VP9_COMP *cpi, MACROBLOCK *x,
                                       int64_t best_rd_so_far);
 
 void vp9_init_me_luts();
-
-void vp9_set_mbmode_and_mvs(MACROBLOCKD *xd, MB_PREDICTION_MODE mode,
-                            const MV *mv);
 
 void vp9_get_entropy_contexts(BLOCK_SIZE bsize, TX_SIZE tx_size,
                               const struct macroblockd_plane *pd,

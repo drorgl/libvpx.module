@@ -26,6 +26,7 @@
 #include "vpx/svc_context.h"
 #include "vpx/vp8cx.h"
 #include "vpx/vpx_encoder.h"
+#include "./vpxstats.h"
 
 static const struct arg_enum_list encoding_mode_enum[] = {
   {"i", INTER_LAYER_PREDICTION_I},
@@ -60,12 +61,28 @@ static const arg_def_t quantizers_arg =
 static const arg_def_t quantizers_keyframe_arg =
     ARG_DEF("qn", "quantizers-keyframe", 1, "quantizers for key frames (lowest "
         "to highest layer)");
+static const arg_def_t passes_arg =
+    ARG_DEF("p", "passes", 1, "Number of passes (1/2)");
+static const arg_def_t pass_arg =
+    ARG_DEF(NULL, "pass", 1, "Pass to execute (1/2)");
+static const arg_def_t fpf_name_arg =
+    ARG_DEF(NULL, "fpf", 1, "First pass statistics file name");
+static const arg_def_t min_q_arg =
+    ARG_DEF(NULL, "min-q", 1, "Minimum quantizer");
+static const arg_def_t max_q_arg =
+    ARG_DEF(NULL, "max-q", 1, "Maximum quantizer");
+static const arg_def_t min_bitrate_arg =
+    ARG_DEF(NULL, "min-bitrate", 1, "Minimum bitrate");
+static const arg_def_t max_bitrate_arg =
+    ARG_DEF(NULL, "max-bitrate", 1, "Maximum bitrate");
 
 static const arg_def_t *svc_args[] = {
   &encoding_mode_arg, &frames_arg,        &width_arg,       &height_arg,
   &timebase_arg,      &bitrate_arg,       &skip_frames_arg, &layers_arg,
   &kf_dist_arg,       &scale_factors_arg, &quantizers_arg,
-  &quantizers_keyframe_arg, NULL
+  &quantizers_keyframe_arg,               &passes_arg,      &pass_arg,
+  &fpf_name_arg,      &min_q_arg,         &max_q_arg,       &min_bitrate_arg,
+  &max_bitrate_arg,   NULL
 };
 
 static const SVC_ENCODING_MODE default_encoding_mode =
@@ -85,6 +102,10 @@ typedef struct {
   const char *output_filename;
   uint32_t frames_to_code;
   uint32_t frames_to_skip;
+  struct VpxInputContext input_ctx;
+  stats_io_t rc_stats;
+  int passes;
+  int pass;
 } AppInput;
 
 static const char *exec_name;
@@ -105,6 +126,11 @@ static void parse_command_line(int argc, const char **argv_,
   char **argi = NULL;
   char **argj = NULL;
   vpx_codec_err_t res;
+  int passes = 0;
+  int pass = 0;
+  const char *fpf_file_name = NULL;
+  unsigned int min_bitrate = 0;
+  unsigned int max_bitrate = 0;
 
   // initialize SvcContext with parameters that will be passed to vpx_svc_init
   svc_ctx->log_level = SVC_LOG_DEBUG;
@@ -159,8 +185,69 @@ static void parse_command_line(int argc, const char **argv_,
       vpx_svc_set_quantizers(svc_ctx, arg.val, 0);
     } else if (arg_match(&arg, &quantizers_keyframe_arg, argi)) {
       vpx_svc_set_quantizers(svc_ctx, arg.val, 1);
+    } else if (arg_match(&arg, &passes_arg, argi)) {
+      passes = arg_parse_uint(&arg);
+      if (passes < 1 || passes > 2) {
+        die("Error: Invalid number of passes (%d)\n", passes);
+      }
+    } else if (arg_match(&arg, &pass_arg, argi)) {
+      pass = arg_parse_uint(&arg);
+      if (pass < 1 || pass > 2) {
+        die("Error: Invalid pass selected (%d)\n", pass);
+      }
+    } else if (arg_match(&arg, &fpf_name_arg, argi)) {
+      fpf_file_name = arg.val;
+    } else if (arg_match(&arg, &min_q_arg, argi)) {
+      enc_cfg->rc_min_quantizer = arg_parse_uint(&arg);
+    } else if (arg_match(&arg, &max_q_arg, argi)) {
+      enc_cfg->rc_max_quantizer = arg_parse_uint(&arg);
+    } else if (arg_match(&arg, &min_bitrate_arg, argi)) {
+      min_bitrate = arg_parse_uint(&arg);
+    } else if (arg_match(&arg, &max_bitrate_arg, argi)) {
+      max_bitrate = arg_parse_uint(&arg);
     } else {
       ++argj;
+    }
+  }
+
+  if (passes == 0 || passes == 1) {
+    if (pass) {
+      fprintf(stderr, "pass is ignored since there's only one pass\n");
+    }
+    enc_cfg->g_pass = VPX_RC_ONE_PASS;
+  } else {
+    if (pass == 0) {
+      die("pass must be specified when passes is 2\n");
+    }
+
+    if (fpf_file_name == NULL) {
+      die("fpf must be specified when passes is 2\n");
+    }
+
+    if (pass == 1) {
+      enc_cfg->g_pass = VPX_RC_FIRST_PASS;
+      if (!stats_open_file(&app_input->rc_stats, fpf_file_name, 0)) {
+        fatal("Failed to open statistics store");
+      }
+    } else {
+      enc_cfg->g_pass = VPX_RC_LAST_PASS;
+      if (!stats_open_file(&app_input->rc_stats, fpf_file_name, 1)) {
+        fatal("Failed to open statistics store");
+      }
+      enc_cfg->rc_twopass_stats_in = stats_get(&app_input->rc_stats);
+    }
+    app_input->passes = passes;
+    app_input->pass = pass;
+  }
+
+  if (enc_cfg->rc_target_bitrate > 0) {
+    if (min_bitrate > 0) {
+      enc_cfg->rc_2pass_vbr_minsection_pct =
+          min_bitrate * 100 / enc_cfg->rc_target_bitrate;
+    }
+    if (max_bitrate > 0) {
+      enc_cfg->rc_2pass_vbr_maxsection_pct =
+          max_bitrate * 100 / enc_cfg->rc_target_bitrate;
     }
   }
 
@@ -207,6 +294,7 @@ int main(int argc, const char **argv) {
   int pts = 0;            /* PTS starts at 0 */
   int frame_duration = 1; /* 1 timebase tick per frame */
   FILE *infile = NULL;
+  int end_of_stream = 0;
 
   memset(&svc_ctx, 0, sizeof(svc_ctx));
   svc_ctx.log_print = 1;
@@ -234,34 +322,50 @@ int main(int argc, const char **argv) {
       VPX_CODEC_OK) {
     die("Failed to get output resolution");
   }
-  writer = vpx_video_writer_open(app_input.output_filename, kContainerIVF,
-                                 &info);
-  if (!writer)
-    die("Failed to open %s for writing\n", app_input.output_filename);
+
+  if (!(app_input.passes == 2 && app_input.pass == 1)) {
+    // We don't save the bitstream for the 1st pass on two pass rate control
+    writer = vpx_video_writer_open(app_input.output_filename, kContainerIVF,
+                                   &info);
+    if (!writer)
+      die("Failed to open %s for writing\n", app_input.output_filename);
+  }
 
   // skip initial frames
   for (i = 0; i < app_input.frames_to_skip; ++i)
     vpx_img_read(&raw, infile);
 
   // Encode frames
-  while (frame_cnt < app_input.frames_to_code) {
-    if (!vpx_img_read(&raw, infile))
-      break;
+  while (!end_of_stream) {
+    if (frame_cnt >= app_input.frames_to_code || !vpx_img_read(&raw, infile)) {
+      // We need one extra vpx_svc_encode call at end of stream to flush
+      // encoder and get remaining data
+      end_of_stream = 1;
+    }
 
-    res = vpx_svc_encode(&svc_ctx, &codec, &raw, pts, frame_duration,
-                         VPX_DL_REALTIME);
+    res = vpx_svc_encode(&svc_ctx, &codec, (end_of_stream ? NULL : &raw),
+                         pts, frame_duration, VPX_DL_REALTIME);
     printf("%s", vpx_svc_get_message(&svc_ctx));
     if (res != VPX_CODEC_OK) {
       die_codec(&codec, "Failed to encode frame");
     }
-    if (vpx_svc_get_frame_size(&svc_ctx) > 0) {
-      vpx_video_writer_write_frame(writer,
-                                   vpx_svc_get_buffer(&svc_ctx),
-                                   vpx_svc_get_frame_size(&svc_ctx),
-                                   pts);
+    if (!(app_input.passes == 2 && app_input.pass == 1)) {
+      if (vpx_svc_get_frame_size(&svc_ctx) > 0) {
+        vpx_video_writer_write_frame(writer,
+                                     vpx_svc_get_buffer(&svc_ctx),
+                                     vpx_svc_get_frame_size(&svc_ctx),
+                                     pts);
+      }
     }
-    ++frame_cnt;
-    pts += frame_duration;
+    if (vpx_svc_get_rc_stats_buffer_size(&svc_ctx) > 0) {
+      stats_write(&app_input.rc_stats,
+                  vpx_svc_get_rc_stats_buffer(&svc_ctx),
+                  vpx_svc_get_rc_stats_buffer_size(&svc_ctx));
+    }
+    if (!end_of_stream) {
+      ++frame_cnt;
+      pts += frame_duration;
+    }
   }
 
   printf("Processed %d frames\n", frame_cnt);
@@ -269,7 +373,12 @@ int main(int argc, const char **argv) {
   fclose(infile);
   if (vpx_codec_destroy(&codec)) die_codec(&codec, "Failed to destroy codec");
 
-  vpx_video_writer_close(writer);
+  if (app_input.passes == 2)
+    stats_close(&app_input.rc_stats, 1);
+
+  if (writer) {
+    vpx_video_writer_close(writer);
+  }
 
   vpx_img_free(&raw);
 

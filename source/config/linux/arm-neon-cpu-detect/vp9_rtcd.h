@@ -232,6 +232,9 @@ void vp9_fwht4x4_c(const int16_t *input, int16_t *output, int stride);
 unsigned int vp9_get_mb_ss_c(const int16_t *);
 #define vp9_get_mb_ss vp9_get_mb_ss_c
 
+void vp9_get_sse_sum_16x16_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, int *sum);
+#define vp9_get_sse_sum_16x16 vp9_get_sse_sum_16x16_c
+
 void vp9_get_sse_sum_8x8_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, int *sum);
 #define vp9_get_sse_sum_8x8 vp9_get_sse_sum_8x8_c
 
@@ -731,6 +734,7 @@ unsigned int vp9_variance_halfpixvar64x64_v_c(const uint8_t *src_ptr, int source
 #define vp9_variance_halfpixvar64x64_v vp9_variance_halfpixvar64x64_v_c
 
 void vp9_rtcd(void);
+
 #include "vpx_config.h"
 
 #ifdef RTCD_C
@@ -741,288 +745,92 @@ static void setup_rtcd_internal(void)
 
     (void)flags;
 
-
-
-
-
     vp9_convolve8 = vp9_convolve8_c;
     if (flags & HAS_NEON) vp9_convolve8 = vp9_convolve8_neon;
-
     vp9_convolve8_avg = vp9_convolve8_avg_c;
     if (flags & HAS_NEON) vp9_convolve8_avg = vp9_convolve8_avg_neon;
-
     vp9_convolve8_avg_horiz = vp9_convolve8_avg_horiz_c;
     if (flags & HAS_NEON) vp9_convolve8_avg_horiz = vp9_convolve8_avg_horiz_neon;
-
     vp9_convolve8_avg_vert = vp9_convolve8_avg_vert_c;
     if (flags & HAS_NEON) vp9_convolve8_avg_vert = vp9_convolve8_avg_vert_neon;
-
     vp9_convolve8_horiz = vp9_convolve8_horiz_c;
     if (flags & HAS_NEON) vp9_convolve8_horiz = vp9_convolve8_horiz_neon;
-
     vp9_convolve8_vert = vp9_convolve8_vert_c;
     if (flags & HAS_NEON) vp9_convolve8_vert = vp9_convolve8_vert_neon;
-
     vp9_convolve_avg = vp9_convolve_avg_c;
     if (flags & HAS_NEON) vp9_convolve_avg = vp9_convolve_avg_neon;
-
     vp9_convolve_copy = vp9_convolve_copy_c;
     if (flags & HAS_NEON) vp9_convolve_copy = vp9_convolve_copy_neon;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     vp9_h_predictor_16x16 = vp9_h_predictor_16x16_c;
     if (flags & HAS_NEON) vp9_h_predictor_16x16 = vp9_h_predictor_16x16_neon;
-
     vp9_h_predictor_32x32 = vp9_h_predictor_32x32_c;
     if (flags & HAS_NEON) vp9_h_predictor_32x32 = vp9_h_predictor_32x32_neon;
-
     vp9_h_predictor_4x4 = vp9_h_predictor_4x4_c;
     if (flags & HAS_NEON) vp9_h_predictor_4x4 = vp9_h_predictor_4x4_neon;
-
     vp9_h_predictor_8x8 = vp9_h_predictor_8x8_c;
     if (flags & HAS_NEON) vp9_h_predictor_8x8 = vp9_h_predictor_8x8_neon;
-
     vp9_idct16x16_10_add = vp9_idct16x16_10_add_c;
     if (flags & HAS_NEON) vp9_idct16x16_10_add = vp9_idct16x16_10_add_neon;
-
     vp9_idct16x16_1_add = vp9_idct16x16_1_add_c;
     if (flags & HAS_NEON) vp9_idct16x16_1_add = vp9_idct16x16_1_add_neon;
-
     vp9_idct16x16_256_add = vp9_idct16x16_256_add_c;
     if (flags & HAS_NEON) vp9_idct16x16_256_add = vp9_idct16x16_256_add_neon;
-
     vp9_idct32x32_1024_add = vp9_idct32x32_1024_add_c;
     if (flags & HAS_NEON) vp9_idct32x32_1024_add = vp9_idct32x32_1024_add_neon;
-
     vp9_idct32x32_1_add = vp9_idct32x32_1_add_c;
     if (flags & HAS_NEON) vp9_idct32x32_1_add = vp9_idct32x32_1_add_neon;
-
     vp9_idct32x32_34_add = vp9_idct32x32_34_add_c;
     if (flags & HAS_NEON) vp9_idct32x32_34_add = vp9_idct32x32_1024_add_neon;
-
     vp9_idct4x4_16_add = vp9_idct4x4_16_add_c;
     if (flags & HAS_NEON) vp9_idct4x4_16_add = vp9_idct4x4_16_add_neon;
-
     vp9_idct4x4_1_add = vp9_idct4x4_1_add_c;
     if (flags & HAS_NEON) vp9_idct4x4_1_add = vp9_idct4x4_1_add_neon;
-
     vp9_idct8x8_10_add = vp9_idct8x8_10_add_c;
     if (flags & HAS_NEON) vp9_idct8x8_10_add = vp9_idct8x8_10_add_neon;
-
     vp9_idct8x8_1_add = vp9_idct8x8_1_add_c;
     if (flags & HAS_NEON) vp9_idct8x8_1_add = vp9_idct8x8_1_add_neon;
-
     vp9_idct8x8_64_add = vp9_idct8x8_64_add_c;
     if (flags & HAS_NEON) vp9_idct8x8_64_add = vp9_idct8x8_64_add_neon;
-
-
     vp9_iht4x4_16_add = vp9_iht4x4_16_add_c;
     if (flags & HAS_NEON) vp9_iht4x4_16_add = vp9_iht4x4_16_add_neon;
-
     vp9_iht8x8_64_add = vp9_iht8x8_64_add_c;
     if (flags & HAS_NEON) vp9_iht8x8_64_add = vp9_iht8x8_64_add_neon;
-
-
-
     vp9_lpf_horizontal_16 = vp9_lpf_horizontal_16_c;
     if (flags & HAS_NEON) vp9_lpf_horizontal_16 = vp9_lpf_horizontal_16_neon;
-
     vp9_lpf_horizontal_4 = vp9_lpf_horizontal_4_c;
     if (flags & HAS_NEON) vp9_lpf_horizontal_4 = vp9_lpf_horizontal_4_neon;
-
     vp9_lpf_horizontal_4_dual = vp9_lpf_horizontal_4_dual_c;
     if (flags & HAS_NEON) vp9_lpf_horizontal_4_dual = vp9_lpf_horizontal_4_dual_neon;
-
     vp9_lpf_horizontal_8 = vp9_lpf_horizontal_8_c;
     if (flags & HAS_NEON) vp9_lpf_horizontal_8 = vp9_lpf_horizontal_8_neon;
-
     vp9_lpf_horizontal_8_dual = vp9_lpf_horizontal_8_dual_c;
     if (flags & HAS_NEON) vp9_lpf_horizontal_8_dual = vp9_lpf_horizontal_8_dual_neon;
-
     vp9_lpf_vertical_16 = vp9_lpf_vertical_16_c;
     if (flags & HAS_NEON) vp9_lpf_vertical_16 = vp9_lpf_vertical_16_neon;
-
     vp9_lpf_vertical_16_dual = vp9_lpf_vertical_16_dual_c;
     if (flags & HAS_NEON) vp9_lpf_vertical_16_dual = vp9_lpf_vertical_16_dual_neon;
-
     vp9_lpf_vertical_4 = vp9_lpf_vertical_4_c;
     if (flags & HAS_NEON) vp9_lpf_vertical_4 = vp9_lpf_vertical_4_neon;
-
     vp9_lpf_vertical_4_dual = vp9_lpf_vertical_4_dual_c;
     if (flags & HAS_NEON) vp9_lpf_vertical_4_dual = vp9_lpf_vertical_4_dual_neon;
-
     vp9_lpf_vertical_8 = vp9_lpf_vertical_8_c;
     if (flags & HAS_NEON) vp9_lpf_vertical_8 = vp9_lpf_vertical_8_neon;
-
     vp9_lpf_vertical_8_dual = vp9_lpf_vertical_8_dual_c;
     if (flags & HAS_NEON) vp9_lpf_vertical_8_dual = vp9_lpf_vertical_8_dual_neon;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     vp9_tm_predictor_16x16 = vp9_tm_predictor_16x16_c;
     if (flags & HAS_NEON) vp9_tm_predictor_16x16 = vp9_tm_predictor_16x16_neon;
-
     vp9_tm_predictor_32x32 = vp9_tm_predictor_32x32_c;
     if (flags & HAS_NEON) vp9_tm_predictor_32x32 = vp9_tm_predictor_32x32_neon;
-
     vp9_tm_predictor_4x4 = vp9_tm_predictor_4x4_c;
     if (flags & HAS_NEON) vp9_tm_predictor_4x4 = vp9_tm_predictor_4x4_neon;
-
     vp9_tm_predictor_8x8 = vp9_tm_predictor_8x8_c;
     if (flags & HAS_NEON) vp9_tm_predictor_8x8 = vp9_tm_predictor_8x8_neon;
-
     vp9_v_predictor_16x16 = vp9_v_predictor_16x16_c;
     if (flags & HAS_NEON) vp9_v_predictor_16x16 = vp9_v_predictor_16x16_neon;
-
     vp9_v_predictor_32x32 = vp9_v_predictor_32x32_c;
     if (flags & HAS_NEON) vp9_v_predictor_32x32 = vp9_v_predictor_32x32_neon;
-
     vp9_v_predictor_4x4 = vp9_v_predictor_4x4_c;
     if (flags & HAS_NEON) vp9_v_predictor_4x4 = vp9_v_predictor_4x4_neon;
-
     vp9_v_predictor_8x8 = vp9_v_predictor_8x8_c;
     if (flags & HAS_NEON) vp9_v_predictor_8x8 = vp9_v_predictor_8x8_neon;
 }

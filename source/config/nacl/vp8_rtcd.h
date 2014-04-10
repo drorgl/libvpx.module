@@ -324,12 +324,12 @@ void vp8_yv12_copy_partial_frame_c(struct yv12_buffer_config *src_ybc, struct yv
 #define vp8_yv12_copy_partial_frame vp8_yv12_copy_partial_frame_c
 
 void vp8_rtcd(void);
+
 #include "vpx_config.h"
 
 #ifdef RTCD_C
 static void setup_rtcd_internal(void)
 {
-
 }
 #endif
 

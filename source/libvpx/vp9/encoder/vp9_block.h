@@ -11,7 +11,6 @@
 #ifndef VP9_ENCODER_VP9_BLOCK_H_
 #define VP9_ENCODER_VP9_BLOCK_H_
 
-#include "vp9/common/vp9_onyx.h"
 #include "vp9/common/vp9_entropymv.h"
 #include "vp9/common/vp9_entropy.h"
 #include "vpx_ports/mem.h"
@@ -116,7 +115,6 @@ struct macroblock {
   unsigned int source_variance;
   unsigned int pred_sse[MAX_REF_FRAMES];
   int pred_mv_sad[MAX_REF_FRAMES];
-  int mode_sad[MAX_REF_FRAMES][INTER_MODES + 1];
 
   int nmvjointcost[MV_JOINTS];
   int nmvcosts[2][MV_VALS];
@@ -132,9 +130,9 @@ struct macroblock {
   int *nmvsadcost_hp[2];
   int **mvsadcost;
 
-  int mbmode_cost[MB_MODE_COUNT];
+  int mbmode_cost[INTRA_MODES];
   unsigned inter_mode_cost[INTER_MODE_CONTEXTS][INTER_MODES];
-  int intra_uv_mode_cost[2][MB_MODE_COUNT];
+  int intra_uv_mode_cost[FRAME_TYPES][INTRA_MODES];
   int y_mode_costs[INTRA_MODES][INTRA_MODES][INTRA_MODES];
   int switchable_interp_costs[SWITCHABLE_FILTER_CONTEXTS][SWITCHABLE_FILTERS];
 
@@ -155,11 +153,10 @@ struct macroblock {
 
   int encode_breakout;
 
-  unsigned char *active_ptr;
+  int in_active_map;
 
   // note that token_costs is the cost when eob node is skipped
   vp9_coeff_cost token_costs[TX_SIZES];
-  DECLARE_ALIGNED(16, uint8_t, token_cache[1024]);
 
   int optimize;
 
@@ -199,7 +196,8 @@ struct macroblock {
 // TODO(jingning): the variables used here are little complicated. need further
 // refactoring on organizing the temporary buffers, when recursive
 // partition down to 4x4 block size is enabled.
-static PICK_MODE_CONTEXT *get_block_context(MACROBLOCK *x, BLOCK_SIZE bsize) {
+static INLINE PICK_MODE_CONTEXT *get_block_context(MACROBLOCK *x,
+                                                   BLOCK_SIZE bsize) {
   switch (bsize) {
     case BLOCK_64X64:
       return &x->sb64_context;
