@@ -81,6 +81,8 @@ FILE *kf_list;
 FILE *keyfile;
 #endif
 
+void vp9_init_quantizer(VP9_COMP *cpi);
+
 static INLINE void Scale2Ratio(VPX_SCALING mode, int *hr, int *hs) {
   switch (mode) {
     case NORMAL:
@@ -365,6 +367,27 @@ static void configure_static_seg_features(VP9_COMP *cpi) {
   }
 }
 
+// DEBUG: Print out the segment id of each MB in the current frame.
+static void print_seg_map(VP9_COMP *cpi) {
+  VP9_COMMON *cm = &cpi->common;
+  int row, col;
+  int map_index = 0;
+  FILE *statsfile = fopen("segmap.stt", "a");
+
+  fprintf(statsfile, "%10d\n", cm->current_video_frame);
+
+  for (row = 0; row < cpi->common.mi_rows; row++) {
+    for (col = 0; col < cpi->common.mi_cols; col++) {
+      fprintf(statsfile, "%10d", cpi->segmentation_map[map_index]);
+      map_index++;
+    }
+    fprintf(statsfile, "\n");
+  }
+  fprintf(statsfile, "\n");
+
+  fclose(statsfile);
+}
+
 static void update_reference_segmentation_map(VP9_COMP *cpi) {
   VP9_COMMON *const cm = &cpi->common;
   MODE_INFO **mi_8x8_ptr = cm->mi_grid_visible;
@@ -626,6 +649,29 @@ static void update_frame_size(VP9_COMP *cpi) {
   init_macroblockd(cm, xd);
 }
 
+// Table that converts 0-63 Q range values passed in outside to the Qindex
+// range used internally.
+const int q_trans[] = {
+  0,    4,   8,  12,  16,  20,  24,  28,
+  32,   36,  40,  44,  48,  52,  56,  60,
+  64,   68,  72,  76,  80,  84,  88,  92,
+  96,  100, 104, 108, 112, 116, 120, 124,
+  128, 132, 136, 140, 144, 148, 152, 156,
+  160, 164, 168, 172, 176, 180, 184, 188,
+  192, 196, 200, 204, 208, 212, 216, 220,
+  224, 228, 232, 236, 240, 244, 249, 255,
+};
+
+int vp9_reverse_trans(int x) {
+  int i;
+
+  for (i = 0; i < 64; i++)
+    if (q_trans[i] >= x)
+      return i;
+
+  return 63;
+};
+
 void vp9_new_framerate(VP9_COMP *cpi, double framerate) {
   VP9_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
@@ -698,8 +744,7 @@ static void init_config(struct VP9_COMP *cpi, VP9_CONFIG *oxcf) {
 
   cpi->oxcf = *oxcf;
 
-  cm->profile = oxcf->profile;
-  cm->bit_depth = oxcf->bit_depth;
+  cm->version = oxcf->version;
 
   cm->width = oxcf->width;
   cm->height = oxcf->height;
@@ -739,14 +784,8 @@ void vp9_change_config(struct VP9_COMP *cpi, const VP9_CONFIG *oxcf) {
   VP9_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
 
-  if (cm->profile != oxcf->profile)
-    cm->profile = oxcf->profile;
-  cm->bit_depth = oxcf->bit_depth;
-
-  if (cm->profile <= PROFILE_1)
-    assert(cm->bit_depth == BITS_8);
-  else
-    assert(cm->bit_depth > BITS_8);
+  if (cm->version != oxcf->version)
+    cm->version = oxcf->version;
 
   cpi->oxcf = *oxcf;
 
@@ -781,6 +820,10 @@ void vp9_change_config(struct VP9_COMP *cpi, const VP9_CONFIG *oxcf) {
       cpi->pass = 0;
       break;
   }
+
+  cpi->oxcf.worst_allowed_q = q_trans[oxcf->worst_allowed_q];
+  cpi->oxcf.best_allowed_q = q_trans[oxcf->best_allowed_q];
+  cpi->oxcf.cq_level = q_trans[cpi->oxcf.cq_level];
 
   cpi->oxcf.lossless = oxcf->lossless;
   if (cpi->oxcf.lossless) {
@@ -2710,9 +2753,20 @@ static void encode_frame_to_data_rate(VP9_COMP *cpi,
     // Don't increment frame counters if this was an altref buffer
     // update not a real frame
     ++cm->current_video_frame;
-    if (cpi->use_svc)
-      vp9_inc_frame_in_layer(&cpi->svc);
+    if (cpi->use_svc) {
+      LAYER_CONTEXT *lc;
+      if (cpi->svc.number_temporal_layers > 1) {
+        lc = &cpi->svc.layer_context[cpi->svc.temporal_layer_id];
+      } else {
+        lc = &cpi->svc.layer_context[cpi->svc.spatial_layer_id];
+      }
+      ++lc->current_video_frame_in_layer;
+    }
   }
+
+  // restore prev_mi
+  cm->prev_mi = cm->prev_mip + cm->mi_stride + 1;
+  cm->prev_mi_grid_visible = cm->prev_mi_grid_base + cm->mi_stride + 1;
 }
 
 static void SvcEncode(VP9_COMP *cpi, size_t *size, uint8_t *dest,
@@ -2783,7 +2837,7 @@ int vp9_receive_raw_frame(VP9_COMP *cpi, unsigned int frame_flags,
   vpx_usec_timer_mark(&timer);
   cpi->time_receive_data += vpx_usec_timer_elapsed(&timer);
 
-  if (cm->profile == PROFILE_0 && (subsampling_x != 1 || subsampling_y != 1)) {
+  if (cm->version == 0 && (subsampling_x != 1 || subsampling_y != 1)) {
     vpx_internal_error(&cm->error, VPX_CODEC_INVALID_PARAM,
                        "Non-4:2:0 color space requires profile >= 1");
     res = -1;

@@ -186,8 +186,9 @@ typedef enum {
 } AQ_MODE;
 
 typedef struct VP9_CONFIG {
-  BITSTREAM_PROFILE profile;
-  BIT_DEPTH bit_depth;
+  int version;  // 4 versions of bitstream defined:
+                //   0 - best quality/slowest decode,
+                //   3 - lowest quality/fastest decode
   int width;  // width of data passed to the compressor
   int height;  // height of data passed to the compressor
   double framerate;  // set to passed in framerate
@@ -496,8 +497,6 @@ typedef struct VP9_COMP {
 
   SVC svc;
 
-  int use_large_partition_rate;
-
 #if CONFIG_MULTIPLE_ARF
   // ARF tracking variables.
   int multi_arf_enabled;
@@ -613,6 +612,8 @@ void vp9_alloc_compressor_data(VP9_COMP *cpi);
 void vp9_scale_references(VP9_COMP *cpi);
 
 void vp9_update_reference_frames(VP9_COMP *cpi);
+
+extern const int q_trans[];
 
 int64_t vp9_rescale(int64_t val, int64_t num, int denom);
 

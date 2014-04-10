@@ -38,7 +38,6 @@ struct vp9_extracfg {
   unsigned int                frame_parallel_decoding_mode;
   AQ_MODE                     aq_mode;
   unsigned int                frame_periodic_boost;
-  BIT_DEPTH                   bit_depth;
 };
 
 struct extraconfig_map {
@@ -68,7 +67,6 @@ static const struct extraconfig_map extracfg_map[] = {
       0,                          // frame_parallel_decoding_mode
       NO_AQ,                      // aq_mode
       0,                          // frame_periodic_delta_q
-      BITS_8,                     // Bit depth
     }
   }
 };
@@ -254,12 +252,6 @@ static vpx_codec_err_t validate_config(vpx_codec_alg_priv_t *ctx,
         ERROR("rc_twopass_stats_in missing EOS stats packet");
     }
   }
-  if (cfg->g_profile <= (unsigned int)PROFILE_1 &&
-      extra_cfg->bit_depth > BITS_8)
-    ERROR("High bit-depth not supported in profile < 2");
-  if (cfg->g_profile > (unsigned int)PROFILE_1 &&
-      extra_cfg->bit_depth == BITS_8)
-    ERROR("Bit-depth 8 not supported in profile > 1");
 
   return VPX_CODEC_OK;
 }
@@ -285,14 +277,11 @@ static vpx_codec_err_t validate_img(vpx_codec_alg_priv_t *ctx,
 }
 
 
-static vpx_codec_err_t set_encoder_config(
-    VP9_CONFIG *oxcf,
-    const vpx_codec_enc_cfg_t *cfg,
-    const struct vp9_extracfg *extra_cfg) {
-  oxcf->profile = cfg->g_profile;
+static vpx_codec_err_t set_encoder_config(VP9_CONFIG *oxcf,
+    const vpx_codec_enc_cfg_t *cfg, const struct vp9_extracfg *extra_cfg) {
+  oxcf->version = cfg->g_profile;
   oxcf->width   = cfg->g_w;
   oxcf->height  = cfg->g_h;
-  oxcf->bit_depth = extra_cfg->bit_depth;
   // guess a frame rate if out of whack, use 30
   oxcf->framerate = (double)cfg->g_timebase.den / cfg->g_timebase.num;
   if (oxcf->framerate > 180)
@@ -324,9 +313,9 @@ static vpx_codec_err_t set_encoder_config(
   oxcf->target_bandwidth         = cfg->rc_target_bitrate;
   oxcf->rc_max_intra_bitrate_pct = extra_cfg->rc_max_intra_bitrate_pct;
 
-  oxcf->best_allowed_q  = vp9_quantizer_to_qindex(cfg->rc_min_quantizer);
-  oxcf->worst_allowed_q = vp9_quantizer_to_qindex(cfg->rc_max_quantizer);
-  oxcf->cq_level        = vp9_quantizer_to_qindex(extra_cfg->cq_level);
+  oxcf->best_allowed_q          = cfg->rc_min_quantizer;
+  oxcf->worst_allowed_q         = cfg->rc_max_quantizer;
+  oxcf->cq_level                = extra_cfg->cq_level;
   oxcf->fixed_q = -1;
 
   oxcf->under_shoot_pct         = cfg->rc_undershoot_pct;
@@ -449,6 +438,10 @@ static vpx_codec_err_t encoder_set_config(vpx_codec_alg_priv_t *ctx,
   return res;
 }
 
+
+int vp9_reverse_trans(int q);
+
+
 static vpx_codec_err_t ctrl_get_param(vpx_codec_alg_priv_t *ctx, int ctrl_id,
                                  va_list args) {
   void *arg = va_arg(args, void *);
@@ -461,7 +454,7 @@ static vpx_codec_err_t ctrl_get_param(vpx_codec_alg_priv_t *ctx, int ctrl_id,
   switch (ctrl_id) {
     MAP(VP8E_GET_LAST_QUANTIZER, vp9_get_quantizer(ctx->cpi));
     MAP(VP8E_GET_LAST_QUANTIZER_64,
-        vp9_qindex_to_quantizer(vp9_get_quantizer(ctx->cpi)));
+        vp9_reverse_trans(vp9_get_quantizer(ctx->cpi)));
   }
 
   return VPX_CODEC_OK;
