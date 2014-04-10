@@ -271,10 +271,6 @@ unsigned int vp9_get_mb_ss_mmx(const int16_t *);
 unsigned int vp9_get_mb_ss_sse2(const int16_t *);
 #define vp9_get_mb_ss vp9_get_mb_ss_sse2
 
-void vp9_get_sse_sum_16x16_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, int *sum);
-void vp9_get16x16var_sse2(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, int *sum);
-#define vp9_get_sse_sum_16x16 vp9_get16x16var_sse2
-
 void vp9_get_sse_sum_8x8_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, int *sum);
 void vp9_get8x8var_sse2(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, int *sum);
 #define vp9_get_sse_sum_8x8 vp9_get8x8var_sse2
