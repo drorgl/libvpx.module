@@ -112,6 +112,13 @@
             'OTHER_CFLAGS': [ '-mavx2', ],
           },
         }],
+        ['OS=="win"', {
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'EnableEnhancedInstructionSet': '3', # /arch:AVX
+            },
+          },
+        }],
       ],
     },
   ],
