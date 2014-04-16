@@ -153,7 +153,9 @@ function write_special_flags {
     exit 1
   fi
   if [ 0 -ne ${#avx2_sources} ]; then
-    write_target_definition avx2_sources[@] $2 libvpx_intrinsics_avx2 avx2
+    #write_target_definition avx2_sources[@] $2 libvpx_intrinsics_avx2 avx2
+    echo "ERROR: Uncomment avx2 sections in libvpx.gyp"
+    exit 1
   fi
 
   # arm neon
@@ -321,7 +323,8 @@ cp -R $LIBVPX_SRC_DIR $TEMP_DIR
 cd $TEMP_DIR
 
 echo "Generate Config Files"
-all_platforms="--enable-external-build --enable-postproc --disable-install-srcs --enable-multi-res-encoding --enable-temporal-denoising --disable-unit-tests --disable-install-docs --disable-examples"
+# TODO(joeyparrish) Enable AVX2 when broader VS2013 support is available
+all_platforms="--enable-external-build --enable-postproc --disable-install-srcs --enable-multi-res-encoding --enable-temporal-denoising --disable-unit-tests --disable-install-docs --disable-examples --disable-avx2"
 gen_config_files linux/ia32 "--target=x86-linux-gcc --disable-ccache --enable-pic --enable-realtime-only ${all_platforms}"
 gen_config_files linux/x64 "--target=x86_64-linux-gcc --disable-ccache --enable-pic --enable-realtime-only ${all_platforms}"
 gen_config_files linux/arm "--target=armv6-linux-gcc --enable-pic --enable-realtime-only --disable-install-bins --disable-install-libs ${all_platforms}"

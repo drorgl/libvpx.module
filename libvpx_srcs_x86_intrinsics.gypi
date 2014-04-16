@@ -85,41 +85,5 @@
         }],
       ],
     },
-    {
-      'target_name': 'libvpx_intrinsics_avx2',
-      'type': 'static_library',
-      'include_dirs': [
-        'source/config/<(OS_CATEGORY)/<(target_arch_full)',
-        '<(libvpx_source)',
-      ],
-      'sources': [
-        '<(libvpx_source)/vp9/common/x86/vp9_loopfilter_intrin_avx2.c',
-        '<(libvpx_source)/vp9/common/x86/vp9_subpixel_8t_intrin_avx2.c',
-        '<(libvpx_source)/vp9/encoder/x86/vp9_dct32x32_avx2.c',
-        '<(libvpx_source)/vp9/encoder/x86/vp9_dct_avx2.c',
-        '<(libvpx_source)/vp9/encoder/x86/vp9_sad4d_intrin_avx2.c',
-        '<(libvpx_source)/vp9/encoder/x86/vp9_subpel_variance_impl_intrin_avx2.c',
-        '<(libvpx_source)/vp9/encoder/x86/vp9_variance_avx2.c',
-        '<(libvpx_source)/vp9/encoder/x86/vp9_variance_impl_intrin_avx2.c',
-      ],
-      'conditions': [
-        ['os_posix==1 and OS!="mac" and OS!="ios"', {
-          'cflags!': [ '-mfpu=vfpv3-d16' ],
-          'cflags': [ '-mavx2', ],
-        }],
-        ['OS=="mac" or OS=="ios"', {
-          'xcode_settings': {
-            'OTHER_CFLAGS': [ '-mavx2', ],
-          },
-        }],
-        ['OS=="win"', {
-          'msvs_settings': {
-            'VCCLCompilerTool': {
-              'EnableEnhancedInstructionSet': '3', # /arch:AVX
-            },
-          },
-        }],
-      ],
-    },
   ],
 }
