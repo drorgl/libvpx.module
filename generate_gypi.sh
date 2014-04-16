@@ -275,6 +275,7 @@ function gen_rtcd_header {
     --arch=$2 \
     --sym=vp8_rtcd \
     --config=$BASE_DIR/$TEMP_DIR/libvpx.config \
+    --disable-avx2 \
     $BASE_DIR/$LIBVPX_SRC_DIR/vp8/common/rtcd_defs.pl \
     > $BASE_DIR/$LIBVPX_CONFIG_DIR/$1/vp8_rtcd.h
 
@@ -282,6 +283,7 @@ function gen_rtcd_header {
     --arch=$2 \
     --sym=vp9_rtcd \
     --config=$BASE_DIR/$TEMP_DIR/libvpx.config \
+    --disable-avx2 \
     $BASE_DIR/$LIBVPX_SRC_DIR/vp9/common/vp9_rtcd_defs.pl \
     > $BASE_DIR/$LIBVPX_CONFIG_DIR/$1/vp9_rtcd.h
 
@@ -289,6 +291,7 @@ function gen_rtcd_header {
     --arch=$2 \
     --sym=vpx_scale_rtcd \
     --config=$BASE_DIR/$TEMP_DIR/libvpx.config \
+    --disable-avx2 \
     $BASE_DIR/$LIBVPX_SRC_DIR/vpx_scale/vpx_scale_rtcd.pl \
     > $BASE_DIR/$LIBVPX_CONFIG_DIR/$1/vpx_scale_rtcd.h
 
