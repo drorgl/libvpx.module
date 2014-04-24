@@ -18,6 +18,8 @@ VP9_CX_SRCS_REMOVE-no  += $(VP9_COMMON_SRCS_REMOVE-no)
 VP9_CX_SRCS-yes += vp9_cx_iface.c
 
 VP9_CX_SRCS-yes += encoder/vp9_bitstream.c
+VP9_CX_SRCS-yes += encoder/vp9_context_tree.c
+VP9_CX_SRCS-yes += encoder/vp9_context_tree.h
 VP9_CX_SRCS-yes += encoder/vp9_cost.h
 VP9_CX_SRCS-yes += encoder/vp9_cost.c
 VP9_CX_SRCS-yes += encoder/vp9_dct.c
@@ -40,7 +42,7 @@ VP9_CX_SRCS-yes += encoder/vp9_firstpass.h
 VP9_CX_SRCS-yes += encoder/vp9_lookahead.c
 VP9_CX_SRCS-yes += encoder/vp9_lookahead.h
 VP9_CX_SRCS-yes += encoder/vp9_mcomp.h
-VP9_CX_SRCS-yes += encoder/vp9_onyx_int.h
+VP9_CX_SRCS-yes += encoder/vp9_encoder.h
 VP9_CX_SRCS-yes += encoder/vp9_quantize.h
 VP9_CX_SRCS-yes += encoder/vp9_ratectrl.h
 VP9_CX_SRCS-yes += encoder/vp9_rdopt.h
@@ -50,7 +52,7 @@ VP9_CX_SRCS-yes += encoder/vp9_tokenize.h
 VP9_CX_SRCS-yes += encoder/vp9_treewriter.h
 VP9_CX_SRCS-yes += encoder/vp9_variance.h
 VP9_CX_SRCS-yes += encoder/vp9_mcomp.c
-VP9_CX_SRCS-yes += encoder/vp9_onyx_if.c
+VP9_CX_SRCS-yes += encoder/vp9_encoder.c
 VP9_CX_SRCS-yes += encoder/vp9_picklpf.c
 VP9_CX_SRCS-yes += encoder/vp9_picklpf.h
 VP9_CX_SRCS-yes += encoder/vp9_quantize.c
@@ -87,8 +89,6 @@ VP9_CX_SRCS-yes += encoder/vp9_temporal_filter.h
 VP9_CX_SRCS-yes += encoder/vp9_mbgraph.c
 VP9_CX_SRCS-yes += encoder/vp9_mbgraph.h
 
-
-VP9_CX_SRCS-$(ARCH_X86)$(ARCH_X86_64) += encoder/x86/vp9_mcomp_x86.h
 VP9_CX_SRCS-$(HAVE_MMX) += encoder/x86/vp9_variance_mmx.c
 VP9_CX_SRCS-$(HAVE_MMX) += encoder/x86/vp9_variance_impl_mmx.asm
 VP9_CX_SRCS-$(HAVE_MMX) += encoder/x86/vp9_sad_mmx.asm

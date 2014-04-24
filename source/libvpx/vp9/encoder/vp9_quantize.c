@@ -15,7 +15,7 @@
 #include "vp9/common/vp9_quant_common.h"
 #include "vp9/common/vp9_seg_common.h"
 
-#include "vp9/encoder/vp9_onyx_int.h"
+#include "vp9/encoder/vp9_encoder.h"
 #include "vp9/encoder/vp9_quantize.h"
 #include "vp9/encoder/vp9_rdopt.h"
 
@@ -220,7 +220,7 @@ void vp9_init_plane_quantizers(VP9_COMP *cpi, MACROBLOCK *x) {
   const int segment_id = xd->mi[0]->mbmi.segment_id;
   const int qindex = vp9_get_qindex(&cm->seg, segment_id, cm->base_qindex);
   const int rdmult = vp9_compute_rd_mult(cpi, qindex + cm->y_dc_delta_q);
-  const int zbin = cpi->zbin_mode_boost + x->act_zbin_adj;
+  const int zbin = cpi->zbin_mode_boost;
   int i;
 
   // Y
@@ -242,10 +242,10 @@ void vp9_init_plane_quantizers(VP9_COMP *cpi, MACROBLOCK *x) {
   }
 
 #if CONFIG_ALPHA
-  x->plane[3].quant = cpi->a_quant[qindex];
-  x->plane[3].quant_shift = cpi->a_quant_shift[qindex];
-  x->plane[3].zbin = cpi->a_zbin[qindex];
-  x->plane[3].round = cpi->a_round[qindex];
+  x->plane[3].quant = quants->a_quant[qindex];
+  x->plane[3].quant_shift = quants->a_quant_shift[qindex];
+  x->plane[3].zbin = quants->a_zbin[qindex];
+  x->plane[3].round = quants->a_round[qindex];
   x->plane[3].zbin_extra = (int16_t)((cm->a_dequant[qindex][1] * zbin) >> 7);
   xd->plane[3].dequant = cm->a_dequant[qindex];
 #endif
@@ -262,9 +262,9 @@ void vp9_init_plane_quantizers(VP9_COMP *cpi, MACROBLOCK *x) {
 void vp9_update_zbin_extra(VP9_COMP *cpi, MACROBLOCK *x) {
   const int qindex = x->q_index;
   const int y_zbin_extra = (cpi->common.y_dequant[qindex][1] *
-                (cpi->zbin_mode_boost + x->act_zbin_adj)) >> 7;
+                            cpi->zbin_mode_boost) >> 7;
   const int uv_zbin_extra = (cpi->common.uv_dequant[qindex][1] *
-                  (cpi->zbin_mode_boost + x->act_zbin_adj)) >> 7;
+                             cpi->zbin_mode_boost) >> 7;
 
   x->plane[0].zbin_extra = (int16_t)y_zbin_extra;
   x->plane[1].zbin_extra = (int16_t)uv_zbin_extra;
@@ -283,4 +283,31 @@ void vp9_set_quantizer(VP9_COMMON *cm, int q) {
   cm->y_dc_delta_q = 0;
   cm->uv_dc_delta_q = 0;
   cm->uv_ac_delta_q = 0;
+}
+
+// Table that converts 0-63 Q-range values passed in outside to the Qindex
+// range used internally.
+static const int quantizer_to_qindex[] = {
+  0,    4,   8,  12,  16,  20,  24,  28,
+  32,   36,  40,  44,  48,  52,  56,  60,
+  64,   68,  72,  76,  80,  84,  88,  92,
+  96,  100, 104, 108, 112, 116, 120, 124,
+  128, 132, 136, 140, 144, 148, 152, 156,
+  160, 164, 168, 172, 176, 180, 184, 188,
+  192, 196, 200, 204, 208, 212, 216, 220,
+  224, 228, 232, 236, 240, 244, 249, 255,
+};
+
+int vp9_quantizer_to_qindex(int quantizer) {
+  return quantizer_to_qindex[quantizer];
+}
+
+int vp9_qindex_to_quantizer(int qindex) {
+  int quantizer;
+
+  for (quantizer = 0; quantizer < 64; ++quantizer)
+    if (quantizer_to_qindex[quantizer] >= qindex)
+      return quantizer;
+
+  return 63;
 }

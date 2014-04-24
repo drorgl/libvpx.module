@@ -11,7 +11,7 @@
 #ifndef VP9_ENCODER_VP9_RDOPT_H_
 #define VP9_ENCODER_VP9_RDOPT_H_
 
-#include "vp9/encoder/vp9_onyx_int.h"
+#include "vp9/encoder/vp9_encoder.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,6 +39,8 @@ void vp9_initialize_me_consts(VP9_COMP *cpi, int qindex);
 void vp9_model_rd_from_var_lapndz(unsigned int var, unsigned int n,
                                   unsigned int qstep, int *rate,
                                   int64_t *dist);
+
+int vp9_get_switchable_rate(const MACROBLOCK *x);
 
 void vp9_setup_buffer_inter(VP9_COMP *cpi, MACROBLOCK *x,
                             const TileInfo *const tile,
@@ -80,6 +82,10 @@ void vp9_get_entropy_contexts(BLOCK_SIZE bsize, TX_SIZE tx_size,
                               const struct macroblockd_plane *pd,
                               ENTROPY_CONTEXT t_above[16],
                               ENTROPY_CONTEXT t_left[16]);
+
+void vp9_set_rd_speed_thresholds(VP9_COMP *cpi);
+
+void vp9_set_rd_speed_thresholds_sub8x8(VP9_COMP *cpi);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -27,7 +27,9 @@ extern "C" {
 
 typedef struct {
   // Rate targetting variables
-  int this_frame_target;
+  int base_frame_target;           // A baseline frame target before adjustment
+                                   // for previous under or over shoot.
+  int this_frame_target;           // Actual frame target after rc adjustment.
   int projected_frame_size;
   int sb64_target_rate;
   int last_q[3];                   // Separate values for Intra/Inter/ARF-GF
@@ -54,9 +56,9 @@ typedef struct {
   int source_alt_ref_active;
   int is_src_frame_alt_ref;
 
-  int av_per_frame_bandwidth;     // Average frame size target for clip
-  int min_frame_bandwidth;        // Minimum allocation used for any frame
-  int max_frame_bandwidth;        // Maximum burst rate allowed for a frame.
+  int avg_frame_bandwidth;  // Average frame size target for clip
+  int min_frame_bandwidth;  // Minimum allocation used for any frame
+  int max_frame_bandwidth;  // Maximum burst rate allowed for a frame.
 
   int ni_av_qi;
   int ni_tot_qi;
@@ -67,6 +69,7 @@ typedef struct {
 
   int64_t buffer_level;
   int64_t bits_off_target;
+  int64_t vbr_bits_off_target;
 
   int decimation_factor;
   int decimation_count;
@@ -87,9 +90,10 @@ typedef struct {
 } RATE_CONTROL;
 
 struct VP9_COMP;
-struct VP9_CONFIG;
+struct VP9EncoderConfig;
 
-void vp9_rc_init(const struct VP9_CONFIG *oxcf, int pass, RATE_CONTROL *rc);
+void vp9_rc_init(const struct VP9EncoderConfig *oxcf, int pass,
+                 RATE_CONTROL *rc);
 
 double vp9_convert_qindex_to_q(int qindex);
 
@@ -125,8 +129,7 @@ void vp9_rc_get_svc_params(struct VP9_COMP *cpi);
 
 // Post encode update of the rate control parameters based
 // on bytes used
-void vp9_rc_postencode_update(struct VP9_COMP *cpi,
-                              uint64_t bytes_used);
+void vp9_rc_postencode_update(struct VP9_COMP *cpi, uint64_t bytes_used);
 // Post encode update of the rate control parameters for dropped frames
 void vp9_rc_postencode_update_drop_frame(struct VP9_COMP *cpi);
 
@@ -174,6 +177,8 @@ int vp9_compute_qdelta(const RATE_CONTROL *rc, double qstart, double qtarget);
 // to a value that should equate to the given rate ratio.
 int vp9_compute_qdelta_by_rate(const RATE_CONTROL *rc, FRAME_TYPE frame_type,
                                int qindex, double rate_target_ratio);
+
+void vp9_rc_update_framerate(struct VP9_COMP *cpi);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -78,7 +78,6 @@
 .equ CONFIG_MULTI_RES_ENCODING ,  1
 .equ CONFIG_TEMPORAL_DENOISING ,  1
 .equ CONFIG_EXPERIMENTAL ,  0
-.equ CONFIG_DECRYPT ,  0
 .equ CONFIG_MULTIPLE_ARF ,  0
 .equ CONFIG_ALPHA ,  0
 	.section	.note.GNU-stack,"",%progbits

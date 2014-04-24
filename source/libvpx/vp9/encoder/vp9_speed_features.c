@@ -10,35 +10,42 @@
 
 #include <limits.h>
 
-#include "vp9/encoder/vp9_onyx_int.h"
+#include "vp9/encoder/vp9_encoder.h"
 #include "vp9/encoder/vp9_speed_features.h"
 
-#define ALL_INTRA_MODES ((1 << DC_PRED) | \
-                         (1 << V_PRED) | (1 << H_PRED) | \
-                         (1 << D45_PRED) | (1 << D135_PRED) | \
-                         (1 << D117_PRED) | (1 << D153_PRED) | \
-                         (1 << D207_PRED) | (1 << D63_PRED) | \
-                         (1 << TM_PRED))
-#define INTRA_DC_ONLY   (1 << DC_PRED)
-#define INTRA_DC_TM     ((1 << TM_PRED) | (1 << DC_PRED))
-#define INTRA_DC_H_V    ((1 << DC_PRED) | (1 << V_PRED) | (1 << H_PRED))
-#define INTRA_DC_TM_H_V (INTRA_DC_TM | (1 << V_PRED) | (1 << H_PRED))
+enum {
+  ALL_INTRA_MODES = (1 << DC_PRED) |
+                    (1 << V_PRED) | (1 << H_PRED) |
+                    (1 << D45_PRED) | (1 << D135_PRED) |
+                    (1 << D117_PRED) | (1 << D153_PRED) |
+                    (1 << D207_PRED) | (1 << D63_PRED) |
+                    (1 << TM_PRED),
 
-// Masks for partially or completely disabling split mode
-#define DISABLE_ALL_INTER_SPLIT   ((1 << THR_COMP_GA) | \
-                                   (1 << THR_COMP_LA) | \
-                                   (1 << THR_ALTR) | \
-                                   (1 << THR_GOLD) | \
-                                   (1 << THR_LAST))
+  INTRA_DC_ONLY   = (1 << DC_PRED),
 
-#define DISABLE_ALL_SPLIT         ((1 << THR_INTRA) | DISABLE_ALL_INTER_SPLIT)
+  INTRA_DC_TM     = (1 << TM_PRED) | (1 << DC_PRED),
 
-#define DISABLE_COMPOUND_SPLIT    ((1 << THR_COMP_GA) | (1 << THR_COMP_LA))
+  INTRA_DC_H_V    = (1 << DC_PRED) | (1 << V_PRED) | (1 << H_PRED),
 
-#define LAST_AND_INTRA_SPLIT_ONLY ((1 << THR_COMP_GA) | \
-                                   (1 << THR_COMP_LA) | \
-                                   (1 << THR_ALTR) | \
-                                   (1 << THR_GOLD))
+  INTRA_DC_TM_H_V = INTRA_DC_TM | (1 << V_PRED) | (1 << H_PRED)
+};
+
+enum {
+  DISABLE_ALL_INTER_SPLIT   = (1 << THR_COMP_GA) |
+                              (1 << THR_COMP_LA) |
+                              (1 << THR_ALTR) |
+                              (1 << THR_GOLD) |
+                              (1 << THR_LAST),
+
+  DISABLE_ALL_SPLIT         = (1 << THR_INTRA) | DISABLE_ALL_INTER_SPLIT,
+
+  DISABLE_COMPOUND_SPLIT    = (1 << THR_COMP_GA) | (1 << THR_COMP_LA),
+
+  LAST_AND_INTRA_SPLIT_ONLY = (1 << THR_COMP_GA) |
+                              (1 << THR_COMP_LA) |
+                              (1 << THR_ALTR) |
+                              (1 << THR_GOLD)
+};
 
 static void set_good_speed_feature(VP9_COMP *cpi, VP9_COMMON *cm,
                                    SPEED_FEATURES *sf, int speed) {
@@ -49,8 +56,8 @@ static void set_good_speed_feature(VP9_COMP *cpi, VP9_COMMON *cm,
   if (speed >= 1) {
     sf->use_square_partition_only = !frame_is_intra_only(cm);
     sf->less_rectangular_check  = 1;
-    sf->tx_size_search_method = vp9_frame_is_boosted(cpi) ? USE_FULL_RD
-                                                          : USE_LARGESTALL;
+    sf->tx_size_search_method = frame_is_boosted(cpi) ? USE_FULL_RD
+                                                      : USE_LARGESTALL;
 
     if (MIN(cm->width, cm->height) >= 720)
       sf->disable_split_mask = cm->show_frame ? DISABLE_ALL_SPLIT
@@ -73,9 +80,6 @@ static void set_good_speed_feature(VP9_COMP *cpi, VP9_COMMON *cm,
   }
 
   if (speed >= 2) {
-    sf->tx_size_search_method = vp9_frame_is_boosted(cpi) ? USE_FULL_RD
-                                                          : USE_LARGESTALL;
-
     if (MIN(cm->width, cm->height) >= 720)
       sf->disable_split_mask = cm->show_frame ? DISABLE_ALL_SPLIT
                                               : DISABLE_ALL_INTER_SPLIT;
@@ -97,6 +101,8 @@ static void set_good_speed_feature(VP9_COMP *cpi, VP9_COMMON *cm,
   }
 
   if (speed >= 3) {
+    sf->tx_size_search_method = frame_is_intra_only(cm) ? USE_FULL_RD
+                                                        : USE_LARGESTALL;
     if (MIN(cm->width, cm->height) >= 720)
       sf->disable_split_mask = DISABLE_ALL_SPLIT;
     else
@@ -262,12 +268,14 @@ static void set_rt_speed_feature(VP9_COMMON *cm, SPEED_FEATURES *sf,
     sf->use_nonrd_pick_mode = 1;
     sf->search_method = FAST_DIAMOND;
     sf->allow_skip_recode = 0;
+    sf->chessboard_index = cm->current_video_frame & 0x01;
   }
 
   if (speed >= 6) {
-    sf->partition_search_type = VAR_BASED_FIXED_PARTITION;
-    sf->use_nonrd_pick_mode = 1;
-    sf->search_method = FAST_DIAMOND;
+    // Adaptively switch between SOURCE_VAR_BASED_PARTITION and FIXED_PARTITION.
+    sf->partition_search_type = SOURCE_VAR_BASED_PARTITION;
+    sf->search_type_check_frequency = 50;
+    sf->source_var_thresh = 360;
   }
 
   if (speed >= 7) {
@@ -280,8 +288,7 @@ static void set_rt_speed_feature(VP9_COMMON *cm, SPEED_FEATURES *sf,
 void vp9_set_speed_features(VP9_COMP *cpi) {
   SPEED_FEATURES *const sf = &cpi->sf;
   VP9_COMMON *const cm = &cpi->common;
-  const VP9_CONFIG *const oxcf = &cpi->oxcf;
-  const int speed = cpi->speed < 0 ? -cpi->speed : cpi->speed;
+  const VP9EncoderConfig *const oxcf = &cpi->oxcf;
   int i;
 
   // best quality defaults
@@ -338,22 +345,24 @@ void vp9_set_speed_features(VP9_COMP *cpi) {
   // This setting only takes effect when partition_search_type is set
   // to FIXED_PARTITION.
   sf->always_this_block_size = BLOCK_16X16;
+  sf->search_type_check_frequency = 50;
+  sf->source_var_thresh = 100;
 
   // Recode loop tolerence %.
   sf->recode_tolerance = 25;
 
   switch (oxcf->mode) {
-    case MODE_BESTQUALITY:
-    case MODE_SECONDPASS_BEST:  // This is the best quality mode.
+    case ONE_PASS_BEST:
+    case TWO_PASS_SECOND_BEST:  // This is the best quality mode.
       cpi->diamond_search_sad = vp9_full_range_search;
       break;
-    case MODE_FIRSTPASS:
-    case MODE_GOODQUALITY:
-    case MODE_SECONDPASS:
-      set_good_speed_feature(cpi, cm, sf, speed);
+    case TWO_PASS_FIRST:
+    case ONE_PASS_GOOD:
+    case TWO_PASS_SECOND_GOOD:
+      set_good_speed_feature(cpi, cm, sf, oxcf->speed);
       break;
-    case MODE_REALTIME:
-      set_rt_speed_feature(cm, sf, speed);
+    case REALTIME:
+      set_rt_speed_feature(cm, sf, oxcf->speed);
       break;
   }
 
@@ -375,7 +384,7 @@ void vp9_set_speed_features(VP9_COMP *cpi) {
 
   cpi->mb.optimize = sf->optimize_coefficients == 1 && cpi->pass != 1;
 
-  if (cpi->encode_breakout && oxcf->mode == MODE_REALTIME &&
+  if (cpi->encode_breakout && oxcf->mode == REALTIME &&
       sf->encode_breakout_thresh > cpi->encode_breakout)
     cpi->encode_breakout = sf->encode_breakout_thresh;
 

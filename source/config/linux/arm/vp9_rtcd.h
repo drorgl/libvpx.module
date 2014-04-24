@@ -24,7 +24,6 @@ struct macroblockd;
 struct macroblock;
 struct vp9_variance_vtable;
 
-#define DEC_MVCOSTS int *mvjcost, int *mvcost[2]
 struct mv;
 union int_mv;
 struct yv12_buffer_config;
@@ -185,7 +184,7 @@ void vp9_dc_top_predictor_4x4_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t 
 void vp9_dc_top_predictor_8x8_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
 #define vp9_dc_top_predictor_8x8 vp9_dc_top_predictor_8x8_c
 
-int vp9_diamond_search_sad_c(const struct macroblock *x, struct mv *ref_mv, struct mv *best_mv, int search_param, int sad_per_bit, int *num00, const struct vp9_variance_vtable *fn_ptr, DEC_MVCOSTS, const struct mv *center_mv);
+int vp9_diamond_search_sad_c(const struct macroblock *x, struct mv *ref_mv, struct mv *best_mv, int search_param, int sad_per_bit, int *num00, const struct vp9_variance_vtable *fn_ptr, const struct mv *center_mv);
 #define vp9_diamond_search_sad vp9_diamond_search_sad_c
 
 void vp9_fdct16x16_c(const int16_t *input, int16_t *output, int stride);
@@ -212,10 +211,10 @@ void vp9_fht4x4_c(const int16_t *input, int16_t *output, int stride, int tx_type
 void vp9_fht8x8_c(const int16_t *input, int16_t *output, int stride, int tx_type);
 #define vp9_fht8x8 vp9_fht8x8_c
 
-int vp9_full_range_search_c(const struct macroblock *x, struct mv *ref_mv, struct mv *best_mv, int search_param, int sad_per_bit, int *num00, const struct vp9_variance_vtable *fn_ptr, DEC_MVCOSTS, const struct mv *center_mv);
+int vp9_full_range_search_c(const struct macroblock *x, struct mv *ref_mv, struct mv *best_mv, int search_param, int sad_per_bit, int *num00, const struct vp9_variance_vtable *fn_ptr, const struct mv *center_mv);
 #define vp9_full_range_search vp9_full_range_search_c
 
-int vp9_full_search_sad_c(const struct macroblock *x, const struct mv *ref_mv, int sad_per_bit, int distance, const struct vp9_variance_vtable *fn_ptr, DEC_MVCOSTS, const struct mv *center_mv, struct mv *best_mv);
+int vp9_full_search_sad_c(const struct macroblock *x, const struct mv *ref_mv, int sad_per_bit, int distance, const struct vp9_variance_vtable *fn_ptr, const struct mv *center_mv, struct mv *best_mv);
 #define vp9_full_search_sad vp9_full_search_sad_c
 
 void vp9_fwht4x4_c(const int16_t *input, int16_t *output, int stride);
@@ -223,6 +222,9 @@ void vp9_fwht4x4_c(const int16_t *input, int16_t *output, int stride);
 
 unsigned int vp9_get_mb_ss_c(const int16_t *);
 #define vp9_get_mb_ss vp9_get_mb_ss_c
+
+void vp9_get_sse_sum_16x16_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, int *sum);
+#define vp9_get_sse_sum_16x16 vp9_get_sse_sum_16x16_c
 
 void vp9_get_sse_sum_8x8_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, int *sum);
 #define vp9_get_sse_sum_8x8 vp9_get_sse_sum_8x8_c
@@ -338,7 +340,7 @@ void vp9_quantize_b_c(const int16_t *coeff_ptr, intptr_t n_coeffs, int skip_bloc
 void vp9_quantize_b_32x32_c(const int16_t *coeff_ptr, intptr_t n_coeffs, int skip_block, const int16_t *zbin_ptr, const int16_t *round_ptr, const int16_t *quant_ptr, const int16_t *quant_shift_ptr, int16_t *qcoeff_ptr, int16_t *dqcoeff_ptr, const int16_t *dequant_ptr, int zbin_oq_value, uint16_t *eob_ptr, const int16_t *scan, const int16_t *iscan);
 #define vp9_quantize_b_32x32 vp9_quantize_b_32x32_c
 
-int vp9_refining_search_sad_c(const struct macroblock *x, struct mv *ref_mv, int sad_per_bit, int distance, const struct vp9_variance_vtable *fn_ptr, DEC_MVCOSTS, const struct mv *center_mv);
+int vp9_refining_search_sad_c(const struct macroblock *x, struct mv *ref_mv, int sad_per_bit, int distance, const struct vp9_variance_vtable *fn_ptr, const struct mv *center_mv);
 #define vp9_refining_search_sad vp9_refining_search_sad_c
 
 unsigned int vp9_sad16x16_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int  ref_stride, unsigned int max_sad);

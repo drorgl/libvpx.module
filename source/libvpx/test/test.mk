@@ -42,6 +42,7 @@ LIBVPX_TEST_SRCS-yes                   += encode_test_driver.cc
 LIBVPX_TEST_SRCS-yes                   += encode_test_driver.h
 
 ## WebM Parsing
+ifeq ($(CONFIG_WEBM_IO), yes)
 NESTEGG_SRCS                           += ../third_party/nestegg/halloc/halloc.h
 NESTEGG_SRCS                           += ../third_party/nestegg/halloc/src/align.h
 NESTEGG_SRCS                           += ../third_party/nestegg/halloc/src/halloc.c
@@ -49,12 +50,18 @@ NESTEGG_SRCS                           += ../third_party/nestegg/halloc/src/hlis
 NESTEGG_SRCS                           += ../third_party/nestegg/include/nestegg/nestegg.h
 NESTEGG_SRCS                           += ../third_party/nestegg/src/nestegg.c
 LIBVPX_TEST_SRCS-$(CONFIG_DECODERS)    += $(NESTEGG_SRCS)
+LIBVPX_TEST_SRCS-$(CONFIG_DECODERS)    += ../tools_common.h
+LIBVPX_TEST_SRCS-$(CONFIG_DECODERS)    += ../webmdec.c
+LIBVPX_TEST_SRCS-$(CONFIG_DECODERS)    += ../webmdec.h
 LIBVPX_TEST_SRCS-$(CONFIG_DECODERS)    += webm_video_source.h
+endif
 
 LIBVPX_TEST_SRCS-$(CONFIG_DECODERS)    += test_vector_test.cc
 
-# Currently we only support decoder perf tests for vp9
-ifeq ($(CONFIG_DECODE_PERF_TESTS)$(CONFIG_VP9_DECODER), yesyes)
+# Currently we only support decoder perf tests for vp9. Also they read from WebM
+# files, so WebM IO is required.
+ifeq ($(CONFIG_DECODE_PERF_TESTS)$(CONFIG_VP9_DECODER)$(CONFIG_WEBM_IO), \
+      yesyesyes)
 LIBVPX_TEST_SRCS-yes                   += decode_perf_test.cc
 endif
 
@@ -103,6 +110,7 @@ endif
 
 LIBVPX_TEST_SRCS-$(CONFIG_VP9)         += convolve_test.cc
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_DECODER) += vp9_thread_test.cc
+LIBVPX_TEST_SRCS-$(CONFIG_VP9_DECODER) += vp9_decrypt_test.cc
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += dct16x16_test.cc
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += dct32x32_test.cc
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += fdct4x4_test.cc
@@ -698,10 +706,50 @@ LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-13-largescaling.webm
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-13-largescaling.webm.md5
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp91-2-04-yv444.webm
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp91-2-04-yv444.webm.md5
-LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-1280x720-848x480.webm
-LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-1280x720-848x480.webm.md5
-LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-848x480-1280x720.webm
-LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-848x480-1280x720.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-1-2.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-1-2.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-1-4.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-1-4.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-1-8.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-1-8.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-1-16.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-1-16.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-2-1.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-2-1.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-4-1.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-4-1.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-8-1.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-8-1.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-16-1.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-16-1.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-2-4.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-2-4.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-2-8.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-2-8.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-2-16.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-2-16.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-4-2.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-4-2.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-8-2.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-8-2.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-16-2.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-16-2.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-4-8.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-4-8.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-4-16.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-4-16.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-8-4.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-8-4.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-16-4.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-16-4.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-8-16.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-8-16.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-16-8.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-16-8.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-1-2-4-8-16.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-1-2-4-8-16.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-16-8-4-2-1.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-14-resize-fp-tiles-16-8-4-2-1.webm.md5
 
 ifeq ($(CONFIG_DECODE_PERF_TESTS),yes)
 # BBB VP9 streams

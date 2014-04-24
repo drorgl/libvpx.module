@@ -14,7 +14,7 @@
 #include "vpx/vpx_codec.h"
 #include "vpx/internal/vpx_codec_internal.h"
 #include "./vpx_version.h"
-#include "vp9/encoder/vp9_onyx_int.h"
+#include "vp9/encoder/vp9_encoder.h"
 #include "vpx/vp8cx.h"
 #include "vp9/encoder/vp9_firstpass.h"
 #include "vp9/vp9_iface_common.h"
@@ -30,7 +30,6 @@ struct vp9_extracfg {
   unsigned int                tile_rows;
   unsigned int                arnr_max_frames;
   unsigned int                arnr_strength;
-  unsigned int                arnr_type;
   vp8e_tuning                 tuning;
   unsigned int                cq_level;  // constrained quality level
   unsigned int                rc_max_intra_bitrate_pct;
@@ -38,6 +37,7 @@ struct vp9_extracfg {
   unsigned int                frame_parallel_decoding_mode;
   AQ_MODE                     aq_mode;
   unsigned int                frame_periodic_boost;
+  BIT_DEPTH                   bit_depth;
 };
 
 struct extraconfig_map {
@@ -59,7 +59,6 @@ static const struct extraconfig_map extracfg_map[] = {
       0,                          // tile_rows
       7,                          // arnr_max_frames
       5,                          // arnr_strength
-      3,                          // arnr_type
       VP8_TUNE_PSNR,              // tuning
       10,                         // cq_level
       0,                          // rc_max_intra_bitrate_pct
@@ -67,6 +66,7 @@ static const struct extraconfig_map extracfg_map[] = {
       0,                          // frame_parallel_decoding_mode
       NO_AQ,                      // aq_mode
       0,                          // frame_periodic_delta_q
+      BITS_8,                     // Bit depth
     }
   }
 };
@@ -75,7 +75,7 @@ struct vpx_codec_alg_priv {
   vpx_codec_priv_t        base;
   vpx_codec_enc_cfg_t     cfg;
   struct vp9_extracfg     extra_cfg;
-  VP9_CONFIG              oxcf;
+  VP9EncoderConfig        oxcf;
   VP9_COMP               *cpi;
   unsigned char          *cx_data;
   size_t                  cx_data_sz;
@@ -166,6 +166,11 @@ static vpx_codec_err_t validate_config(vpx_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(cfg, rc_resize_down_thresh, 100);
   RANGE_CHECK(cfg,        g_pass,         VPX_RC_ONE_PASS, VPX_RC_LAST_PASS);
 
+  if (cfg->rc_resize_allowed == 1) {
+    RANGE_CHECK(cfg, rc_scaled_width, 1, cfg->g_w);
+    RANGE_CHECK(cfg, rc_scaled_height, 1, cfg->g_h);
+  }
+
   RANGE_CHECK(cfg, ss_number_layers, 1, VPX_SS_MAX_LAYERS);
   RANGE_CHECK(cfg, ts_number_layers, 1, VPX_TS_MAX_LAYERS);
   if (cfg->ts_number_layers > 1) {
@@ -180,7 +185,7 @@ static vpx_codec_err_t validate_config(vpx_codec_alg_priv_t *ctx,
         ERROR("ts_rate_decimator factors are not powers of 2");
   }
 
-  // VP8 does not support a lower bound on the keyframe interval in
+  // VP9 does not support a lower bound on the keyframe interval in
   // automatic keyframe placement mode.
   if (cfg->kf_mode != VPX_KF_DISABLED &&
       cfg->kf_min_dist != cfg->kf_max_dist &&
@@ -196,7 +201,6 @@ static vpx_codec_err_t validate_config(vpx_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, sharpness, 7);
   RANGE_CHECK(extra_cfg, arnr_max_frames, 0, 15);
   RANGE_CHECK_HI(extra_cfg, arnr_strength, 6);
-  RANGE_CHECK(extra_cfg, arnr_type, 1, 3);
   RANGE_CHECK(extra_cfg, cq_level, 0, 63);
 
   // TODO(yaowu): remove this when ssim tuning is implemented for vp9
@@ -252,6 +256,12 @@ static vpx_codec_err_t validate_config(vpx_codec_alg_priv_t *ctx,
         ERROR("rc_twopass_stats_in missing EOS stats packet");
     }
   }
+  if (cfg->g_profile <= (unsigned int)PROFILE_1 &&
+      extra_cfg->bit_depth > BITS_8)
+    ERROR("High bit-depth not supported in profile < 2");
+  if (cfg->g_profile > (unsigned int)PROFILE_1 &&
+      extra_cfg->bit_depth == BITS_8)
+    ERROR("Bit-depth 8 not supported in profile > 1");
 
   return VPX_CODEC_OK;
 }
@@ -277,11 +287,14 @@ static vpx_codec_err_t validate_img(vpx_codec_alg_priv_t *ctx,
 }
 
 
-static vpx_codec_err_t set_encoder_config(VP9_CONFIG *oxcf,
-    const vpx_codec_enc_cfg_t *cfg, const struct vp9_extracfg *extra_cfg) {
-  oxcf->version = cfg->g_profile;
+static vpx_codec_err_t set_encoder_config(
+    VP9EncoderConfig *oxcf,
+    const vpx_codec_enc_cfg_t *cfg,
+    const struct vp9_extracfg *extra_cfg) {
+  oxcf->profile = cfg->g_profile;
   oxcf->width   = cfg->g_w;
   oxcf->height  = cfg->g_h;
+  oxcf->bit_depth = extra_cfg->bit_depth;
   // guess a frame rate if out of whack, use 30
   oxcf->framerate = (double)cfg->g_timebase.den / cfg->g_timebase.num;
   if (oxcf->framerate > 180)
@@ -289,37 +302,41 @@ static vpx_codec_err_t set_encoder_config(VP9_CONFIG *oxcf,
 
   switch (cfg->g_pass) {
     case VPX_RC_ONE_PASS:
-      oxcf->mode = MODE_GOODQUALITY;
+      oxcf->mode = ONE_PASS_GOOD;
       break;
     case VPX_RC_FIRST_PASS:
-      oxcf->mode = MODE_FIRSTPASS;
+      oxcf->mode = TWO_PASS_FIRST;
       break;
     case VPX_RC_LAST_PASS:
-      oxcf->mode = MODE_SECONDPASS_BEST;
+      oxcf->mode = TWO_PASS_SECOND_BEST;
       break;
   }
 
   oxcf->lag_in_frames = cfg->g_pass == VPX_RC_FIRST_PASS ? 0
                                                          : cfg->g_lag_in_frames;
 
-  oxcf->end_usage = USAGE_LOCAL_FILE_PLAYBACK;
+  oxcf->rc_mode = RC_MODE_VBR;
   if (cfg->rc_end_usage == VPX_CQ)
-    oxcf->end_usage = USAGE_CONSTRAINED_QUALITY;
+    oxcf->rc_mode = RC_MODE_CONSTRAINED_QUALITY;
   else if (cfg->rc_end_usage == VPX_Q)
-    oxcf->end_usage = USAGE_CONSTANT_QUALITY;
+    oxcf->rc_mode = RC_MODE_CONSTANT_QUALITY;
   else if (cfg->rc_end_usage == VPX_CBR)
-    oxcf->end_usage = USAGE_STREAM_FROM_SERVER;
+    oxcf->rc_mode = RC_MODE_CBR;
 
   oxcf->target_bandwidth         = cfg->rc_target_bitrate;
   oxcf->rc_max_intra_bitrate_pct = extra_cfg->rc_max_intra_bitrate_pct;
 
-  oxcf->best_allowed_q          = cfg->rc_min_quantizer;
-  oxcf->worst_allowed_q         = cfg->rc_max_quantizer;
-  oxcf->cq_level                = extra_cfg->cq_level;
+  oxcf->best_allowed_q  = vp9_quantizer_to_qindex(cfg->rc_min_quantizer);
+  oxcf->worst_allowed_q = vp9_quantizer_to_qindex(cfg->rc_max_quantizer);
+  oxcf->cq_level        = vp9_quantizer_to_qindex(extra_cfg->cq_level);
   oxcf->fixed_q = -1;
 
   oxcf->under_shoot_pct         = cfg->rc_undershoot_pct;
   oxcf->over_shoot_pct          = cfg->rc_overshoot_pct;
+
+  oxcf->allow_spatial_resampling = cfg->rc_resize_allowed;
+  oxcf->scaled_frame_width       = cfg->rc_scaled_width;
+  oxcf->scaled_frame_height      = cfg->rc_scaled_height;
 
   oxcf->maximum_buffer_size     = cfg->rc_buf_sz;
   oxcf->starting_buffer_level   = cfg->rc_buf_initial_sz;
@@ -336,7 +353,7 @@ static vpx_codec_err_t set_encoder_config(VP9_CONFIG *oxcf,
 
   oxcf->key_freq               = cfg->kf_max_dist;
 
-  oxcf->cpu_used               =  extra_cfg->cpu_used;
+  oxcf->speed                  =  clamp(abs(extra_cfg->cpu_used), 0, 7);
   oxcf->encode_breakout        =  extra_cfg->static_thresh;
   oxcf->play_alternate         =  extra_cfg->enable_auto_alt_ref;
   oxcf->noise_sensitivity      =  extra_cfg->noise_sensitivity;
@@ -347,7 +364,6 @@ static vpx_codec_err_t set_encoder_config(VP9_CONFIG *oxcf,
 
   oxcf->arnr_max_frames = extra_cfg->arnr_max_frames;
   oxcf->arnr_strength   = extra_cfg->arnr_strength;
-  oxcf->arnr_type       = extra_cfg->arnr_type;
 
   oxcf->tuning = extra_cfg->tuning;
 
@@ -399,6 +415,9 @@ static vpx_codec_err_t set_encoder_config(VP9_CONFIG *oxcf,
   printf("fixed_q: %d\n",  oxcf->fixed_q);
   printf("worst_allowed_q: %d\n", oxcf->worst_allowed_q);
   printf("best_allowed_q: %d\n", oxcf->best_allowed_q);
+  printf("allow_spatial_resampling: %d\n", oxcf->allow_spatial_resampling);
+  printf("scaled_frame_width: %d\n", oxcf->scaled_frame_width);
+  printf("scaled_frame_height: %d\n", oxcf->scaled_frame_height);
   printf("two_pass_vbrbias: %d\n",  oxcf->two_pass_vbrbias);
   printf("two_pass_vbrmin_section: %d\n", oxcf->two_pass_vbrmin_section);
   printf("two_pass_vbrmax_section: %d\n", oxcf->two_pass_vbrmax_section);
@@ -438,10 +457,6 @@ static vpx_codec_err_t encoder_set_config(vpx_codec_alg_priv_t *ctx,
   return res;
 }
 
-
-int vp9_reverse_trans(int q);
-
-
 static vpx_codec_err_t ctrl_get_param(vpx_codec_alg_priv_t *ctx, int ctrl_id,
                                  va_list args) {
   void *arg = va_arg(args, void *);
@@ -454,7 +469,7 @@ static vpx_codec_err_t ctrl_get_param(vpx_codec_alg_priv_t *ctx, int ctrl_id,
   switch (ctrl_id) {
     MAP(VP8E_GET_LAST_QUANTIZER, vp9_get_quantizer(ctx->cpi));
     MAP(VP8E_GET_LAST_QUANTIZER_64,
-        vp9_reverse_trans(vp9_get_quantizer(ctx->cpi)));
+        vp9_qindex_to_quantizer(vp9_get_quantizer(ctx->cpi)));
   }
 
   return VPX_CODEC_OK;
@@ -479,7 +494,6 @@ static vpx_codec_err_t ctrl_set_param(vpx_codec_alg_priv_t *ctx, int ctrl_id,
     MAP(VP9E_SET_TILE_ROWS,               extra_cfg.tile_rows);
     MAP(VP8E_SET_ARNR_MAXFRAMES,          extra_cfg.arnr_max_frames);
     MAP(VP8E_SET_ARNR_STRENGTH,           extra_cfg.arnr_strength);
-    MAP(VP8E_SET_ARNR_TYPE,               extra_cfg.arnr_type);
     MAP(VP8E_SET_TUNING,                  extra_cfg.tuning);
     MAP(VP8E_SET_CQ_LEVEL,                extra_cfg.cq_level);
     MAP(VP8E_SET_MAX_INTRA_BITRATE_PCT,   extra_cfg.rc_max_intra_bitrate_pct);
@@ -502,7 +516,8 @@ static vpx_codec_err_t ctrl_set_param(vpx_codec_alg_priv_t *ctx, int ctrl_id,
 #undef MAP
 }
 
-static vpx_codec_err_t encoder_common_init(vpx_codec_ctx_t *ctx) {
+static vpx_codec_err_t encoder_init(vpx_codec_ctx_t *ctx,
+                                    vpx_codec_priv_enc_mr_cfg_t *data) {
   vpx_codec_err_t res = VPX_CODEC_OK;
 
   if (ctx->priv == NULL) {
@@ -510,7 +525,8 @@ static vpx_codec_err_t encoder_common_init(vpx_codec_ctx_t *ctx) {
     vpx_codec_enc_cfg_t *cfg;
     struct vpx_codec_alg_priv *priv = calloc(1, sizeof(*priv));
 
-    if (priv == NULL) return VPX_CODEC_MEM_ERROR;
+    if (priv == NULL)
+      return VPX_CODEC_MEM_ERROR;
 
     ctx->priv = &priv->base;
     ctx->priv->sz = sizeof(*ctx->priv);
@@ -520,8 +536,7 @@ static vpx_codec_err_t encoder_common_init(vpx_codec_ctx_t *ctx) {
     ctx->priv->enc.total_encoders = 1;
 
     if (ctx->config.enc) {
-      // Update the reference to the config structure to an
-      // internal copy.
+      // Update the reference to the config structure to an internal copy.
       ctx->priv->alg_priv->cfg = *ctx->config.enc;
       ctx->config.enc = &ctx->priv->alg_priv->cfg;
     }
@@ -537,11 +552,11 @@ static vpx_codec_err_t encoder_common_init(vpx_codec_ctx_t *ctx) {
 
     priv->extra_cfg = extracfg_map[i].cfg;
     priv->extra_cfg.pkt_list = &priv->pkt_list.head;
-
-    // Maximum buffer size approximated based on having multiple ARF.
+     // Maximum buffer size approximated based on having multiple ARF.
     priv->cx_data_sz = priv->cfg.g_w * priv->cfg.g_h * 3 / 2 * 8;
 
-    if (priv->cx_data_sz < 4096) priv->cx_data_sz = 4096;
+    if (priv->cx_data_sz < 4096)
+      priv->cx_data_sz = 4096;
 
     priv->cx_data = (unsigned char *)malloc(priv->cx_data_sz);
     if (priv->cx_data == NULL)
@@ -554,8 +569,8 @@ static vpx_codec_err_t encoder_common_init(vpx_codec_ctx_t *ctx) {
     if (res == VPX_CODEC_OK) {
       VP9_COMP *cpi;
       set_encoder_config(&ctx->priv->alg_priv->oxcf,
-                      &ctx->priv->alg_priv->cfg,
-                      &ctx->priv->alg_priv->extra_cfg);
+                         &ctx->priv->alg_priv->cfg,
+                         &ctx->priv->alg_priv->extra_cfg);
       cpi = vp9_create_compressor(&ctx->priv->alg_priv->oxcf);
       if (cpi == NULL)
         res = VPX_CODEC_MEM_ERROR;
@@ -565,12 +580,6 @@ static vpx_codec_err_t encoder_common_init(vpx_codec_ctx_t *ctx) {
   }
 
   return res;
-}
-
-
-static vpx_codec_err_t encoder_init(vpx_codec_ctx_t *ctx,
-                                    vpx_codec_priv_enc_mr_cfg_t *data) {
-  return encoder_common_init(ctx);
 }
 
 static vpx_codec_err_t encoder_destroy(vpx_codec_alg_priv_t *ctx) {
@@ -584,7 +593,7 @@ static void pick_quickcompress_mode(vpx_codec_alg_priv_t  *ctx,
                                     unsigned long duration,
                                     unsigned long deadline) {
   // Use best quality mode if no deadline is given.
-  MODE new_qc = MODE_BESTQUALITY;
+  MODE new_qc = ONE_PASS_BEST;
 
   if (deadline) {
     // Convert duration parameter from stream timebase to microseconds
@@ -594,14 +603,14 @@ static void pick_quickcompress_mode(vpx_codec_alg_priv_t  *ctx,
 
     // If the deadline is more that the duration this frame is to be shown,
     // use good quality mode. Otherwise use realtime mode.
-    new_qc = (deadline > duration_us) ? MODE_GOODQUALITY : MODE_REALTIME;
+    new_qc = (deadline > duration_us) ? ONE_PASS_GOOD : REALTIME;
   }
 
   if (ctx->cfg.g_pass == VPX_RC_FIRST_PASS)
-    new_qc = MODE_FIRSTPASS;
+    new_qc = TWO_PASS_FIRST;
   else if (ctx->cfg.g_pass == VPX_RC_LAST_PASS)
-    new_qc = (new_qc == MODE_BESTQUALITY) ? MODE_SECONDPASS_BEST
-                                          : MODE_SECONDPASS;
+    new_qc = (new_qc == ONE_PASS_BEST) ? TWO_PASS_SECOND_BEST
+                                          : TWO_PASS_SECOND_GOOD;
 
   if (ctx->oxcf.mode != new_qc) {
     ctx->oxcf.mode = new_qc;
@@ -609,7 +618,8 @@ static void pick_quickcompress_mode(vpx_codec_alg_priv_t  *ctx,
   }
 }
 
-
+// Turn on to test if supplemental superframe data breaks decoding
+// #define TEST_SUPPLEMENTAL_SUPERFRAME_DATA
 static int write_superframe_index(vpx_codec_alg_priv_t *ctx) {
   uint8_t marker = 0xc0;
   unsigned int mask;
@@ -635,6 +645,20 @@ static int write_superframe_index(vpx_codec_alg_priv_t *ctx) {
   if (ctx->pending_cx_data_sz + index_sz < ctx->cx_data_sz) {
     uint8_t *x = ctx->pending_cx_data + ctx->pending_cx_data_sz;
     int i, j;
+#ifdef TEST_SUPPLEMENTAL_SUPERFRAME_DATA
+    uint8_t marker_test = 0xc0;
+    int mag_test = 2;     // 1 - 4
+    int frames_test = 4;  // 1 - 8
+    int index_sz_test = 2 + mag_test * frames_test;
+    marker_test |= frames_test - 1;
+    marker_test |= (mag_test - 1) << 3;
+    *x++ = marker_test;
+    for (i = 0; i < mag_test * frames_test; ++i)
+      *x++ = 0;  // fill up with arbitrary data
+    *x++ = marker_test;
+    ctx->pending_cx_data_sz += index_sz_test;
+    printf("Added supplemental superframe data\n");
+#endif
 
     *x++ = marker;
     for (i = 0; i < ctx->pending_frame_count; i++) {
@@ -647,6 +671,9 @@ static int write_superframe_index(vpx_codec_alg_priv_t *ctx) {
     }
     *x++ = marker;
     ctx->pending_cx_data_sz += index_sz;
+#ifdef TEST_SUPPLEMENTAL_SUPERFRAME_DATA
+    index_sz += index_sz_test;
+#endif
   }
   return index_sz;
 }
@@ -846,7 +873,6 @@ static vpx_codec_err_t encoder_encode(vpx_codec_alg_priv_t  *ctx,
 
   return res;
 }
-
 
 static const vpx_codec_cx_pkt_t *encoder_get_cxdata(vpx_codec_alg_priv_t  *ctx,
                                                     vpx_codec_iter_t *iter) {
@@ -1081,7 +1107,6 @@ static vpx_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   {VP9E_SET_TILE_ROWS,                ctrl_set_param},
   {VP8E_SET_ARNR_MAXFRAMES,           ctrl_set_param},
   {VP8E_SET_ARNR_STRENGTH,            ctrl_set_param},
-  {VP8E_SET_ARNR_TYPE,                ctrl_set_param},
   {VP8E_SET_TUNING,                   ctrl_set_param},
   {VP8E_SET_CQ_LEVEL,                 ctrl_set_param},
   {VP8E_SET_MAX_INTRA_BITRATE_PCT,    ctrl_set_param},
@@ -1121,6 +1146,8 @@ static vpx_codec_enc_cfg_map_t encoder_usage_cfg_map[] = {
 
       0,                  // rc_dropframe_thresh
       0,                  // rc_resize_allowed
+      1,                  // rc_scaled_width
+      1,                  // rc_scaled_height
       60,                 // rc_resize_down_thresold
       30,                 // rc_resize_up_thresold
 

@@ -19,15 +19,13 @@
 #include "vp9/encoder/vp9_extend.h"
 #include "vp9/encoder/vp9_firstpass.h"
 #include "vp9/encoder/vp9_mcomp.h"
-#include "vp9/encoder/vp9_onyx_int.h"
+#include "vp9/encoder/vp9_encoder.h"
 #include "vp9/encoder/vp9_quantize.h"
 #include "vp9/encoder/vp9_ratectrl.h"
 #include "vp9/encoder/vp9_segmentation.h"
 #include "vpx_mem/vpx_mem.h"
 #include "vpx_ports/vpx_timer.h"
 #include "vpx_scale/vpx_scale.h"
-
-#define ALT_REF_MC_ENABLED 1    // dis/enable MC in AltRef filtering
 
 static void temporal_filter_predictors_mb_c(MACROBLOCKD *xd,
                                             uint8_t *y_mb_ptr,
@@ -122,8 +120,6 @@ void vp9_temporal_filter_apply_c(uint8_t *frame1,
   }
 }
 
-#if ALT_REF_MC_ENABLED
-
 static int temporal_filter_find_matching_mb_c(VP9_COMP *cpi,
                                               uint8_t *arf_frame_buf,
                                               uint8_t *frame_ptr_buf,
@@ -133,6 +129,8 @@ static int temporal_filter_find_matching_mb_c(VP9_COMP *cpi,
   int step_param;
   int sadpb = x->sadperbit16;
   int bestsme = INT_MAX;
+  int distortion;
+  unsigned int sse;
 
   MV best_ref_mv1 = {0, 0};
   MV best_ref_mv1_full; /* full-pixel value of best_ref_mv1 */
@@ -151,33 +149,22 @@ static int temporal_filter_find_matching_mb_c(VP9_COMP *cpi,
   xd->plane[0].pre[0].buf = frame_ptr_buf;
   xd->plane[0].pre[0].stride = stride;
 
-  // Further step/diamond searches as necessary
-  if (cpi->speed < 8)
-    step_param = cpi->sf.reduce_first_step_size + ((cpi->speed > 5) ? 1 : 0);
-  else
-    step_param = cpi->sf.reduce_first_step_size + 2;
-  step_param = MIN(step_param, (cpi->sf.max_step_search_steps - 2));
+  step_param = cpi->sf.reduce_first_step_size + (cpi->oxcf.speed > 5 ? 1 : 0);
+  step_param = MIN(step_param, cpi->sf.max_step_search_steps - 2);
 
-  /*cpi->sf.search_method == HEX*/
   // Ignore mv costing by sending NULL pointer instead of cost arrays
   vp9_hex_search(x, &best_ref_mv1_full, step_param, sadpb, 1,
                  &cpi->fn_ptr[BLOCK_16X16], 0, &best_ref_mv1, ref_mv);
 
-  // Try sub-pixel MC?
-  // if (bestsme > error_thresh && bestsme < INT_MAX)
-  {
-    int distortion;
-    unsigned int sse;
-    // Ignore mv costing by sending NULL pointer instead of cost array
-    bestsme = cpi->find_fractional_mv_step(x, ref_mv,
-                                           &best_ref_mv1,
-                                           cpi->common.allow_high_precision_mv,
-                                           x->errorperbit,
-                                           &cpi->fn_ptr[BLOCK_16X16],
-                                           0, cpi->sf.subpel_iters_per_step,
-                                           NULL, NULL,
-                                           &distortion, &sse);
-  }
+  // Ignore mv costing by sending NULL pointer instead of cost array
+  bestsme = cpi->find_fractional_mv_step(x, ref_mv,
+                                         &best_ref_mv1,
+                                         cpi->common.allow_high_precision_mv,
+                                         x->errorperbit,
+                                         &cpi->fn_ptr[BLOCK_16X16],
+                                         0, cpi->sf.subpel_iters_per_step,
+                                         NULL, NULL,
+                                         &distortion, &sse);
 
   // Restore input state
   x->plane[0].src = src;
@@ -185,7 +172,6 @@ static int temporal_filter_find_matching_mb_c(VP9_COMP *cpi,
 
   return bestsme;
 }
-#endif
 
 static void temporal_filter_iterate_c(VP9_COMP *cpi,
                                       int frame_count,
@@ -219,8 +205,7 @@ static void temporal_filter_iterate_c(VP9_COMP *cpi,
     input_buffer[i] = mbd->plane[i].pre[0].buf;
 
   for (mb_row = 0; mb_row < mb_rows; mb_row++) {
-#if ALT_REF_MC_ENABLED
-    // Source frames are extended to 16 pixels.  This is different than
+    // Source frames are extended to 16 pixels. This is different than
     //  L/A/G reference frames that have a border of 32 (VP9ENCBORDERINPIXELS)
     // A 6/8 tap filter is used for motion search.  This requires 2 pixels
     //  before and 3 pixels after.  So the largest Y mv on a border would
@@ -234,7 +219,6 @@ static void temporal_filter_iterate_c(VP9_COMP *cpi,
     cpi->mb.mv_row_min = -((mb_row * 16) + (17 - 2 * VP9_INTERP_EXTEND));
     cpi->mb.mv_row_max = ((cpi->common.mb_rows - 1 - mb_row) * 16)
                          + (17 - 2 * VP9_INTERP_EXTEND);
-#endif
 
     for (mb_col = 0; mb_col < mb_cols; mb_col++) {
       int i, j, k;
@@ -243,13 +227,14 @@ static void temporal_filter_iterate_c(VP9_COMP *cpi,
       vpx_memset(accumulator, 0, 16 * 16 * 3 * sizeof(accumulator[0]));
       vpx_memset(count, 0, 16 * 16 * 3 * sizeof(count[0]));
 
-#if ALT_REF_MC_ENABLED
       cpi->mb.mv_col_min = -((mb_col * 16) + (17 - 2 * VP9_INTERP_EXTEND));
       cpi->mb.mv_col_max = ((cpi->common.mb_cols - 1 - mb_col) * 16)
                            + (17 - 2 * VP9_INTERP_EXTEND);
-#endif
 
       for (frame = 0; frame < frame_count; frame++) {
+        const int thresh_low  = 10000;
+        const int thresh_high = 20000;
+
         if (cpi->frames[frame] == NULL)
           continue;
 
@@ -259,38 +244,31 @@ static void temporal_filter_iterate_c(VP9_COMP *cpi,
         if (frame == alt_ref_index) {
           filter_weight = 2;
         } else {
-          int err = 0;
-#if ALT_REF_MC_ENABLED
-#define THRESH_LOW   10000
-#define THRESH_HIGH  20000
-
           // Find best match in this frame by MC
-          err = temporal_filter_find_matching_mb_c
-                (cpi,
-                 cpi->frames[alt_ref_index]->y_buffer + mb_y_offset,
-                 cpi->frames[frame]->y_buffer + mb_y_offset,
-                 cpi->frames[frame]->y_stride);
-#endif
+          int err = temporal_filter_find_matching_mb_c(cpi,
+              cpi->frames[alt_ref_index]->y_buffer + mb_y_offset,
+              cpi->frames[frame]->y_buffer + mb_y_offset,
+              cpi->frames[frame]->y_stride);
+
           // Assign higher weight to matching MB if it's error
           // score is lower. If not applying MC default behavior
           // is to weight all MBs equal.
-          filter_weight = err < THRESH_LOW
-                          ? 2 : err < THRESH_HIGH ? 1 : 0;
+          filter_weight = err < thresh_low
+                          ? 2 : err < thresh_high ? 1 : 0;
         }
 
         if (filter_weight != 0) {
           // Construct the predictors
-          temporal_filter_predictors_mb_c
-          (mbd,
-           cpi->frames[frame]->y_buffer + mb_y_offset,
-           cpi->frames[frame]->u_buffer + mb_uv_offset,
-           cpi->frames[frame]->v_buffer + mb_uv_offset,
-           cpi->frames[frame]->y_stride,
-           mb_uv_height,
-           mbd->mi[0]->bmi[0].as_mv[0].as_mv.row,
-           mbd->mi[0]->bmi[0].as_mv[0].as_mv.col,
-           predictor, scale,
-           mb_col * 16, mb_row * 16);
+          temporal_filter_predictors_mb_c(mbd,
+              cpi->frames[frame]->y_buffer + mb_y_offset,
+              cpi->frames[frame]->u_buffer + mb_uv_offset,
+              cpi->frames[frame]->v_buffer + mb_uv_offset,
+              cpi->frames[frame]->y_stride,
+              mb_uv_height,
+              mbd->mi[0]->bmi[0].as_mv[0].as_mv.row,
+              mbd->mi[0]->bmi[0].as_mv[0].as_mv.col,
+              predictor, scale,
+              mb_col * 16, mb_row * 16);
 
           // Apply the filter (YUV)
           vp9_temporal_filter_apply(f->y_buffer + mb_y_offset, f->y_stride,
@@ -324,7 +302,6 @@ static void temporal_filter_iterate_c(VP9_COMP *cpi,
           // move to next pixel
           byte++;
         }
-
         byte += stride - 16;
       }
 
@@ -351,14 +328,11 @@ static void temporal_filter_iterate_c(VP9_COMP *cpi,
           // move to next pixel
           byte++;
         }
-
         byte += stride - mb_uv_height;
       }
-
       mb_y_offset += 16;
       mb_uv_offset += mb_uv_height;
     }
-
     mb_y_offset += 16 * (f->y_stride - mb_cols);
     mb_uv_offset += mb_uv_height * (f->uv_stride - mb_cols);
   }
@@ -370,78 +344,33 @@ static void temporal_filter_iterate_c(VP9_COMP *cpi,
 
 void vp9_temporal_filter_prepare(VP9_COMP *cpi, int distance) {
   VP9_COMMON *const cm = &cpi->common;
-
   int frame = 0;
-
-  int frames_to_blur_backward = 0;
-  int frames_to_blur_forward = 0;
   int frames_to_blur = 0;
   int start_frame = 0;
-
   int strength = cpi->active_arnr_strength;
-  int blur_type = cpi->oxcf.arnr_type;
   int max_frames = cpi->active_arnr_frames;
-
-  const int num_frames_backward = distance;
-  const int num_frames_forward = vp9_lookahead_depth(cpi->lookahead)
-                               - (num_frames_backward + 1);
+  int frames_to_blur_backward = distance;
+  int frames_to_blur_forward = vp9_lookahead_depth(cpi->lookahead)
+                                   - (distance + 1);
   struct scale_factors sf;
 
-  switch (blur_type) {
-    case 1:
-      // Backward Blur
-      frames_to_blur_backward = num_frames_backward;
+  // Determine which input frames to filter.
+  if (frames_to_blur_forward > frames_to_blur_backward)
+    frames_to_blur_forward = frames_to_blur_backward;
 
-      if (frames_to_blur_backward >= max_frames)
-        frames_to_blur_backward = max_frames - 1;
+  if (frames_to_blur_backward > frames_to_blur_forward)
+    frames_to_blur_backward = frames_to_blur_forward;
 
-      frames_to_blur = frames_to_blur_backward + 1;
-      break;
+  // When max_frames is even we have 1 more frame backward than forward
+  if (frames_to_blur_forward > (max_frames - 1) / 2)
+    frames_to_blur_forward = (max_frames - 1) / 2;
 
-    case 2:
-      // Forward Blur
-      frames_to_blur_forward = num_frames_forward;
+  if (frames_to_blur_backward > (max_frames / 2))
+    frames_to_blur_backward = max_frames / 2;
 
-      if (frames_to_blur_forward >= max_frames)
-        frames_to_blur_forward = max_frames - 1;
-
-      frames_to_blur = frames_to_blur_forward + 1;
-      break;
-
-    case 3:
-    default:
-      // Center Blur
-      frames_to_blur_forward = num_frames_forward;
-      frames_to_blur_backward = num_frames_backward;
-
-      if (frames_to_blur_forward > frames_to_blur_backward)
-        frames_to_blur_forward = frames_to_blur_backward;
-
-      if (frames_to_blur_backward > frames_to_blur_forward)
-        frames_to_blur_backward = frames_to_blur_forward;
-
-      // When max_frames is even we have 1 more frame backward than forward
-      if (frames_to_blur_forward > (max_frames - 1) / 2)
-        frames_to_blur_forward = ((max_frames - 1) / 2);
-
-      if (frames_to_blur_backward > (max_frames / 2))
-        frames_to_blur_backward = (max_frames / 2);
-
-      frames_to_blur = frames_to_blur_backward + frames_to_blur_forward + 1;
-      break;
-  }
+  frames_to_blur = frames_to_blur_backward + frames_to_blur_forward + 1;
 
   start_frame = distance + frames_to_blur_forward;
-
-#ifdef DEBUGFWG
-  // DEBUG FWG
-  printf(
-      "max:%d FBCK:%d FFWD:%d ftb:%d ftbbck:%d ftbfwd:%d sei:%d lasei:%d "
-      "start:%d",
-      max_frames, num_frames_backward, num_frames_forward, frames_to_blur,
-      frames_to_blur_backward, frames_to_blur_forward, cpi->source_encode_index,
-      cpi->last_alt_ref_sei, start_frame);
-#endif
 
   // Setup scaling factors. Scaling on each of the arnr frames is not supported
   vp9_setup_scale_factors_for_frame(&sf,
@@ -451,7 +380,7 @@ void vp9_temporal_filter_prepare(VP9_COMP *cpi, int distance) {
 
   // Setup frame pointers, NULL indicates frame not included in filter
   vp9_zero(cpi->frames);
-  for (frame = 0; frame < frames_to_blur; frame++) {
+  for (frame = 0; frame < frames_to_blur; ++frame) {
     int which_buffer = start_frame - frame;
     struct lookahead_entry *buf = vp9_lookahead_peek(cpi->lookahead,
                                                      which_buffer);
@@ -465,11 +394,11 @@ void vp9_temporal_filter_prepare(VP9_COMP *cpi, int distance) {
 void vp9_configure_arnr_filter(VP9_COMP *cpi,
                                const unsigned int frames_to_arnr,
                                const int group_boost) {
+  int q;
   int half_gf_int;
   int frames_after_arf;
-  int frames_bwd = cpi->oxcf.arnr_max_frames - 1;
-  int frames_fwd = cpi->oxcf.arnr_max_frames - 1;
-  int q;
+  int frames_bwd;
+  int frames_fwd = (cpi->oxcf.arnr_max_frames - 1) >> 1;
 
   // Define the arnr filter width for this group of frames. We only
   // filter frames that lie within a distance of half the GF interval
@@ -481,47 +410,26 @@ void vp9_configure_arnr_filter(VP9_COMP *cpi,
   frames_after_arf = vp9_lookahead_depth(cpi->lookahead)
       - frames_to_arnr - 1;
 
-  switch (cpi->oxcf.arnr_type) {
-    case 1:  // Backward filter
-      frames_fwd = 0;
-      if (frames_bwd > half_gf_int)
-        frames_bwd = half_gf_int;
-      break;
+  if (frames_fwd > frames_after_arf)
+    frames_fwd = frames_after_arf;
+  if (frames_fwd > half_gf_int)
+    frames_fwd = half_gf_int;
 
-    case 2:  // Forward filter
-      if (frames_fwd > half_gf_int)
-        frames_fwd = half_gf_int;
-      if (frames_fwd > frames_after_arf)
-        frames_fwd = frames_after_arf;
-      frames_bwd = 0;
-      break;
+  frames_bwd = frames_fwd;
 
-    case 3:  // Centered filter
-    default:
-      frames_fwd >>= 1;
-      if (frames_fwd > frames_after_arf)
-        frames_fwd = frames_after_arf;
-      if (frames_fwd > half_gf_int)
-        frames_fwd = half_gf_int;
-
-      frames_bwd = frames_fwd;
-
-      // For even length filter there is one more frame backward
-      // than forward: e.g. len=6 ==> bbbAff, len=7 ==> bbbAfff.
-      if (frames_bwd < half_gf_int)
-        frames_bwd += (cpi->oxcf.arnr_max_frames + 1) & 0x1;
-      break;
-  }
+  // For even length filter there is one more frame backward
+  // than forward: e.g. len=6 ==> bbbAff, len=7 ==> bbbAfff.
+  if (frames_bwd < half_gf_int)
+    frames_bwd += (cpi->oxcf.arnr_max_frames + 1) & 0x1;
 
   cpi->active_arnr_frames = frames_bwd + 1 + frames_fwd;
 
   // Adjust the strength based on active max q
   if (cpi->common.current_video_frame > 1)
-    q = ((int)vp9_convert_qindex_to_q(
-        cpi->rc.avg_frame_qindex[INTER_FRAME]));
+    q = ((int)vp9_convert_qindex_to_q(cpi->rc.avg_frame_qindex[INTER_FRAME]));
   else
-    q = ((int)vp9_convert_qindex_to_q(
-        cpi->rc.avg_frame_qindex[KEY_FRAME]));
+    q = ((int)vp9_convert_qindex_to_q(cpi->rc.avg_frame_qindex[KEY_FRAME]));
+
   if (q > 16) {
     cpi->active_arnr_strength = cpi->oxcf.arnr_strength;
   } else {

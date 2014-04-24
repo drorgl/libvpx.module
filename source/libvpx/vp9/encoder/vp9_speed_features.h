@@ -110,7 +110,10 @@ typedef enum {
 
   // Use an arbitrary partitioning scheme based on source variance within
   // a 64X64 SB
-  VAR_BASED_PARTITION
+  VAR_BASED_PARTITION,
+
+  // Use non-fixed partitions based on source variance
+  SOURCE_VAR_BASED_PARTITION
 } PARTITION_SEARCH_TYPE;
 
 typedef enum {
@@ -271,6 +274,9 @@ typedef struct {
   // encoding process for RTC.
   int partition_check;
 
+  // Chessboard pattern index
+  int chessboard_index;
+
   // Use finer quantizer in every other few frames that run variable block
   // partition type search.
   int force_frame_boost;
@@ -335,6 +341,13 @@ typedef struct {
   // used in inter frames.
   // TODO(aconverse): Fold this into one of the other many mode skips
   BLOCK_SIZE max_intra_bsize;
+
+  // The frequency that we check if SOURCE_VAR_BASED_PARTITION or
+  // FIXED_PARTITION search type should be used.
+  int search_type_check_frequency;
+
+  // The threshold used in SOURCE_VAR_BASED_PARTITION search type.
+  unsigned int source_var_thresh;
 } SPEED_FEATURES;
 
 struct VP9_COMP;

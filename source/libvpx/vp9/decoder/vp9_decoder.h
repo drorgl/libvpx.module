@@ -27,20 +27,20 @@
 extern "C" {
 #endif
 
-typedef struct {
+typedef struct VP9DecoderConfig {
   int width;
   int height;
   int version;
   int max_threads;
   int inv_tile_order;
-} VP9D_CONFIG;
+} VP9DecoderConfig;
 
 typedef struct VP9Decoder {
   DECLARE_ALIGNED(16, MACROBLOCKD, mb);
 
   DECLARE_ALIGNED(16, VP9_COMMON, common);
 
-  VP9D_CONFIG oxcf;
+  VP9DecoderConfig oxcf;
 
   int64_t last_time_stamp;
   int ready_for_new_data;
@@ -49,9 +49,6 @@ typedef struct VP9Decoder {
 
   int decoded_key_frame;
 
-  int initial_width;
-  int initial_height;
-
   int do_loopfilter_inline;  // apply loopfilter to available rows immediately
   VP9Worker lf_worker;
 
@@ -59,6 +56,9 @@ typedef struct VP9Decoder {
   int num_tile_workers;
 
   VP9LfSync lf_row_sync;
+
+  vpx_decrypt_cb decrypt_cb;
+  void *decrypt_state;
 } VP9Decoder;
 
 void vp9_initialize_dec();
@@ -84,7 +84,7 @@ int vp9_get_reference_dec(struct VP9Decoder *pbi,
                           int index, YV12_BUFFER_CONFIG **fb);
 
 
-struct VP9Decoder *vp9_decoder_create(const VP9D_CONFIG *oxcf);
+struct VP9Decoder *vp9_decoder_create(const VP9DecoderConfig *oxcf);
 
 void vp9_decoder_remove(struct VP9Decoder *pbi);
 

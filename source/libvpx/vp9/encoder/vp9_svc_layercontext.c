@@ -10,12 +10,12 @@
 
 #include <math.h>
 
-#include "vp9/encoder/vp9_onyx_int.h"
+#include "vp9/encoder/vp9_encoder.h"
 #include "vp9/encoder/vp9_svc_layercontext.h"
 
 void vp9_init_layer_context(VP9_COMP *const cpi) {
   SVC *const svc = &cpi->svc;
-  const VP9_CONFIG *const oxcf = &cpi->oxcf;
+  const VP9EncoderConfig *const oxcf = &cpi->oxcf;
   int layer;
   int layer_end;
 
@@ -32,8 +32,8 @@ void vp9_init_layer_context(VP9_COMP *const cpi) {
     LAYER_CONTEXT *const lc = &svc->layer_context[layer];
     RATE_CONTROL *const lrc = &lc->rc;
     lc->current_video_frame_in_layer = 0;
-    lrc->avg_frame_qindex[INTER_FRAME] = q_trans[oxcf->worst_allowed_q];
-    lrc->ni_av_qi = q_trans[oxcf->worst_allowed_q];
+    lrc->avg_frame_qindex[INTER_FRAME] = oxcf->worst_allowed_q;
+    lrc->ni_av_qi = oxcf->worst_allowed_q;
     lrc->total_actual_bits = 0;
     lrc->total_target_vs_actual = 0;
     lrc->ni_tot_qi = 0;
@@ -47,12 +47,12 @@ void vp9_init_layer_context(VP9_COMP *const cpi) {
 
     if (svc->number_temporal_layers > 1) {
       lc->target_bandwidth = oxcf->ts_target_bitrate[layer] * 1000;
-      lrc->last_q[INTER_FRAME] = q_trans[oxcf->worst_allowed_q];
+      lrc->last_q[INTER_FRAME] = oxcf->worst_allowed_q;
     } else {
       lc->target_bandwidth = oxcf->ss_target_bitrate[layer] * 1000;
-      lrc->last_q[0] = q_trans[oxcf->best_allowed_q];
-      lrc->last_q[1] = q_trans[oxcf->best_allowed_q];
-      lrc->last_q[2] = q_trans[oxcf->best_allowed_q];
+      lrc->last_q[0] = oxcf->best_allowed_q;
+      lrc->last_q[1] = oxcf->best_allowed_q;
+      lrc->last_q[2] = oxcf->best_allowed_q;
     }
 
     lrc->buffer_level = vp9_rescale((int)(oxcf->starting_buffer_level),
@@ -65,7 +65,7 @@ void vp9_init_layer_context(VP9_COMP *const cpi) {
 void vp9_update_layer_context_change_config(VP9_COMP *const cpi,
                                             const int target_bandwidth) {
   SVC *const svc = &cpi->svc;
-  const VP9_CONFIG *const oxcf = &cpi->oxcf;
+  const VP9EncoderConfig *const oxcf = &cpi->oxcf;
   const RATE_CONTROL *const rc = &cpi->rc;
   int layer;
   int layer_end;
@@ -102,7 +102,7 @@ void vp9_update_layer_context_change_config(VP9_COMP *const cpi,
     } else {
       lc->framerate = oxcf->framerate;
     }
-    lrc->av_per_frame_bandwidth = (int)(lc->target_bandwidth / lc->framerate);
+    lrc->avg_frame_bandwidth = (int)(lc->target_bandwidth / lc->framerate);
     lrc->max_frame_bandwidth = rc->max_frame_bandwidth;
     // Update qp-related quantities.
     lrc->worst_quality = rc->worst_quality;
@@ -118,17 +118,17 @@ static LAYER_CONTEXT *get_layer_context(SVC *svc) {
 
 void vp9_update_temporal_layer_framerate(VP9_COMP *const cpi) {
   SVC *const svc = &cpi->svc;
-  const VP9_CONFIG *const oxcf = &cpi->oxcf;
+  const VP9EncoderConfig *const oxcf = &cpi->oxcf;
   LAYER_CONTEXT *const lc = get_layer_context(svc);
   RATE_CONTROL *const lrc = &lc->rc;
   const int layer = svc->temporal_layer_id;
 
   lc->framerate = oxcf->framerate / oxcf->ts_rate_decimator[layer];
-  lrc->av_per_frame_bandwidth = (int)(lc->target_bandwidth / lc->framerate);
+  lrc->avg_frame_bandwidth = (int)(lc->target_bandwidth / lc->framerate);
   lrc->max_frame_bandwidth = cpi->rc.max_frame_bandwidth;
   // Update the average layer frame size (non-cumulative per-frame-bw).
   if (layer == 0) {
-    lc->avg_frame_size = lrc->av_per_frame_bandwidth;
+    lc->avg_frame_size = lrc->avg_frame_bandwidth;
   } else {
     const double prev_layer_framerate =
         oxcf->framerate / oxcf->ts_rate_decimator[layer - 1];
@@ -141,15 +141,15 @@ void vp9_update_temporal_layer_framerate(VP9_COMP *const cpi) {
 }
 
 void vp9_update_spatial_layer_framerate(VP9_COMP *const cpi, double framerate) {
-  const VP9_CONFIG *const oxcf = &cpi->oxcf;
+  const VP9EncoderConfig *const oxcf = &cpi->oxcf;
   LAYER_CONTEXT *const lc = get_layer_context(&cpi->svc);
   RATE_CONTROL *const lrc = &lc->rc;
 
   lc->framerate = framerate;
-  lrc->av_per_frame_bandwidth = (int)(lc->target_bandwidth / lc->framerate);
-  lrc->min_frame_bandwidth = (int)(lrc->av_per_frame_bandwidth *
+  lrc->avg_frame_bandwidth = (int)(lc->target_bandwidth / lc->framerate);
+  lrc->min_frame_bandwidth = (int)(lrc->avg_frame_bandwidth *
                                    oxcf->two_pass_vbrmin_section / 100);
-  lrc->max_frame_bandwidth = (int)(((int64_t)lrc->av_per_frame_bandwidth *
+  lrc->max_frame_bandwidth = (int)(((int64_t)lrc->avg_frame_bandwidth *
                                    oxcf->two_pass_vbrmax_section) / 100);
   lrc->max_gf_interval = 16;
 
@@ -178,7 +178,6 @@ void vp9_restore_layer_context(VP9_COMP *const cpi) {
   cpi->oxcf.starting_buffer_level = lc->starting_buffer_level;
   cpi->oxcf.optimal_buffer_level = lc->optimal_buffer_level;
   cpi->oxcf.maximum_buffer_size = lc->maximum_buffer_size;
-  cpi->output_framerate = lc->framerate;
   // Reset the frames_since_key and frames_to_key counters to their values
   // before the layer restore. Keep these defined for the stream (not layer).
   if (cpi->svc.number_temporal_layers > 1) {
@@ -188,7 +187,7 @@ void vp9_restore_layer_context(VP9_COMP *const cpi) {
 }
 
 void vp9_save_layer_context(VP9_COMP *const cpi) {
-  const VP9_CONFIG *const oxcf = &cpi->oxcf;
+  const VP9EncoderConfig *const oxcf = &cpi->oxcf;
   LAYER_CONTEXT *const lc = get_layer_context(&cpi->svc);
 
   lc->rc = cpi->rc;
@@ -197,7 +196,6 @@ void vp9_save_layer_context(VP9_COMP *const cpi) {
   lc->starting_buffer_level = oxcf->starting_buffer_level;
   lc->optimal_buffer_level = oxcf->optimal_buffer_level;
   lc->maximum_buffer_size = oxcf->maximum_buffer_size;
-  lc->framerate = cpi->output_framerate;
 }
 
 void vp9_init_second_pass_spatial_svc(VP9_COMP *cpi) {
@@ -214,4 +212,11 @@ void vp9_init_second_pass_spatial_svc(VP9_COMP *cpi) {
     twopass->total_left_stats.spatial_layer_id = i;
   }
   svc->spatial_layer_id = 0;
+}
+
+void vp9_inc_frame_in_layer(SVC *svc) {
+  LAYER_CONTEXT *const lc = (svc->number_temporal_layers > 1)
+      ? &svc->layer_context[svc->temporal_layer_id]
+      : &svc->layer_context[svc->spatial_layer_id];
+  ++lc->current_video_frame_in_layer;
 }

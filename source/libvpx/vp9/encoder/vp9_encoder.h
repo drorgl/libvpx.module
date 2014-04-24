@@ -8,8 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef VP9_ENCODER_VP9_ONYX_INT_H_
-#define VP9_ENCODER_VP9_ONYX_INT_H_
+#ifndef VP9_ENCODER_VP9_ENCODER_H_
+#define VP9_ENCODER_VP9_ENCODER_H_
 
 #include <stdio.h>
 
@@ -132,43 +132,43 @@ typedef enum {
 } VPX_SCALING;
 
 typedef enum {
-  USAGE_LOCAL_FILE_PLAYBACK = 0,
-  USAGE_STREAM_FROM_SERVER  = 1,
-  USAGE_CONSTRAINED_QUALITY = 2,
-  USAGE_CONSTANT_QUALITY    = 3,
-} END_USAGE;
+  RC_MODE_VBR = 0,
+  RC_MODE_CBR = 1,
+  RC_MODE_CONSTRAINED_QUALITY = 2,
+  RC_MODE_CONSTANT_QUALITY    = 3,
+} RC_MODE;
 
 typedef enum {
   // Good Quality Fast Encoding. The encoder balances quality with the
   // amount of time it takes to encode the output. (speed setting
   // controls how fast)
-  MODE_GOODQUALITY = 1,
+  ONE_PASS_GOOD = 1,
 
   // One Pass - Best Quality. The encoder places priority on the
   // quality of the output over encoding speed. The output is compressed
   // at the highest possible quality. This option takes the longest
   // amount of time to encode. (speed setting ignored)
-  MODE_BESTQUALITY = 2,
+  ONE_PASS_BEST = 2,
 
   // Two Pass - First Pass. The encoder generates a file of statistics
   // for use in the second encoding pass. (speed setting controls how fast)
-  MODE_FIRSTPASS = 3,
+  TWO_PASS_FIRST = 3,
 
   // Two Pass - Second Pass. The encoder uses the statistics that were
   // generated in the first encoding pass to create the compressed
   // output. (speed setting controls how fast)
-  MODE_SECONDPASS = 4,
+  TWO_PASS_SECOND_GOOD = 4,
 
   // Two Pass - Second Pass Best.  The encoder uses the statistics that
   // were generated in the first encoding pass to create the compressed
   // output using the highest possible quality, and taking a
   // longer amount of time to encode. (speed setting ignored)
-  MODE_SECONDPASS_BEST = 5,
+  TWO_PASS_SECOND_BEST = 5,
 
   // Realtime/Live Encoding. This mode is optimized for realtime
   // encoding (for example, capturing a television signal or feed from
   // a live camera). (speed setting controls how fast)
-  MODE_REALTIME = 6,
+  REALTIME = 6,
 } MODE;
 
 typedef enum {
@@ -185,10 +185,10 @@ typedef enum {
   AQ_MODE_COUNT  // This should always be the last member of the enum
 } AQ_MODE;
 
-typedef struct VP9_CONFIG {
-  int version;  // 4 versions of bitstream defined:
-                //   0 - best quality/slowest decode,
-                //   3 - lowest quality/fastest decode
+
+typedef struct VP9EncoderConfig {
+  BITSTREAM_PROFILE profile;
+  BIT_DEPTH bit_depth;
   int width;  // width of data passed to the compressor
   int height;  // height of data passed to the compressor
   double framerate;  // set to passed in framerate
@@ -196,7 +196,7 @@ typedef struct VP9_CONFIG {
 
   int noise_sensitivity;  // pre processing blur: recommendation 0
   int sharpness;  // sharpening output: recommendation 0:
-  int cpu_used;
+  int speed;
   unsigned int rc_max_intra_bitrate_pct;
 
   MODE mode;
@@ -210,7 +210,7 @@ typedef struct VP9_CONFIG {
   // ----------------------------------------------------------------
   // DATARATE CONTROL OPTIONS
 
-  END_USAGE end_usage;  // vbr or cbr
+  RC_MODE rc_mode;  // vbr, cbr, constrained quality or constant quality
 
   // buffer targeting aggressiveness
   int under_shoot_pct;
@@ -231,6 +231,11 @@ typedef struct VP9_CONFIG {
   int cq_level;
   int lossless;
   AQ_MODE aq_mode;  // Adaptive Quantization mode
+
+  // Internal frame size scaling.
+  int allow_spatial_resampling;
+  int scaled_frame_width;
+  int scaled_frame_height;
 
   // Enable feature to reduce the frame quantization every x frames.
   int frame_periodic_boost;
@@ -271,7 +276,6 @@ typedef struct VP9_CONFIG {
 
   int arnr_max_frames;
   int arnr_strength;
-  int arnr_type;
 
   int tile_columns;
   int tile_rows;
@@ -280,13 +284,43 @@ typedef struct VP9_CONFIG {
   struct vpx_codec_pkt_list  *output_pkt_list;
 
   vp8e_tuning tuning;
-} VP9_CONFIG;
+} VP9EncoderConfig;
+
+static INLINE int is_best_mode(MODE mode) {
+  return mode == ONE_PASS_BEST || mode == TWO_PASS_SECOND_BEST;
+}
+
+typedef struct RD_OPT {
+  // Thresh_mult is used to set a threshold for the rd score. A higher value
+  // means that we will accept the best mode so far more often. This number
+  // is used in combination with the current block size, and thresh_freq_fact
+  // to pick a threshold.
+  int thresh_mult[MAX_MODES];
+  int thresh_mult_sub8x8[MAX_REFS];
+
+  int threshes[MAX_SEGMENTS][BLOCK_SIZES][MAX_MODES];
+  int thresh_freq_fact[BLOCK_SIZES][MAX_MODES];
+
+  int64_t comp_pred_diff[REFERENCE_MODES];
+  int64_t prediction_type_threshes[MAX_REF_FRAMES][REFERENCE_MODES];
+  int64_t tx_select_diff[TX_MODES];
+  // FIXME(rbultje) can this overflow?
+  int tx_select_threshes[MAX_REF_FRAMES][TX_MODES];
+
+  int64_t filter_diff[SWITCHABLE_FILTER_CONTEXTS];
+  int64_t filter_threshes[MAX_REF_FRAMES][SWITCHABLE_FILTER_CONTEXTS];
+  int64_t filter_cache[SWITCHABLE_FILTER_CONTEXTS];
+  int64_t mask_filter;
+
+  int RDMULT;
+  int RDDIV;
+} RD_OPT;
 
 typedef struct VP9_COMP {
   QUANTS quants;
   MACROBLOCK mb;
   VP9_COMMON common;
-  VP9_CONFIG oxcf;
+  VP9EncoderConfig oxcf;
   struct lookahead_ctx    *lookahead;
   struct lookahead_entry  *source;
 #if CONFIG_MULTIPLE_ARF
@@ -344,31 +378,7 @@ typedef struct VP9_COMP {
   // Ambient reconstruction err target for force key frames
   int ambient_err;
 
-  // Thresh_mult is used to set a threshold for the rd score. A higher value
-  // means that we will accept the best mode so far more often. This number
-  // is used in combination with the current block size, and thresh_freq_fact
-  // to pick a threshold.
-  int rd_thresh_mult[MAX_MODES];
-  int rd_thresh_mult_sub8x8[MAX_REFS];
-
-  int rd_threshes[MAX_SEGMENTS][BLOCK_SIZES][MAX_MODES];
-  int rd_thresh_freq_fact[BLOCK_SIZES][MAX_MODES];
-  int rd_thresh_sub8x8[MAX_SEGMENTS][BLOCK_SIZES][MAX_REFS];
-  int rd_thresh_freq_sub8x8[BLOCK_SIZES][MAX_REFS];
-
-  int64_t rd_comp_pred_diff[REFERENCE_MODES];
-  int64_t rd_prediction_type_threshes[MAX_REF_FRAMES][REFERENCE_MODES];
-  int64_t rd_tx_select_diff[TX_MODES];
-  // FIXME(rbultje) can this overflow?
-  int rd_tx_select_threshes[MAX_REF_FRAMES][TX_MODES];
-
-  int64_t rd_filter_diff[SWITCHABLE_FILTER_CONTEXTS];
-  int64_t rd_filter_threshes[MAX_REF_FRAMES][SWITCHABLE_FILTER_CONTEXTS];
-  int64_t rd_filter_cache[SWITCHABLE_FILTER_CONTEXTS];
-  int64_t mask_filter_rd;
-
-  int RDMULT;
-  int RDDIV;
+  RD_OPT rd;
 
   CODING_CONTEXT coding_context;
 
@@ -377,14 +387,11 @@ typedef struct VP9_COMP {
   int active_arnr_frames;           // <= cpi->oxcf.arnr_max_frames
   int active_arnr_strength;         // <= cpi->oxcf.arnr_max_strength
 
-  double output_framerate;
   int64_t last_time_stamp_seen;
   int64_t last_end_time_stamp_seen;
   int64_t first_time_stamp_ever;
 
   RATE_CONTROL rc;
-
-  int cq_target_quality;
 
   vp9_coeff_count coef_counts[TX_SIZES][PLANE_TYPES];
   vp9_coeff_probs_model frame_coef_probs[TX_SIZES][PLANE_TYPES];
@@ -395,10 +402,6 @@ typedef struct VP9_COMP {
   int mbgraph_n_frames;             // number of frames filled in the above
   int static_mb_pct;                // % forced skip mbs by segmentation
 
-  // for real time encoding
-  int speed;
-
-  int cpu_used;
   int pass;
 
   int ref_frame_flags;
@@ -479,11 +482,6 @@ typedef struct VP9_COMP {
 #endif
   int b_calculate_psnr;
 
-  // Per MB activity measurement
-  unsigned int activity_avg;
-  unsigned int *mb_activity_map;
-  int *mb_norm_activity_map;
-
   int droppable;
 
   int dummy_packing;    /* flag to indicate if packing is dummy */
@@ -496,6 +494,10 @@ typedef struct VP9_COMP {
   int use_svc;
 
   SVC svc;
+
+  int use_large_partition_rate;
+
+  int frame_flags;
 
 #if CONFIG_MULTIPLE_ARF
   // ARF tracking variables.
@@ -518,10 +520,10 @@ typedef struct VP9_COMP {
 
 void vp9_initialize_enc();
 
-struct VP9_COMP *vp9_create_compressor(VP9_CONFIG *oxcf);
+struct VP9_COMP *vp9_create_compressor(VP9EncoderConfig *oxcf);
 void vp9_remove_compressor(VP9_COMP *cpi);
 
-void vp9_change_config(VP9_COMP *cpi, const VP9_CONFIG *oxcf);
+void vp9_change_config(VP9_COMP *cpi, const VP9EncoderConfig *oxcf);
 
   // receive a frames worth of data. caller can assume that a copy of this
   // frame is made and not just a copy of the pointer..
@@ -590,7 +592,7 @@ static INLINE YV12_BUFFER_CONFIG *get_ref_frame_buffer(
 
 // Intra only frames, golden frames (except alt ref overlays) and
 // alt ref frames tend to be coded at a higher than ambient quality
-static INLINE int vp9_frame_is_boosted(const VP9_COMP *cpi) {
+static INLINE int frame_is_boosted(const VP9_COMP *cpi) {
   return frame_is_intra_only(&cpi->common) || cpi->refresh_alt_ref_frame ||
          (cpi->refresh_golden_frame && !cpi->rc.is_src_frame_alt_ref);
 }
@@ -613,9 +615,11 @@ void vp9_scale_references(VP9_COMP *cpi);
 
 void vp9_update_reference_frames(VP9_COMP *cpi);
 
-extern const int q_trans[];
-
 int64_t vp9_rescale(int64_t val, int64_t num, int denom);
+
+YV12_BUFFER_CONFIG *vp9_scale_if_required(VP9_COMMON *cm,
+                                          YV12_BUFFER_CONFIG *unscaled,
+                                          YV12_BUFFER_CONFIG *scaled);
 
 static INLINE void set_ref_ptrs(VP9_COMMON *cm, MACROBLOCKD *xd,
                                 MV_REFERENCE_FRAME ref0,
@@ -630,4 +634,4 @@ static INLINE void set_ref_ptrs(VP9_COMMON *cm, MACROBLOCKD *xd,
 }  // extern "C"
 #endif
 
-#endif  // VP9_ENCODER_VP9_ONYX_INT_H_
+#endif  // VP9_ENCODER_VP9_ENCODER_H_

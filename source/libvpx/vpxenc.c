@@ -123,55 +123,6 @@ int fourcc_is_ivf(const char detect[4]) {
   return 0;
 }
 
-#if CONFIG_WEBM_IO
-/* Murmur hash derived from public domain reference implementation at
- *   http:// sites.google.com/site/murmurhash/
- */
-static unsigned int murmur(const void *key, int len, unsigned int seed) {
-  const unsigned int m = 0x5bd1e995;
-  const int r = 24;
-
-  unsigned int h = seed ^ len;
-
-  const unsigned char *data = (const unsigned char *)key;
-
-  while (len >= 4) {
-    unsigned int k;
-
-    k  = (unsigned int)data[0];
-    k |= (unsigned int)data[1] << 8;
-    k |= (unsigned int)data[2] << 16;
-    k |= (unsigned int)data[3] << 24;
-
-    k *= m;
-    k ^= k >> r;
-    k *= m;
-
-    h *= m;
-    h ^= k;
-
-    data += 4;
-    len -= 4;
-  }
-
-  switch (len) {
-    case 3:
-      h ^= data[2] << 16;
-    case 2:
-      h ^= data[1] << 8;
-    case 1:
-      h ^= data[0];
-      h *= m;
-  };
-
-  h ^= h >> 13;
-  h *= m;
-  h ^= h >> 15;
-
-  return h;
-}
-#endif  // CONFIG_WEBM_IO
-
 static const arg_def_t debugmode = ARG_DEF("D", "debug", 0,
                                            "Debug mode (makes output deterministic)");
 static const arg_def_t outputfile = ARG_DEF("o", "output", 1,
@@ -284,6 +235,10 @@ static const arg_def_t dropframe_thresh   = ARG_DEF(NULL, "drop-frame", 1,
                                                     "Temporal resampling threshold (buf %)");
 static const arg_def_t resize_allowed     = ARG_DEF(NULL, "resize-allowed", 1,
                                                     "Spatial resampling enabled (bool)");
+static const arg_def_t resize_width       = ARG_DEF(NULL, "resize-width", 1,
+                                                    "Width of encoded frame");
+static const arg_def_t resize_height      = ARG_DEF(NULL, "resize-height", 1,
+                                                    "Height of encoded frame");
 static const arg_def_t resize_up_thresh   = ARG_DEF(NULL, "resize-up", 1,
                                                     "Upscale threshold (buf %)");
 static const arg_def_t resize_down_thresh = ARG_DEF(NULL, "resize-down", 1,
@@ -314,10 +269,10 @@ static const arg_def_t buf_initial_sz     = ARG_DEF(NULL, "buf-initial-sz", 1,
 static const arg_def_t buf_optimal_sz     = ARG_DEF(NULL, "buf-optimal-sz", 1,
                                                     "Client optimal buffer size (ms)");
 static const arg_def_t *rc_args[] = {
-  &dropframe_thresh, &resize_allowed, &resize_up_thresh, &resize_down_thresh,
-  &end_usage, &target_bitrate, &min_quantizer, &max_quantizer,
-  &undershoot_pct, &overshoot_pct, &buf_sz, &buf_initial_sz, &buf_optimal_sz,
-  NULL
+  &dropframe_thresh, &resize_allowed, &resize_width, &resize_height,
+  &resize_up_thresh, &resize_down_thresh, &end_usage, &target_bitrate,
+  &min_quantizer, &max_quantizer, &undershoot_pct, &overshoot_pct, &buf_sz,
+  &buf_initial_sz, &buf_optimal_sz, NULL
 };
 
 
@@ -400,15 +355,15 @@ static const arg_def_t frame_parallel_decoding = ARG_DEF(
     NULL, "frame-parallel", 1, "Enable frame parallel decodability features");
 static const arg_def_t aq_mode = ARG_DEF(
     NULL, "aq-mode", 1,
-    "Adaptive q mode (0: off (by default), 1: variance 2: complexity, "
+    "Adaptive quantization mode (0: off (default), 1: variance 2: complexity, "
     "3: cyclic refresh)");
 static const arg_def_t frame_periodic_boost = ARG_DEF(
     NULL, "frame_boost", 1,
-    "Enable frame periodic boost (0: off (by default), 1: on)");
+    "Enable frame periodic boost (0: off (default), 1: on)");
 
 static const arg_def_t *vp9_args[] = {
   &cpu_used, &auto_altref, &noise_sens, &sharpness, &static_thresh,
-  &tile_cols, &tile_rows, &arnr_maxframes, &arnr_strength, &arnr_type,
+  &tile_cols, &tile_rows, &arnr_maxframes, &arnr_strength,
   &tune_ssim, &cq_level, &max_intra_rate_pct, &lossless,
   &frame_parallel_decoding, &aq_mode, &frame_periodic_boost,
   NULL
@@ -417,7 +372,7 @@ static const int vp9_arg_ctrl_map[] = {
   VP8E_SET_CPUUSED, VP8E_SET_ENABLEAUTOALTREF,
   VP8E_SET_NOISE_SENSITIVITY, VP8E_SET_SHARPNESS, VP8E_SET_STATIC_THRESHOLD,
   VP9E_SET_TILE_COLUMNS, VP9E_SET_TILE_ROWS,
-  VP8E_SET_ARNR_MAXFRAMES, VP8E_SET_ARNR_STRENGTH, VP8E_SET_ARNR_TYPE,
+  VP8E_SET_ARNR_MAXFRAMES, VP8E_SET_ARNR_STRENGTH,
   VP8E_SET_TUNING, VP8E_SET_CQ_LEVEL, VP8E_SET_MAX_INTRA_BITRATE_PCT,
   VP9E_SET_LOSSLESS, VP9E_SET_FRAME_PARALLEL_DECODING, VP9E_SET_AQ_MODE,
   VP9E_SET_FRAME_PERIODIC_BOOST,
@@ -619,7 +574,6 @@ struct stream_state {
   FILE                     *file;
   struct rate_hist         *rate_hist;
   struct EbmlGlobal         ebml;
-  uint32_t                  hash;
   uint64_t                  psnr_sse_total;
   uint64_t                  psnr_samples_total;
   double                    psnr_totals[4];
@@ -841,7 +795,9 @@ static struct stream_state *new_stream(struct VpxEncoderConfig *global,
     stream->config.stereo_fmt = STEREO_FORMAT_MONO;
     stream->config.write_webm = 1;
 #if CONFIG_WEBM_IO
-    stream->ebml.last_pts_ms = -1;
+    stream->ebml.last_pts_ns = -1;
+    stream->ebml.writer = NULL;
+    stream->ebml.segment = NULL;
 #endif
 
     /* Allows removal of the application version from the EBML tags */
@@ -931,6 +887,10 @@ static int parse_stream_params(struct VpxEncoderConfig *global,
       config->cfg.rc_dropframe_thresh = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &resize_allowed, argi)) {
       config->cfg.rc_resize_allowed = arg_parse_uint(&arg);
+    } else if (arg_match(&arg, &resize_width, argi)) {
+      config->cfg.rc_scaled_width = arg_parse_uint(&arg);
+    } else if (arg_match(&arg, &resize_height, argi)) {
+      config->cfg.rc_scaled_height = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &resize_up_thresh, argi)) {
       config->cfg.rc_resize_up_thresh = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &resize_down_thresh, argi)) {
@@ -1115,6 +1075,8 @@ static void show_stream_config(struct stream_state *stream,
   SHOW(g_lag_in_frames);
   SHOW(rc_dropframe_thresh);
   SHOW(rc_resize_allowed);
+  SHOW(rc_scaled_width);
+  SHOW(rc_scaled_height);
   SHOW(rc_resize_up_thresh);
   SHOW(rc_resize_down_thresh);
   SHOW(rc_end_usage);
@@ -1176,9 +1138,7 @@ static void close_output_file(struct stream_state *stream,
 
 #if CONFIG_WEBM_IO
   if (stream->config.write_webm) {
-    write_webm_file_footer(&stream->ebml, stream->hash);
-    free(stream->ebml.cue_list);
-    stream->ebml.cue_list = NULL;
+    write_webm_file_footer(&stream->ebml);
   }
 #endif
 
@@ -1321,7 +1281,7 @@ static void get_cx_data(struct stream_state *stream,
   *got_data = 0;
   while ((pkt = vpx_codec_get_cx_data(&stream->encoder, &iter))) {
     static size_t fsize = 0;
-    static off_t ivf_header_pos = 0;
+    static int64_t ivf_header_pos = 0;
 
     switch (pkt->kind) {
       case VPX_CODEC_CX_FRAME_PKT:
@@ -1334,12 +1294,6 @@ static void get_cx_data(struct stream_state *stream,
         update_rate_histogram(stream->rate_hist, cfg, pkt);
 #if CONFIG_WEBM_IO
         if (stream->config.write_webm) {
-          /* Update the hash */
-          if (!stream->ebml.debug)
-            stream->hash = murmur(pkt->data.frame.buf,
-                                  (int)pkt->data.frame.sz,
-                                  stream->hash);
-
           write_webm_block(&stream->ebml, cfg, pkt);
         }
 #endif
@@ -1353,7 +1307,7 @@ static void get_cx_data(struct stream_state *stream,
             fsize += pkt->data.frame.sz;
 
             if (!(pkt->data.frame.flags & VPX_FRAME_IS_FRAGMENT)) {
-              off_t currpos = ftello(stream->file);
+              const int64_t currpos = ftello(stream->file);
               fseeko(stream->file, ivf_header_pos, SEEK_SET);
               ivf_write_frame_size(stream->file, fsize);
               fseeko(stream->file, currpos, SEEK_SET);
@@ -1580,7 +1534,7 @@ int main(int argc, const char **argv_) {
     int frames_in = 0, seen_frames = 0;
     int64_t estimated_time_left = -1;
     int64_t average_rate = -1;
-    off_t lagged_count = 0;
+    int64_t lagged_count = 0;
 
     open_input_file(&input);
 
@@ -1713,15 +1667,15 @@ int main(int argc, const char **argv_) {
           int64_t rate;
 
           if (global.limit) {
-            off_t frame_in_lagged = (seen_frames - lagged_count) * 1000;
+            const int64_t frame_in_lagged = (seen_frames - lagged_count) * 1000;
 
             rate = cx_time ? frame_in_lagged * (int64_t)1000000 / cx_time : 0;
             remaining = 1000 * (global.limit - global.skip_frames
                                 - seen_frames + lagged_count);
           } else {
-            off_t input_pos = ftello(input.file);
-            off_t input_pos_lagged = input_pos - lagged_count;
-            int64_t limit = input.length;
+            const int64_t input_pos = ftello(input.file);
+            const int64_t input_pos_lagged = input_pos - lagged_count;
+            const int64_t limit = input.length;
 
             rate = cx_time ? input_pos_lagged * (int64_t)1000000 / cx_time : 0;
             remaining = limit - input_pos + lagged_count;

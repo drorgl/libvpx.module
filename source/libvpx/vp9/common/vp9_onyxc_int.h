@@ -120,7 +120,6 @@ typedef struct VP9Common {
   // frame header, 3 reset all contexts.
   int reset_frame_context;
 
-  int frame_flags;
   // MBs, mb_rows/cols is in 16-pixel units; mi_rows/cols is in
   // MODE_INFO (8-pixel) units.
   int MBs;
@@ -179,7 +178,10 @@ typedef struct VP9Common {
   FRAME_COUNTS counts;
 
   unsigned int current_video_frame;
-  int version;
+  BITSTREAM_PROFILE profile;
+
+  // BITS_8 in versions 0 and 1, BITS_10 or BITS_12 in version 2
+  BIT_DEPTH bit_depth;
 
 #if CONFIG_VP9_POSTPROC
   struct postproc_state  postproc_state;

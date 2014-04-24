@@ -86,7 +86,8 @@ int file_is_webm(struct WebmInputContext *webm_ctx,
   } else if (codec_id == NESTEGG_CODEC_VP9) {
     vpx_ctx->fourcc = VP9_FOURCC;
   } else {
-    fatal("Not VPx video, quitting.\n");
+    fprintf(stderr, "Not VPx video, quitting.\n");
+    goto fail;
   }
 
   webm_ctx->video_track = i;
@@ -114,6 +115,7 @@ int webm_read_frame(struct WebmInputContext *webm_ctx,
                     size_t *buffer_size) {
   if (webm_ctx->chunk >= webm_ctx->chunks) {
     uint32_t track;
+    int status;
 
     do {
       /* End of this packet, get another. */
@@ -122,21 +124,23 @@ int webm_read_frame(struct WebmInputContext *webm_ctx,
         webm_ctx->pkt = NULL;
       }
 
-      if (nestegg_read_packet(webm_ctx->nestegg_ctx, &webm_ctx->pkt) <= 0 ||
-          nestegg_packet_track(webm_ctx->pkt, &track)) {
-        return 1;
-      }
+      status = nestegg_read_packet(webm_ctx->nestegg_ctx, &webm_ctx->pkt);
+      if (status <= 0)
+        return status ? status : 1;
+
+      if (nestegg_packet_track(webm_ctx->pkt, &track))
+        return -1;
     } while (track != webm_ctx->video_track);
 
     if (nestegg_packet_count(webm_ctx->pkt, &webm_ctx->chunks))
-      return 1;
+      return -1;
 
     webm_ctx->chunk = 0;
   }
 
   if (nestegg_packet_data(webm_ctx->pkt, webm_ctx->chunk,
                           buffer, bytes_in_buffer)) {
-    return 1;
+    return -1;
   }
 
   webm_ctx->chunk++;
@@ -150,7 +154,7 @@ int webm_guess_framerate(struct WebmInputContext *webm_ctx,
 
   /* Check to see if we can seek before we parse any data. */
   if (nestegg_track_seek(webm_ctx->nestegg_ctx, webm_ctx->video_track, 0)) {
-    warn("Failed to guess framerate (no Cues), set to 30fps.\n");
+    fprintf(stderr, "Failed to guess framerate (no Cues), set to 30fps.\n");
     vpx_ctx->framerate.numerator = 30;
     vpx_ctx->framerate.denominator  = 1;
     return 0;
