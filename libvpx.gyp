@@ -459,7 +459,7 @@
           ['android_webview_build==1', {
             # pass the empty string for 3rd and 4th arguments of
             # intermediates-dir-for macro.
-            'lib_intermediate_name' : '<(android_src)/$(call intermediates-dir-for, STATIC_LIBRARIES, libvpx_asm_offsets_vp8,,, $(GYP_VAR_PREFIX))/libvpx_asm_offsets_vp8.a',
+            'lib_intermediate_name' : '$(realpath $(call intermediates-dir-for, STATIC_LIBRARIES, libvpx_asm_offsets_vp8,,, $(GYP_VAR_PREFIX)))/libvpx_asm_offsets_vp8.a',
           }],
           ['(target_arch=="arm" or target_arch=="armv7")', {
             'output_format': 'gas',
