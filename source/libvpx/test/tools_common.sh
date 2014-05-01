@@ -9,7 +9,16 @@
 ##  be found in the AUTHORS file in the root of the source tree.
 ##
 ##  This file contains shell code shared by test scripts for libvpx tools.
+
+# Use $VPX_TEST_TOOLS_COMMON_SH as a pseudo include guard.
+if [ -z "${VPX_TEST_TOOLS_COMMON_SH}" ]; then
+VPX_TEST_TOOLS_COMMON_SH=included
+
 set -e
+
+vlog() {
+  [ "${VPX_TEST_VERBOSE_OUTPUT}" = "yes" ] && echo "$@"
+}
 
 # Sets $VPX_TOOL_TEST to the name specified by positional parameter one.
 test_begin() {
@@ -308,9 +317,9 @@ run_tests() {
   # Run tests.
   for test in ${tests_to_run}; do
     test_begin "${test}"
-    [ "${VPX_TEST_VERBOSE_OUTPUT}" = "yes" ] && echo "  RUN  ${test}"
+    vlog "  RUN  ${test}"
     "${test}"
-    [ "${VPX_TEST_VERBOSE_OUTPUT}" = "yes" ] && echo "  PASS ${test}"
+    vlog "  PASS ${test}"
     test_end "${test}"
   done
 
@@ -416,17 +425,26 @@ if [ "$(is_windows_target)" = "yes" ]; then
   VPX_TEST_EXE_SUFFIX=".exe"
 fi
 
+# Variables shared by tests.
+VP8_IVF_FILE="${LIBVPX_TEST_DATA_PATH}/vp80-00-comprehensive-001.ivf"
+VP9_IVF_FILE="${LIBVPX_TEST_DATA_PATH}/vp90-2-09-subpixel-00.ivf"
+
+VP9_WEBM_FILE="${LIBVPX_TEST_DATA_PATH}/vp90-2-00-quantizer-00.webm"
+
+YUV_RAW_INPUT="${LIBVPX_TEST_DATA_PATH}/hantro_collage_w352h288.yuv"
+YUV_RAW_INPUT_WIDTH=352
+YUV_RAW_INPUT_HEIGHT=288
+
+# Setup a trap function to clean up after tests complete.
 trap cleanup EXIT
 
-if [ "${VPX_TEST_VERBOSE_OUTPUT}" = "yes" ]; then
-cat << EOF
-$(basename "${0%.*}") test configuration:
+vlog "$(basename "${0%.*}") test configuration:
   LIBVPX_BIN_PATH=${LIBVPX_BIN_PATH}
   LIBVPX_CONFIG_PATH=${LIBVPX_CONFIG_PATH}
   LIBVPX_TEST_DATA_PATH=${LIBVPX_TEST_DATA_PATH}
   VPX_TEST_OUTPUT_DIR=${VPX_TEST_OUTPUT_DIR}
   VPX_TEST_VERBOSE_OUTPUT=${VPX_TEST_VERBOSE_OUTPUT}
   VPX_TEST_FILTER=${VPX_TEST_FILTER}
-  VPX_TEST_RUN_DISABLED_TESTS=${VPX_TEST_RUN_DISABLED_TESTS}
-EOF
-fi
+  VPX_TEST_RUN_DISABLED_TESTS=${VPX_TEST_RUN_DISABLED_TESTS}"
+
+fi  # End $VPX_TEST_TOOLS_COMMON_SH pseudo include guard.

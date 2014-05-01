@@ -49,7 +49,6 @@
     '<(libvpx_source)/vp8/common/arm/neon/mbloopfilter_neon.asm',
     '<(libvpx_source)/vp8/common/arm/neon/sad16_neon.asm',
     '<(libvpx_source)/vp8/common/arm/neon/sad8_neon.asm',
-    '<(libvpx_source)/vp8/common/arm/neon/save_reg_neon.asm',
     '<(libvpx_source)/vp8/common/arm/neon/shortidct4x4llm_neon.asm',
     '<(libvpx_source)/vp8/common/arm/neon/sixtappredict16x16_neon.asm',
     '<(libvpx_source)/vp8/common/arm/neon/sixtappredict4x4_neon.asm',

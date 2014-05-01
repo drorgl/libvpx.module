@@ -418,7 +418,7 @@ static void first_pass_motion_search(VP9_COMP *cpi, MACROBLOCK *x,
   v_fn_ptr.vf = get_block_variance_fn(bsize);
 
   // Center the initial step/diamond search on best mv.
-  tmp_err = cpi->diamond_search_sad(x, &ref_mv_full, &tmp_mv,
+  tmp_err = cpi->diamond_search_sad(x, &cpi->ss_cfg, &ref_mv_full, &tmp_mv,
                                     step_param,
                                     x->sadperbit16, &num00, &v_fn_ptr, ref_mv);
   if (tmp_err < INT_MAX)
@@ -441,7 +441,7 @@ static void first_pass_motion_search(VP9_COMP *cpi, MACROBLOCK *x,
     if (num00) {
       --num00;
     } else {
-      tmp_err = cpi->diamond_search_sad(x, &ref_mv_full, &tmp_mv,
+      tmp_err = cpi->diamond_search_sad(x, &cpi->ss_cfg, &ref_mv_full, &tmp_mv,
                                         step_param + n, x->sadperbit16,
                                         &num00, &v_fn_ptr, ref_mv);
       if (tmp_err < INT_MAX)
@@ -604,7 +604,13 @@ void vp9_first_pass(VP9_COMP *cpi) {
       }
 
       // Do intra 16x16 prediction.
-      this_error = vp9_encode_intra(x, use_dc_pred);
+      x->skip_encode = 0;
+      xd->mi[0]->mbmi.mode = DC_PRED;
+      xd->mi[0]->mbmi.tx_size = use_dc_pred ?
+         (bsize >= BLOCK_16X16 ? TX_16X16 : TX_8X8) : TX_4X4;
+      vp9_encode_intra_block_plane(x, bsize, 0);
+      this_error = vp9_get_mb_ss(x->plane[0].src_diff);
+
       if (cpi->oxcf.aq_mode == VARIANCE_AQ) {
         vp9_clear_system_state();
         this_error = (int)(this_error * error_weight);
@@ -920,12 +926,19 @@ static int get_twopass_worst_quality(const VP9_COMP *cpi,
     const int target_norm_bits_per_mb = ((uint64_t)section_target_bandwidth <<
                                             BPER_MB_NORMBITS) / num_mbs;
     int q;
+    int is_svc_upper_layer = 0;
+    if (cpi->use_svc && cpi->svc.number_temporal_layers == 1 &&
+        cpi->svc.spatial_layer_id > 0) {
+      is_svc_upper_layer = 1;
+    }
 
     // Try and pick a max Q that will be high enough to encode the
     // content at the given rate.
     for (q = rc->best_quality; q < rc->worst_quality; ++q) {
-      const double factor = calc_correction_factor(err_per_mb, ERR_DIVISOR,
-                                                   0.5, 0.90, q);
+      const double factor =
+          calc_correction_factor(err_per_mb, ERR_DIVISOR,
+                                 is_svc_upper_layer ? 0.8 : 0.5,
+                                 is_svc_upper_layer ? 1.0 : 0.90, q);
       const int bits_per_mb = vp9_rc_bits_per_mb(INTER_FRAME, q,
                                                  factor * speed_term);
       if (bits_per_mb <= target_norm_bits_per_mb)
@@ -1936,7 +1949,7 @@ static void find_next_key_frame(VP9_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   // Find the next keyframe.
   i = 0;
   while (twopass->stats_in < twopass->stats_in_end &&
-         rc->frames_to_key < cpi->key_frame_frequency) {
+         rc->frames_to_key < cpi->oxcf.key_freq) {
     // Accumulate kf group error.
     kf_group_err += calculate_modified_err(cpi, this_frame);
 
@@ -1966,7 +1979,7 @@ static void find_next_key_frame(VP9_COMP *cpi, FIRSTPASS_STATS *this_frame) {
 
       // Special check for transition or high motion followed by a
       // static scene.
-      if (detect_transition_to_still(twopass, i, cpi->key_frame_frequency - i,
+      if (detect_transition_to_still(twopass, i, cpi->oxcf.key_freq - i,
                                      loop_decay_rate, decay_accumulator))
         break;
 
@@ -1974,8 +1987,8 @@ static void find_next_key_frame(VP9_COMP *cpi, FIRSTPASS_STATS *this_frame) {
       ++rc->frames_to_key;
 
       // If we don't have a real key frame within the next two
-      // key_frame_frequency intervals then break out of the loop.
-      if (rc->frames_to_key >= 2 * (int)cpi->key_frame_frequency)
+      // key_freq intervals then break out of the loop.
+      if (rc->frames_to_key >= 2 * cpi->oxcf.key_freq)
         break;
     } else {
       ++rc->frames_to_key;
@@ -1988,7 +2001,7 @@ static void find_next_key_frame(VP9_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   // This code centers the extra kf if the actual natural interval
   // is between 1x and 2x.
   if (cpi->oxcf.auto_key &&
-      rc->frames_to_key > (int)cpi->key_frame_frequency) {
+      rc->frames_to_key > cpi->oxcf.key_freq) {
     FIRSTPASS_STATS tmp_frame = first_frame;
 
     rc->frames_to_key /= 2;
@@ -2005,7 +2018,7 @@ static void find_next_key_frame(VP9_COMP *cpi, FIRSTPASS_STATS *this_frame) {
     }
     rc->next_key_frame_forced = 1;
   } else if (twopass->stats_in == twopass->stats_in_end ||
-             rc->frames_to_key >= cpi->key_frame_frequency) {
+             rc->frames_to_key >= cpi->oxcf.key_freq) {
     rc->next_key_frame_forced = 1;
   } else {
     rc->next_key_frame_forced = 0;
