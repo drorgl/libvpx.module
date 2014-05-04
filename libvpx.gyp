@@ -53,10 +53,8 @@
     'variables': {
       'conditions': [
         ['OS=="win" and buildtype=="Official"', {
-          # Setting the optimizations to 'speed' or to 'max' results in a lot of
-          # unresolved symbols. The only supported mode is 'size' (see
-          # crbug.com/352476).
-          'optimize' :'size',
+          # Do not set to 'size', as it results in an error on win64. 
+          'optimize' :'speed',
         }],
       ],
     },
