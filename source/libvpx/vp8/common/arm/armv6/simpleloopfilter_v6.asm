@@ -253,25 +253,25 @@ pstep       RN  r1
     subs        r11, r11, #1
 
     ; load soure data to r7, r8, r9, r10
-    ldrhne      r3, [src, #-2]
+    ldrneh      r3, [src, #-2]
     pld         [src, #23]                  ; preload for next block
-    ldrhne      r4, [src], pstep
+    ldrneh      r4, [src], pstep
 
-    ldrhne      r5, [src, #-2]
+    ldrneh      r5, [src, #-2]
     pld         [src, #23]
-    ldrhne      r6, [src], pstep
+    ldrneh      r6, [src], pstep
 
     pkhbt       r7, r3, r4, lsl #16
 
-    ldrhne      r3, [src, #-2]
+    ldrneh      r3, [src, #-2]
     pld         [src, #23]
-    ldrhne      r4, [src], pstep
+    ldrneh      r4, [src], pstep
 
     pkhbt       r8, r5, r6, lsl #16
 
-    ldrhne      r5, [src, #-2]
+    ldrneh      r5, [src, #-2]
     pld         [src, #23]
-    ldrhne      r6, [src], pstep
+    ldrneh      r6, [src], pstep
 
     bne         simple_vnext8
 

@@ -85,11 +85,11 @@
 
     strh    r8, [r1], r3                    ; result is transposed and stored
 
-    ldrbne  r6, [r0]                        ; load source data
+    ldrneb  r6, [r0]                        ; load source data
     strh    r9, [r1], r3
 
-    ldrbne  r7, [r0, #1]
-    ldrbne  r8, [r0, #2]
+    ldrneb  r7, [r0, #1]
+    ldrneb  r8, [r0, #2]
 
     bne     bil_width_loop_1st_v6
 
@@ -194,7 +194,7 @@
     ldrne   r6, [r0]                        ; load data
     strb    r9, [r1], r2
     ldrne   r8, [r0, #4]
-    ldrhne  r10, [r0, #8]
+    ldrneh  r10, [r0, #8]
 
     bne     bil_width_loop_2nd
 

@@ -66,8 +66,8 @@ copy_mem8x8_1_loop
 
     add     r2, r2, r3
 
-    ldrbne  r4, [r0]
-    ldrbne  r5, [r0, #1]
+    ldrneb  r4, [r0]
+    ldrneb  r5, [r0, #1]
 
     bne     copy_mem8x8_1_loop
 
