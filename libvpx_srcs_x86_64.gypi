@@ -323,7 +323,6 @@
     '<(libvpx_source)/vp9/encoder/x86/vp9_sad_ssse3.asm',
     '<(libvpx_source)/vp9/encoder/x86/vp9_ssim_opt.asm',
     '<(libvpx_source)/vp9/encoder/x86/vp9_subpel_variance.asm',
-    '<(libvpx_source)/vp9/encoder/x86/vp9_subpel_variance_impl_sse2.asm',
     '<(libvpx_source)/vp9/encoder/x86/vp9_subtract_sse2.asm',
     '<(libvpx_source)/vp9/encoder/x86/vp9_temporal_filter_apply_sse2.asm',
     '<(libvpx_source)/vp9/encoder/x86/vp9_variance_impl_mmx.asm',

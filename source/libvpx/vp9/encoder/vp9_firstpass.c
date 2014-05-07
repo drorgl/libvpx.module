@@ -61,7 +61,7 @@
 #define MIN_GF_INTERVAL             4
 #endif
 
-#define LONG_TERM_VBR_CORRECTION
+// #define LONG_TERM_VBR_CORRECTION
 
 static void swap_yv12(YV12_BUFFER_CONFIG *a, YV12_BUFFER_CONFIG *b) {
   YV12_BUFFER_CONFIG temp = *a;
@@ -1740,8 +1740,8 @@ static void define_gf_group(VP9_COMP *cpi, FIRSTPASS_STATS *this_frame) {
       twopass->gf_bits = gf_bits;
     }
     if (i == 1 ||
-        (!rc->source_alt_ref_pending &&
-         cpi->common.frame_type != KEY_FRAME)) {
+        (!rc->source_alt_ref_pending && cpi->common.frame_type != KEY_FRAME &&
+         !vp9_is_upper_layer_key_frame(cpi))) {
       // Calculate the per frame bit target for this frame.
       vp9_rc_set_frame_target(cpi, gf_bits);
     }
@@ -2303,11 +2303,16 @@ void vp9_rc_get_second_pass_params(VP9_COMP *cpi) {
     this_frame_copy = this_frame;
     find_next_key_frame(cpi, &this_frame_copy);
     // Don't place key frame in any enhancement layers in spatial svc
-    if (cpi->use_svc && cpi->svc.number_temporal_layers == 1 &&
-        cpi->svc.spatial_layer_id > 0) {
-      cm->frame_type = INTER_FRAME;
+    if (cpi->use_svc && cpi->svc.number_temporal_layers == 1) {
+      lc->is_key_frame = 1;
+      if (cpi->svc.spatial_layer_id > 0) {
+        cm->frame_type = INTER_FRAME;
+      }
     }
   } else {
+    if (cpi->use_svc && cpi->svc.number_temporal_layers == 1) {
+      lc->is_key_frame = 0;
+    }
     cm->frame_type = INTER_FRAME;
   }
 
@@ -2397,17 +2402,19 @@ void vp9_twopass_postencode_update(VP9_COMP *cpi) {
   const double progress =
       (double)(cpi->twopass.stats_in - cpi->twopass.stats_in_start) /
               (cpi->twopass.stats_in_end - cpi->twopass.stats_in_start);
-  const int bits_used = progress * cpi->rc.this_frame_target +
-                        (1.0 - progress) * cpi->rc.projected_frame_size;
+  const int bits_used = progress * rc->this_frame_target +
+                        (1.0 - progress) * rc->projected_frame_size;
 #endif
 
   cpi->twopass.bits_left -= bits_used;
   cpi->twopass.bits_left = MAX(cpi->twopass.bits_left, 0);
 
 #ifdef LONG_TERM_VBR_CORRECTION
-  if (cpi->common.frame_type != KEY_FRAME) {
+  if (cpi->common.frame_type != KEY_FRAME &&
+      !vp9_is_upper_layer_key_frame(cpi)) {
 #else
-  if (cpi->common.frame_type == KEY_FRAME) {
+  if (cpi->common.frame_type == KEY_FRAME ||
+      vp9_is_upper_layer_key_frame(cpi)) {
     // For key frames kf_group_bits already had the target bits subtracted out.
     // So now update to the correct value based on the actual bits used.
     cpi->twopass.kf_group_bits += cpi->rc.this_frame_target - bits_used;

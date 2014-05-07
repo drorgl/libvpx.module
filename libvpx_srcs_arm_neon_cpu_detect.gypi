@@ -35,7 +35,6 @@
     '<(libvpx_source)/vp8/common/arm/loopfilter_arm.c',
     '<(libvpx_source)/vp8/common/arm/neon/buildintrapredictorsmby_neon.asm',
     '<(libvpx_source)/vp8/common/arm/neon/idct_dequant_0_2x_neon.asm',
-    '<(libvpx_source)/vp8/common/arm/neon/idct_dequant_full_2x_neon.asm',
     '<(libvpx_source)/vp8/common/arm/neon/iwalsh_neon.asm',
     '<(libvpx_source)/vp8/common/arm/neon/loopfilter_neon.asm',
     '<(libvpx_source)/vp8/common/arm/neon/loopfiltersimplehorizontaledge_neon.asm',
