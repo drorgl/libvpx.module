@@ -248,14 +248,6 @@ unsigned int vp9_get_mb_ss_mmx(const int16_t *);
 unsigned int vp9_get_mb_ss_sse2(const int16_t *);
 RTCD_EXTERN unsigned int (*vp9_get_mb_ss)(const int16_t *);
 
-void vp9_get_sse_sum_16x16_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, int *sum);
-void vp9_get16x16var_sse2(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, int *sum);
-RTCD_EXTERN void (*vp9_get_sse_sum_16x16)(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, int *sum);
-
-void vp9_get_sse_sum_8x8_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, int *sum);
-void vp9_get8x8var_sse2(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, int *sum);
-RTCD_EXTERN void (*vp9_get_sse_sum_8x8)(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, int *sum);
-
 void vp9_h_predictor_16x16_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
 #define vp9_h_predictor_16x16 vp9_h_predictor_16x16_c
 
@@ -792,10 +784,6 @@ static void setup_rtcd_internal(void)
     vp9_get_mb_ss = vp9_get_mb_ss_c;
     if (flags & HAS_MMX) vp9_get_mb_ss = vp9_get_mb_ss_mmx;
     if (flags & HAS_SSE2) vp9_get_mb_ss = vp9_get_mb_ss_sse2;
-    vp9_get_sse_sum_16x16 = vp9_get_sse_sum_16x16_c;
-    if (flags & HAS_SSE2) vp9_get_sse_sum_16x16 = vp9_get16x16var_sse2;
-    vp9_get_sse_sum_8x8 = vp9_get_sse_sum_8x8_c;
-    if (flags & HAS_SSE2) vp9_get_sse_sum_8x8 = vp9_get8x8var_sse2;
     vp9_idct16x16_10_add = vp9_idct16x16_10_add_c;
     if (flags & HAS_SSE2) vp9_idct16x16_10_add = vp9_idct16x16_10_add_sse2;
     vp9_idct16x16_1_add = vp9_idct16x16_1_add_c;

@@ -45,11 +45,9 @@
 // Tables relating active max Q to active min Q
 static int kf_low_motion_minq[QINDEX_RANGE];
 static int kf_high_motion_minq[QINDEX_RANGE];
-static int gf_low_motion_minq[QINDEX_RANGE];
-static int gf_high_motion_minq[QINDEX_RANGE];
+static int arfgf_low_motion_minq[QINDEX_RANGE];
+static int arfgf_high_motion_minq[QINDEX_RANGE];
 static int inter_minq[QINDEX_RANGE];
-static int afq_low_motion_minq[QINDEX_RANGE];
-static int afq_high_motion_minq[QINDEX_RANGE];
 static int gf_high = 2000;
 static int gf_low = 400;
 static int kf_high = 5000;
@@ -81,13 +79,11 @@ void vp9_rc_init_minq_luts() {
 
   for (i = 0; i < QINDEX_RANGE; i++) {
     const double maxq = vp9_convert_qindex_to_q(i);
-    kf_low_motion_minq[i] = get_minq_index(maxq, 0.000001, -0.0004, 0.15);
+    kf_low_motion_minq[i] = get_minq_index(maxq, 0.000001, -0.0004, 0.125);
     kf_high_motion_minq[i] = get_minq_index(maxq, 0.000002, -0.0012, 0.50);
-    gf_low_motion_minq[i] = get_minq_index(maxq, 0.0000015, -0.0009, 0.32);
-    gf_high_motion_minq[i] = get_minq_index(maxq, 0.0000021, -0.00125, 0.50);
-    afq_low_motion_minq[i] = get_minq_index(maxq, 0.0000015, -0.0009, 0.33);
-    afq_high_motion_minq[i] = get_minq_index(maxq, 0.0000021, -0.00125, 0.55);
-    inter_minq[i] = get_minq_index(maxq, 0.00000271, -0.00113, 0.75);
+    arfgf_low_motion_minq[i] = get_minq_index(maxq, 0.0000015, -0.0009, 0.30);
+    arfgf_high_motion_minq[i] = get_minq_index(maxq, 0.0000021, -0.00125, 0.50);
+    inter_minq[i] = get_minq_index(maxq, 0.00000271, -0.00113, 0.90);
   }
 }
 
@@ -548,7 +544,7 @@ static int rc_pick_q_and_bounds_one_pass_cbr(const VP9_COMP *cpi,
     }
     active_best_quality = get_active_quality(
         q, rc->gfu_boost, gf_low, gf_high,
-        gf_low_motion_minq, gf_high_motion_minq);
+        arfgf_low_motion_minq, arfgf_high_motion_minq);
   } else {
     // Use the lower of active_worst_quality and recent/average Q.
     if (cm->current_video_frame > 1) {
@@ -676,17 +672,12 @@ static int rc_pick_q_and_bounds_one_pass_vbr(const VP9_COMP *cpi,
     if (oxcf->rc_mode == RC_MODE_CONSTRAINED_QUALITY) {
       if (q < cq_level)
         q = cq_level;
-      if (rc->frames_since_key > 1) {
-        active_best_quality = get_active_quality(q, rc->gfu_boost,
-                                                 gf_low, gf_high,
-                                                 afq_low_motion_minq,
-                                                 afq_high_motion_minq);
-      } else {
-        active_best_quality = get_active_quality(q, rc->gfu_boost,
-                                                 gf_low, gf_high,
-                                                 gf_low_motion_minq,
-                                                 gf_high_motion_minq);
-      }
+
+      active_best_quality = get_active_quality(q, rc->gfu_boost,
+                                               gf_low, gf_high,
+                                               arfgf_low_motion_minq,
+                                               arfgf_high_motion_minq);
+
       // Constrained quality use slightly lower active best.
       active_best_quality = active_best_quality * 15 / 16;
 
@@ -694,20 +685,14 @@ static int rc_pick_q_and_bounds_one_pass_vbr(const VP9_COMP *cpi,
       if (!cpi->refresh_alt_ref_frame) {
         active_best_quality = cq_level;
       } else {
-        if (rc->frames_since_key > 1) {
-          active_best_quality = get_active_quality(
-              q, rc->gfu_boost, gf_low, gf_high,
-              afq_low_motion_minq, afq_high_motion_minq);
-        } else {
-          active_best_quality = get_active_quality(
-              q, rc->gfu_boost, gf_low, gf_high,
-              gf_low_motion_minq, gf_high_motion_minq);
-        }
+        active_best_quality = get_active_quality(
+            q, rc->gfu_boost, gf_low, gf_high,
+            arfgf_low_motion_minq, arfgf_high_motion_minq);
       }
     } else {
       active_best_quality = get_active_quality(
           q, rc->gfu_boost, gf_low, gf_high,
-          gf_low_motion_minq, gf_high_motion_minq);
+          arfgf_low_motion_minq, arfgf_high_motion_minq);
     }
   } else {
     if (oxcf->rc_mode == RC_MODE_CONSTANT_QUALITY) {
@@ -867,17 +852,12 @@ static int rc_pick_q_and_bounds_two_pass(const VP9_COMP *cpi,
     if (oxcf->rc_mode == RC_MODE_CONSTRAINED_QUALITY) {
       if (q < cq_level)
         q = cq_level;
-      if (rc->frames_since_key > 1) {
-        active_best_quality = get_active_quality(q, rc->gfu_boost,
-                                                 gf_low, gf_high,
-                                                 afq_low_motion_minq,
-                                                 afq_high_motion_minq);
-      } else {
-        active_best_quality = get_active_quality(q, rc->gfu_boost,
-                                                 gf_low, gf_high,
-                                                 gf_low_motion_minq,
-                                                 gf_high_motion_minq);
-      }
+
+      active_best_quality = get_active_quality(q, rc->gfu_boost,
+                                               gf_low, gf_high,
+                                               arfgf_low_motion_minq,
+                                               arfgf_high_motion_minq);
+
       // Constrained quality use slightly lower active best.
       active_best_quality = active_best_quality * 15 / 16;
 
@@ -885,20 +865,14 @@ static int rc_pick_q_and_bounds_two_pass(const VP9_COMP *cpi,
       if (!cpi->refresh_alt_ref_frame) {
         active_best_quality = cq_level;
       } else {
-        if (rc->frames_since_key > 1) {
-          active_best_quality = get_active_quality(
-              q, rc->gfu_boost, gf_low, gf_high,
-              afq_low_motion_minq, afq_high_motion_minq);
-        } else {
-          active_best_quality = get_active_quality(
-              q, rc->gfu_boost, gf_low, gf_high,
-              gf_low_motion_minq, gf_high_motion_minq);
-        }
+        active_best_quality = get_active_quality(
+            q, rc->gfu_boost, gf_low, gf_high,
+            arfgf_low_motion_minq, arfgf_high_motion_minq);
       }
     } else {
       active_best_quality = get_active_quality(
           q, rc->gfu_boost, gf_low, gf_high,
-          gf_low_motion_minq, gf_high_motion_minq);
+          arfgf_low_motion_minq, arfgf_high_motion_minq);
     }
   } else {
     if (oxcf->rc_mode == RC_MODE_CONSTANT_QUALITY) {
@@ -1308,11 +1282,26 @@ void vp9_rc_get_svc_params(VP9_COMP *cpi) {
           cpi->oxcf.key_freq == 0))) {
     cm->frame_type = KEY_FRAME;
     rc->source_alt_ref_active = 0;
+
+    if (cpi->use_svc && cpi->svc.number_temporal_layers == 1) {
+      cpi->svc.layer_context[cpi->svc.spatial_layer_id].is_key_frame = 1;
+    }
+
     if (cpi->pass == 0 && cpi->oxcf.rc_mode == RC_MODE_CBR) {
       target = calc_iframe_target_size_one_pass_cbr(cpi);
     }
   } else {
     cm->frame_type = INTER_FRAME;
+
+    if (cpi->use_svc && cpi->svc.number_temporal_layers == 1) {
+      LAYER_CONTEXT *lc = &cpi->svc.layer_context[cpi->svc.spatial_layer_id];
+      if (cpi->svc.spatial_layer_id == 0) {
+        lc->is_key_frame = 0;
+      } else {
+        lc->is_key_frame = cpi->svc.layer_context[0].is_key_frame;
+      }
+    }
+
     if (cpi->pass == 0 && cpi->oxcf.rc_mode == RC_MODE_CBR) {
       target = calc_pframe_target_size_one_pass_cbr(cpi);
     }
