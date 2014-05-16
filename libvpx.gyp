@@ -29,7 +29,7 @@
             ],
           }],
           ['target_arch=="arm64"', {
-            'target_arch_full': 'generic',
+            'target_arch_full': 'arm64',
           }],
         ],
       }],
@@ -132,7 +132,7 @@
               ],
             }],
             ['target_arch=="arm64"', {
-              'includes': [ 'libvpx_srcs_generic.gypi', ],
+              'includes': [ 'libvpx_srcs_arm64.gypi', ],
             }],
             ['target_arch=="x64"', {
               'conditions': [

@@ -33,7 +33,6 @@
     '<(libvpx_source)/vp8/common/arm/dequantize_arm.c',
     '<(libvpx_source)/vp8/common/arm/filter_arm.c',
     '<(libvpx_source)/vp8/common/arm/loopfilter_arm.c',
-    '<(libvpx_source)/vp8/common/arm/reconintra_arm.c',
     '<(libvpx_source)/vp8/common/arm/variance_arm.c',
     '<(libvpx_source)/vp8/common/blockd.c',
     '<(libvpx_source)/vp8/common/blockd.h',

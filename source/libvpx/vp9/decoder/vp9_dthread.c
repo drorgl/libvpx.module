@@ -132,15 +132,15 @@ static int loop_filter_row_worker(void *arg1, void *arg2) {
 
 // VP9 decoder: Implement multi-threaded loopfilter that uses the tile
 // threads.
-void vp9_loop_filter_frame_mt(VP9Decoder *pbi,
-                              VP9_COMMON *cm,
+void vp9_loop_filter_frame_mt(YV12_BUFFER_CONFIG *frame,
+                              VP9Decoder *pbi, VP9_COMMON *cm,
                               int frame_filter_level,
-                              int y_only, int partial_frame) {
+                              int y_only) {
   VP9LfSync *const lf_sync = &pbi->lf_row_sync;
   // Number of superblock rows and cols
   const int sb_rows = mi_cols_aligned_to_sb(cm->mi_rows) >> MI_BLOCK_SIZE_LOG2;
   const int tile_cols = 1 << cm->log2_tile_cols;
-  const int num_workers = MIN(pbi->oxcf.max_threads & ~1, tile_cols);
+  const int num_workers = MIN(pbi->max_threads & ~1, tile_cols);
   int i;
 
   // Allocate memory used in thread synchronization.
@@ -184,7 +184,7 @@ void vp9_loop_filter_frame_mt(VP9Decoder *pbi,
     worker->hook = (VP9WorkerHook)loop_filter_row_worker;
 
     // Loopfilter data
-    lf_data->frame_buffer = get_frame_new_buffer(cm);
+    lf_data->frame_buffer = frame;
     lf_data->cm = cm;
     lf_data->xd = pbi->mb;
     lf_data->start = i;
