@@ -7,7 +7,7 @@ Security Critical: yes
 
 Date: Friday May 16 2014
 Branch: master
-Commit: c511d79c081ef8ca2bb2f9a096f893370cb9187b
+Commit: ed83c2a94c8664a6d2e54b21771c0560b2bb90ac
 
 Description:
 Contains the sources used to compile libvpx binaries used by Google Chrome and

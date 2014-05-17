@@ -34,7 +34,6 @@
     '<(libvpx_source)/vp8/common/arm/filter_arm.c',
     '<(libvpx_source)/vp8/common/arm/loopfilter_arm.c',
     '<(libvpx_source)/vp8/common/arm/neon/bilinearpredict_neon.c',
-    '<(libvpx_source)/vp8/common/arm/neon/buildintrapredictorsmby_neon.asm',
     '<(libvpx_source)/vp8/common/arm/neon/copymem_neon.c',
     '<(libvpx_source)/vp8/common/arm/neon/dc_only_idct_add_neon.c',
     '<(libvpx_source)/vp8/common/arm/neon/dequant_idct_neon.c',
