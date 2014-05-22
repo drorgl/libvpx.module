@@ -2551,11 +2551,7 @@
 					source/libvpx,
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 6.0;
-				OTHER_CFLAGS = (
-					"-I/Users/morosev/Repos/webrtc_ios_svn/trunk/third_party/libvpx/source/config/linux/arm-neon",
-					"-I/Users/morosev/Repos/webrtc_ios_svn/trunk/third_party/libvpx/source/config",
-					"-I$(SHARED_INTERMEDIATE_DIR)/third_party/libvpx",
-				);
+				OTHER_CFLAGS = "-I$(SHARED_INTERMEDIATE_DIR)/third_party/libvpx";
 				PRODUCT_NAME = vpx;
 				RUN_CLANG_STATIC_ANALYZER = NO;
 				USE_HEADERMAP = NO;
@@ -2626,11 +2622,7 @@
 					source/libvpx,
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 6.0;
-				OTHER_CFLAGS = (
-					"-I/Users/morosev/Repos/webrtc_ios_svn/trunk/third_party/libvpx/source/config/linux/arm-neon",
-					"-I/Users/morosev/Repos/webrtc_ios_svn/trunk/third_party/libvpx/source/config",
-					"-I$(SHARED_INTERMEDIATE_DIR)/third_party/libvpx",
-				);
+				OTHER_CFLAGS = "-I$(SHARED_INTERMEDIATE_DIR)/third_party/libvpx";
 				PRODUCT_NAME = vpx;
 				RUN_CLANG_STATIC_ANALYZER = NO;
 				USE_HEADERMAP = NO;
@@ -2854,11 +2846,7 @@
 					source/libvpx,
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 6.0;
-				OTHER_CFLAGS = (
-					"-I/Users/morosev/Repos/webrtc_ios_svn/trunk/third_party/libvpx/source/config/linux/arm-neon",
-					"-I/Users/morosev/Repos/webrtc_ios_svn/trunk/third_party/libvpx/source/config",
-					"-I$(SHARED_INTERMEDIATE_DIR)/third_party/libvpx",
-				);
+				OTHER_CFLAGS = "-I$(SHARED_INTERMEDIATE_DIR)/third_party/libvpx";
 				OTHER_CFLAGS_excluded = "-fstack-protector-all";
 				PRODUCT_NAME = vpx;
 				RUN_CLANG_STATIC_ANALYZER = NO;
