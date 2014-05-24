@@ -39,6 +39,7 @@
       },
       'action_name': 'unpack_lib_posix',
       'inputs': [
+        'unpack_lib_posix.sh',
         '<(unpack_lib)',
       ],
       'outputs': [

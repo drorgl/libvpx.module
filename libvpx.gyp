@@ -486,7 +486,10 @@
           'actions': [
             {
               'action_name': 'copy_enc_offsets_obj',
-              'inputs': [ '<(ninja_obj_dir)/encoder/libvpx_asm_offsets_vp8.vp8_asm_enc_offsets.obj' ],
+              'inputs': [
+                'copy_obj.py', 
+                '<(ninja_obj_dir)/encoder/libvpx_asm_offsets_vp8.vp8_asm_enc_offsets.obj',
+              ],
               'outputs': [ '<(INTERMEDIATE_DIR)/vp8_asm_enc_offsets.obj' ],
               'action': [
                 'python',
@@ -556,7 +559,10 @@
           'actions': [
             {
               'action_name': 'copy_enc_offsets_obj',
-              'inputs': [ '<(ninja_obj_dir)/encoder/libvpx_asm_offsets_vpx_scale.vpx_scale_asm_offsets.obj' ],
+              'inputs': [
+                'copy_obj.py', 
+                '<(ninja_obj_dir)/encoder/libvpx_asm_offsets_vpx_scale.vpx_scale_asm_offsets.obj',
+              ],
               'outputs': [ '<(INTERMEDIATE_DIR)/vpx_scale_asm_offsets.obj' ],
               'action': [
                 'python',
