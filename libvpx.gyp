@@ -468,7 +468,12 @@
             # pass the empty string for 3rd and 4th arguments of
             # intermediates-dir-for macro.
             'unpack_lib' : '$(abspath $(call intermediates-dir-for,STATIC_LIBRARIES,libvpx_asm_offsets_vp8,,,$(gyp_var_prefix)))/libvpx_asm_offsets_vp8.a',
-          }, {
+          },],
+          ['OS=="mac"', {
+            'unpack_lib' : '<(PRODUCT_DIR)/libvpx_asm_offsets_vp8.a',
+          },],
+          ['(OS!="win" and OS!="mac")', {
+            # <(LIB_DIR) not defined for "win".
             'unpack_lib' : '<(LIB_DIR)/third_party/libvpx/libvpx_asm_offsets_vp8.a',
           },],
           ['(target_arch=="arm" or target_arch=="armv7")', {
@@ -487,7 +492,7 @@
             {
               'action_name': 'copy_enc_offsets_obj',
               'inputs': [
-                'copy_obj.py', 
+                'copy_obj.py',
                 '<(ninja_obj_dir)/encoder/libvpx_asm_offsets_vp8.vp8_asm_enc_offsets.obj',
               ],
               'outputs': [ '<(INTERMEDIATE_DIR)/vp8_asm_enc_offsets.obj' ],
@@ -541,7 +546,8 @@
             # pass the empty string for 3rd and 4th arguments of
             # intermediates-dir-for macro.
             'unpack_lib' : '$(abspath $(call intermediates-dir-for,STATIC_LIBRARIES,libvpx_asm_offsets_vpx_scale,,,$(gyp_var_prefix)))/libvpx_asm_offsets_vpx_scale.a',
-          }, {
+          },],
+          ['OS!="win"', {
             'unpack_lib' : '<(LIB_DIR)/third_party/libvpx/libvpx_asm_offsets_vpx_scale.a',
           },],
           ['(target_arch=="arm" or target_arch=="armv7")', {
@@ -560,7 +566,7 @@
             {
               'action_name': 'copy_enc_offsets_obj',
               'inputs': [
-                'copy_obj.py', 
+                'copy_obj.py',
                 '<(ninja_obj_dir)/encoder/libvpx_asm_offsets_vpx_scale.vpx_scale_asm_offsets.obj',
               ],
               'outputs': [ '<(INTERMEDIATE_DIR)/vpx_scale_asm_offsets.obj' ],
