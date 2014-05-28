@@ -546,10 +546,14 @@
             # pass the empty string for 3rd and 4th arguments of
             # intermediates-dir-for macro.
             'unpack_lib' : '$(abspath $(call intermediates-dir-for,STATIC_LIBRARIES,libvpx_asm_offsets_vpx_scale,,,$(gyp_var_prefix)))/libvpx_asm_offsets_vpx_scale.a',
-          },],
-          ['OS!="win"', {
+          }],
+          ['OS=="mac" or OS=="ios"', {
+            'unpack_lib' : '<(PRODUCT_DIR)/libvpx_asm_offsets_vpx_scale.a',
+          }],
+          ['OS!="win" and OS!="mac" and OS!="ios"', {
+            # <(LIB_DIR) not defined for "win".
             'unpack_lib' : '<(LIB_DIR)/third_party/libvpx/libvpx_asm_offsets_vpx_scale.a',
-          },],
+          }],
           ['(target_arch=="arm" or target_arch=="armv7")', {
             'output_format': 'gas',
           }, {
