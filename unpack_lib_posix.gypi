@@ -31,7 +31,7 @@
     {
       'variables' : {
         'ar_cmd': [],
-	      'conditions': [
+        'conditions': [
           ['android_webview_build==1', {
             'ar_cmd': ['-r', '$(abspath $($(gyp_var_prefix)TARGET_AR))'],
           }],

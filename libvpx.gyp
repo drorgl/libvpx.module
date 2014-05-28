@@ -395,6 +395,7 @@
       'type': 'static_library',
       'android_unmangled_name': 1,
       'hard_dependency': 1,
+      'product_dir': '<(shared_generated_dir)',
       'include_dirs': [
         'source/config/<(OS_CATEGORY)/<(target_arch_full)',
         'source/config',
@@ -429,6 +430,7 @@
       'type': 'static_library',
       'android_unmangled_name': 1,
       'hard_dependency': 1,
+      'product_dir': '<(shared_generated_dir)',
       'include_dirs': [
         'source/config/<(OS_CATEGORY)/<(target_arch_full)',
         'source/config',
@@ -460,7 +462,7 @@
         'libvpx_obj_int_extract#host',
       ],
       'variables' : {
-        'unpack_lib' : '',
+        'unpack_lib' : '<(shared_generated_dir)/libvpx_asm_offsets_vp8.a',
         'output_format':'',
         'output_dir': '<(shared_generated_dir)',
         'conditions' : [
@@ -468,13 +470,6 @@
             # pass the empty string for 3rd and 4th arguments of
             # intermediates-dir-for macro.
             'unpack_lib' : '$(abspath $(call intermediates-dir-for,STATIC_LIBRARIES,libvpx_asm_offsets_vp8,,,$(gyp_var_prefix)))/libvpx_asm_offsets_vp8.a',
-          }],
-          ['OS=="mac" or OS=="ios"', {
-            'unpack_lib' : '<(PRODUCT_DIR)/libvpx_asm_offsets_vp8.a',
-          }],
-          ['OS!="win" and OS!="mac" and OS!="ios"', {
-            # <(LIB_DIR) not defined for "win".
-            'unpack_lib' : '<(LIB_DIR)/third_party/libvpx/libvpx_asm_offsets_vp8.a',
           }],
           ['(target_arch=="arm" or target_arch=="armv7")', {
             'output_format': 'gas',
@@ -538,7 +533,7 @@
         'libvpx_obj_int_extract#host',
       ],
       'variables' : {
-        'unpack_lib' : '',
+        'unpack_lib' : '<(shared_generated_dir)/libvpx_asm_offsets_vpx_scale.a',
         'output_format':'',
         'output_dir': '<(shared_generated_dir)',
         'conditions' : [
@@ -546,13 +541,6 @@
             # pass the empty string for 3rd and 4th arguments of
             # intermediates-dir-for macro.
             'unpack_lib' : '$(abspath $(call intermediates-dir-for,STATIC_LIBRARIES,libvpx_asm_offsets_vpx_scale,,,$(gyp_var_prefix)))/libvpx_asm_offsets_vpx_scale.a',
-          }],
-          ['OS=="mac" or OS=="ios"', {
-            'unpack_lib' : '<(PRODUCT_DIR)/libvpx_asm_offsets_vpx_scale.a',
-          }],
-          ['OS!="win" and OS!="mac" and OS!="ios"', {
-            # <(LIB_DIR) not defined for "win".
-            'unpack_lib' : '<(LIB_DIR)/third_party/libvpx/libvpx_asm_offsets_vpx_scale.a',
           }],
           ['(target_arch=="arm" or target_arch=="armv7")', {
             'output_format': 'gas',
