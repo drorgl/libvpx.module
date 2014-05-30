@@ -396,6 +396,11 @@
       'android_unmangled_name': 1,
       'hard_dependency': 1,
       'product_dir': '<(shared_generated_dir)',
+      'conditions' : [
+        ['android_webview_build==1', {
+          'product_dir' : '',
+        }],
+      ],
       'include_dirs': [
         'source/config/<(OS_CATEGORY)/<(target_arch_full)',
         'source/config',
@@ -431,6 +436,11 @@
       'android_unmangled_name': 1,
       'hard_dependency': 1,
       'product_dir': '<(shared_generated_dir)',
+      'conditions' : [
+        ['android_webview_build==1', {
+          'product_dir' : '',
+        }],
+      ],
       'include_dirs': [
         'source/config/<(OS_CATEGORY)/<(target_arch_full)',
         'source/config',
