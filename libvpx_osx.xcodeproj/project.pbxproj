@@ -396,6 +396,62 @@
 			remoteGlobalIDString = B432567EF619DCB01547DFA2;
 			remoteInfo = libvpx_intrinsics_mmx;
 		};
+		E236EBE7192FE0D8009FC1E6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CCDCC86048B4D3E0CB1FB246 /* yasm_osx.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 1CD3105B0CC6850951ACB14C;
+			remoteInfo = yasm;
+		};
+		E236EBE9192FE0D8009FC1E6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CCDCC86048B4D3E0CB1FB246 /* yasm_osx.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 409E99D7C44751B2B82733E8;
+			remoteInfo = genperf_libs;
+		};
+		E236EBEB192FE0D8009FC1E6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CCDCC86048B4D3E0CB1FB246 /* yasm_osx.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = D0186125C0873AF692668790;
+			remoteInfo = genstring;
+		};
+		E236EBED192FE0D8009FC1E6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CCDCC86048B4D3E0CB1FB246 /* yasm_osx.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 9E47A5965BD0DCF7DB42B8FC;
+			remoteInfo = genperf;
+		};
+		E236EBEF192FE0D8009FC1E6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CCDCC86048B4D3E0CB1FB246 /* yasm_osx.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 9DB2EAA39B6DA45B284428F1;
+			remoteInfo = genmacro;
+		};
+		E236EBF1192FE0D8009FC1E6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CCDCC86048B4D3E0CB1FB246 /* yasm_osx.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = D3015B86C15A40ADD0F626C4;
+			remoteInfo = genversion;
+		};
+		E236EBF3192FE0D8009FC1E6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CCDCC86048B4D3E0CB1FB246 /* yasm_osx.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 0AA7991A727CAC4C9F3E7817;
+			remoteInfo = re2c;
+		};
+		E236EBF5192FE0D8009FC1E6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CCDCC86048B4D3E0CB1FB246 /* yasm_osx.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 4BE5C0FF1EE57DDD7E318BD3;
+			remoteInfo = genmodule;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
@@ -1659,6 +1715,21 @@
 			path = common;
 			sourceTree = "<group>";
 		};
+		E236EBD9192FE0D8009FC1E6 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				E236EBE8192FE0D8009FC1E6 /* yasm */,
+				E236EBEA192FE0D8009FC1E6 /* libgenperf_libs.a */,
+				E236EBEC192FE0D8009FC1E6 /* genstring */,
+				E236EBEE192FE0D8009FC1E6 /* genperf */,
+				E236EBF0192FE0D8009FC1E6 /* genmacro */,
+				E236EBF2192FE0D8009FC1E6 /* genversion */,
+				E236EBF4192FE0D8009FC1E6 /* re2c */,
+				E236EBF6192FE0D8009FC1E6 /* genmodule */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 		F3896A303FBDCB5EC1E8933F /* third_party/x86inc */ = {
 			isa = PBXGroup;
 			children = (
@@ -1834,6 +1905,12 @@
 			);
 			mainGroup = 69D81634BD40D73F96D2DEE1;
 			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = E236EBD9192FE0D8009FC1E6 /* Products */;
+					ProjectRef = CCDCC86048B4D3E0CB1FB246 /* yasm_osx.xcodeproj */;
+				},
+			);
 			projectRoot = "";
 			targets = (
 				9A1090C66B6349F31686A64B /* All */,
@@ -1850,6 +1927,65 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXReferenceProxy section */
+		E236EBE8192FE0D8009FC1E6 /* yasm */ = {
+			isa = PBXReferenceProxy;
+			fileType = "compiled.mach-o.executable";
+			path = yasm;
+			remoteRef = E236EBE7192FE0D8009FC1E6 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		E236EBEA192FE0D8009FC1E6 /* libgenperf_libs.a */ = {
+			isa = PBXReferenceProxy;
+			fileType = archive.ar;
+			path = libgenperf_libs.a;
+			remoteRef = E236EBE9192FE0D8009FC1E6 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		E236EBEC192FE0D8009FC1E6 /* genstring */ = {
+			isa = PBXReferenceProxy;
+			fileType = "compiled.mach-o.executable";
+			path = genstring;
+			remoteRef = E236EBEB192FE0D8009FC1E6 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		E236EBEE192FE0D8009FC1E6 /* genperf */ = {
+			isa = PBXReferenceProxy;
+			fileType = "compiled.mach-o.executable";
+			path = genperf;
+			remoteRef = E236EBED192FE0D8009FC1E6 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		E236EBF0192FE0D8009FC1E6 /* genmacro */ = {
+			isa = PBXReferenceProxy;
+			fileType = "compiled.mach-o.executable";
+			path = genmacro;
+			remoteRef = E236EBEF192FE0D8009FC1E6 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		E236EBF2192FE0D8009FC1E6 /* genversion */ = {
+			isa = PBXReferenceProxy;
+			fileType = "compiled.mach-o.executable";
+			path = genversion;
+			remoteRef = E236EBF1192FE0D8009FC1E6 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		E236EBF4192FE0D8009FC1E6 /* re2c */ = {
+			isa = PBXReferenceProxy;
+			fileType = "compiled.mach-o.executable";
+			path = re2c;
+			remoteRef = E236EBF3192FE0D8009FC1E6 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		E236EBF6192FE0D8009FC1E6 /* genmodule */ = {
+			isa = PBXReferenceProxy;
+			fileType = "compiled.mach-o.executable";
+			path = genmodule;
+			remoteRef = E236EBF5192FE0D8009FC1E6 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+/* End PBXReferenceProxy section */
 
 /* Begin PBXShellScriptBuildPhase section */
 		335ACD100464B516E3000EB8 /* Postbuild "Change Mach-O Flags" */ = {
