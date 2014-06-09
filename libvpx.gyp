@@ -395,7 +395,6 @@
       'type': 'static_library',
       'android_unmangled_name': 1,
       'hard_dependency': 1,
-      'product_dir': '<(shared_generated_dir)',
       'include_dirs': [
         'source/config/<(OS_CATEGORY)/<(target_arch_full)',
         'source/config',
@@ -417,8 +416,8 @@
             },
           },
         }],
-        ['android_webview_build==1', {
-          'product_dir' : '',
+        ['android_webview_build==0', {
+          'product_dir': '<(shared_generated_dir)',
         }],
       ],
       'sources': [
@@ -433,7 +432,6 @@
       'type': 'static_library',
       'android_unmangled_name': 1,
       'hard_dependency': 1,
-      'product_dir': '<(shared_generated_dir)',
       'include_dirs': [
         'source/config/<(OS_CATEGORY)/<(target_arch_full)',
         'source/config',
@@ -447,8 +445,8 @@
           },
           'ldflags!': [ '-faddress-sanitizer', '-fsanitize=address', ],
         }],
-        ['android_webview_build==1', {
-          'product_dir' : '',
+        ['android_webview_build==0', {
+          'product_dir': '<(shared_generated_dir)',
         }],
       ],
       'sources': [
