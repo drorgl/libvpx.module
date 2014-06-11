@@ -28,9 +28,6 @@
               }],
             ],
           }],
-          ['OS=="android" and target_arch=="arm64"', {
-            'target_arch_full': 'generic',
-          }],
         ],
       }],
 
@@ -133,9 +130,6 @@
                 # Add avx2 support when VS2013 lands: crbug.com/328981
                 #'libvpx_intrinsics_avx2',
               ],
-            }],
-            ['target_arch=="arm64"', {
-              'includes': [ 'libvpx_srcs_generic.gypi', ],
             }],
             ['target_arch=="x64"', {
               'conditions': [
@@ -375,13 +369,7 @@
       ],
       'sources': [
         '<(libvpx_source)/build/make/obj_int_extract.c',
-      ],
-      'conditions': [
-        ['android_webview_build==1', {
-          'defines': [ 'FORCE_PARSE_ELF' ],
-          'include_dirs': [ 'include' ],
-        }],
-      ],
+      ]
     },
     {
       # A library that contains assembly offsets needed.
@@ -459,9 +447,7 @@
         'output_dir': '<(shared_generated_dir)',
         'conditions' : [
           ['android_webview_build==1', {
-            # pass the empty string for 3rd and 4th arguments of
-            # intermediates-dir-for macro.
-            'lib_intermediate_name' : '<(android_src)/$(call intermediates-dir-for, STATIC_LIBRARIES, libvpx_asm_offsets_vp8,,, $(GYP_VAR_PREFIX))/libvpx_asm_offsets_vp8.a',
+            'lib_intermediate_name' : '<(android_src)/$(call intermediates-dir-for, STATIC_LIBRARIES, libvpx_asm_offsets_vp8)/libvpx_asm_offsets_vp8.a',
           }],
           ['(target_arch=="arm" or target_arch=="armv7")', {
             'output_format': 'gas',
@@ -532,9 +518,7 @@
         'output_dir': '<(shared_generated_dir)',
         'conditions' : [
           ['android_webview_build==1', {
-            # pass the empty string for 3rd and 4th arguments of
-            # intermediates-dir-for macro.
-            'lib_intermediate_name' : '<(android_src)/$(call intermediates-dir-for, STATIC_LIBRARIES, libvpx_asm_offsets_vpx_scale,,, $(GYP_VAR_PREFIX))/libvpx_asm_offsets_vpx_scale.a',
+            'lib_intermediate_name' : '<(android_src)/$(call intermediates-dir-for, STATIC_LIBRARIES, libvpx_asm_offsets_vpx_scale)/libvpx_asm_offsets_vpx_scale.a',
           }],
           ['(target_arch=="arm" or target_arch=="armv7")', {
             'output_format': 'gas',

@@ -1,5 +1,6 @@
 *.S
 *.a
+*.asm.s
 *.d
 *.gcda
 *.gcno

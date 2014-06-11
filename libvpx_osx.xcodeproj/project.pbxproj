@@ -14,6 +14,7 @@
 				FEABBB4162820A674A95A8D1 /* Rule "assemble" */,
 			);
 			dependencies = (
+				E2ED29DC1948EEB800107C59 /* PBXTargetDependency */,
 				483DCBB6A3BF13267711372F /* PBXTargetDependency */,
 			);
 			name = "libvpx Support";
@@ -451,6 +452,13 @@
 			proxyType = 2;
 			remoteGlobalIDString = 4BE5C0FF1EE57DDD7E318BD3;
 			remoteInfo = genmodule;
+		};
+		E2ED29DB1948EEB800107C59 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CCDCC86048B4D3E0CB1FB246 /* yasm_osx.xcodeproj */;
+			proxyType = 1;
+			remoteGlobalIDString = B406ECD0D032D755C9AA7638;
+			remoteInfo = All;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -2353,6 +2361,11 @@
 			isa = PBXTargetDependency;
 			target = A2541FD3D623DFB263479BA2 /* gen_asm_offsets_vpx_scale */;
 			targetProxy = B02E770E89330A234C129853 /* PBXContainerItemProxy */;
+		};
+		E2ED29DC1948EEB800107C59 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = All;
+			targetProxy = E2ED29DB1948EEB800107C59 /* PBXContainerItemProxy */;
 		};
 		EABFDA368C6E434A424D96E9 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
