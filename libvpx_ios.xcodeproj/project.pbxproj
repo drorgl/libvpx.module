@@ -419,8 +419,8 @@
 		E2923A9618F6C95F0026B5AB /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = "$(SHARED_INTERMEDIATE_DIR)/third_party/libvpx";
-			dstSubfolderSpec = 0;
+			dstPath = "../DerivedSources/$(CONFIGURATION)/third_party/libvpx";
+			dstSubfolderSpec = 16;
 			files = (
 				E2923A9718F6C9800026B5AB /* ads2gas_apple.pl in CopyFiles */,
 				E2923A9818F6C9800026B5AB /* thumb.pm in CopyFiles */,
@@ -2651,6 +2651,7 @@
 				INTERMEDIATE_DIR = "$(PROJECT_DERIVED_FILE_DIR)/$(CONFIGURATION)";
 				SDKROOT = iphoneos;
 				SHARED_INTERMEDIATE_DIR = "$(SYMROOT)/DerivedSources/$(CONFIGURATION)";
+				SKIP_INSTALL = YES;
 				SYMROOT = ../../xcodebuild;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -3577,6 +3578,7 @@
 				INTERMEDIATE_DIR = "$(PROJECT_DERIVED_FILE_DIR)/$(CONFIGURATION)";
 				SDKROOT = iphoneos;
 				SHARED_INTERMEDIATE_DIR = "$(SYMROOT)/DerivedSources/$(CONFIGURATION)";
+				SKIP_INSTALL = YES;
 				SYMROOT = ../../xcodebuild;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -3588,6 +3590,7 @@
 				INTERMEDIATE_DIR = "$(PROJECT_DERIVED_FILE_DIR)/$(CONFIGURATION)";
 				SDKROOT = iphoneos;
 				SHARED_INTERMEDIATE_DIR = "$(SYMROOT)/DerivedSources/$(CONFIGURATION)";
+				SKIP_INSTALL = YES;
 				SYMROOT = ../../xcodebuild;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
