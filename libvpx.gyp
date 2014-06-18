@@ -468,7 +468,7 @@
       'variables' : {
         # unpack_lib is used as an input to unpack_lib_posix.gypi.
         'unpack_lib' : '<(shared_generated_dir)/libvpx_asm_offsets_vp8.a',
-        'unpack_lib_search_path' : '<(unpack_lib)',
+        'unpack_lib_search_path' : '<(shared_generated_dir)/libvpx_asm_offsets_vp8.a',
         'output_format':'',
         'output_dir': '<(shared_generated_dir)',
         'conditions' : [
@@ -476,7 +476,7 @@
             # pass the empty string for 3rd and 4th arguments of
             # intermediates-dir-for macro.
             'unpack_lib' : '$(call intermediates-dir-for,STATIC_LIBRARIES,libvpx_asm_offsets_vp8,,,$(gyp_var_prefix))/libvpx_asm_offsets_vp8.a',
-            'unpack_lib_search_path' : '$(abspath <(unpack_lib))',
+            'unpack_lib_search_path' : '$(abspath $(call intermediates-dir-for,STATIC_LIBRARIES,libvpx_asm_offsets_vp8,,,$(gyp_var_prefix)))/libvpx_asm_offsets_vp8.a',
           }],
           ['(target_arch=="arm" or target_arch=="armv7")', {
             'output_format': 'gas',
@@ -541,7 +541,7 @@
       ],
       'variables' : {
         'unpack_lib' : '<(shared_generated_dir)/libvpx_asm_offsets_vpx_scale.a',
-        'unpack_lib_search_path' : '<(unpack_lib)',
+        'unpack_lib_search_path' : '<(shared_generated_dir)/libvpx_asm_offsets_vpx_scale.a',
         'output_format':'',
         'output_dir': '<(shared_generated_dir)',
         'conditions' : [
@@ -549,7 +549,7 @@
             # pass the empty string for 3rd and 4th arguments of
             # intermediates-dir-for macro.
             'unpack_lib' : '$(call intermediates-dir-for,STATIC_LIBRARIES,libvpx_asm_offsets_vpx_scale,,,$(gyp_var_prefix))/libvpx_asm_offsets_vpx_scale.a',
-            'unpack_lib_search_path' : '$(abspath <(unpack_lib))',
+            'unpack_lib_search_path' : '$(abspath $(call intermediates-dir-for,STATIC_LIBRARIES,libvpx_asm_offsets_vp8,,,$(gyp_var_prefix)))/libvpx_asm_offsets_vp8.a',
           }],
           ['(target_arch=="arm" or target_arch=="armv7")', {
             'output_format': 'gas',
