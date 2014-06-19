@@ -5,13 +5,6 @@ EOF
 }
 forward_decls qw/vpx_scale_forward_decls/;
 
-# Hack. Check ESDP for no asm offsets.
-if (vpx_config("HAVE_EDSP") eq "yes") {
-  $neon_asminc = 'neon_asm';
-} else {
-  $neon_asminc = '';
-}
-
 # Scaler functions
 if (vpx_config("CONFIG_SPATIAL_RESAMPLING") eq "yes") {
     add_proto qw/void vp8_horizontal_line_5_4_scale/, "const unsigned char *source, unsigned int source_width, unsigned char *dest, unsigned int dest_width";
@@ -24,15 +17,12 @@ if (vpx_config("CONFIG_SPATIAL_RESAMPLING") eq "yes") {
 }
 
 add_proto qw/void vp8_yv12_extend_frame_borders/, "struct yv12_buffer_config *ybf";
-specialize qw/vp8_yv12_extend_frame_borders/, "$neon_asminc";
-if (vpx_config("HAVE_EDSP") eq "yes") {
-  $vp8_yv12_extend_frame_borders_neon_asm=vp8_yv12_extend_frame_borders_neon;
-}
+specialize qw/vp8_yv12_extend_frame_borders neon_asm/;
+$vp8_yv12_extend_frame_borders_neon_asm=vp8_yv12_extend_frame_borders_neon;
+
 add_proto qw/void vp8_yv12_copy_frame/, "const struct yv12_buffer_config *src_ybc, struct yv12_buffer_config *dst_ybc";
-specialize qw/vp8_yv12_copy_frame/, "$neon_asminc";
-if (vpx_config("HAVE_EDSP") eq "yes") {
-  $vp8_yv12_copy_frame_neon_asm=vp8_yv12_copy_frame_neon;
-}
+specialize qw/vp8_yv12_copy_frame neon_asm/;
+$vp8_yv12_copy_frame_neon_asm=vp8_yv12_copy_frame_neon;
 
 add_proto qw/void vpx_yv12_copy_y/, "const struct yv12_buffer_config *src_ybc, struct yv12_buffer_config *dst_ybc";
 
