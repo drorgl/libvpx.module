@@ -337,6 +337,7 @@ gen_config_files linux/x64 "--target=x86_64-linux-gcc --disable-ccache --enable-
 gen_config_files linux/arm "--target=armv6-linux-gcc --enable-pic --enable-realtime-only --disable-install-bins --disable-install-libs ${all_platforms}"
 gen_config_files linux/arm-neon "--target=armv7-linux-gcc --enable-pic --enable-realtime-only ${all_platforms}"
 gen_config_files linux/arm-neon-cpu-detect "--target=armv7-linux-gcc --enable-pic --enable-realtime-only --enable-runtime-cpu-detect ${all_platforms}"
+gen_config_files linux/arm-neon-no-asm-offsets "--target=armv7-linux-gcc --enable-pic --enable-realtime-only --disable-edsp --enable-runtime-cpu-detect ${all_platforms}"
 gen_config_files linux/arm64 "--force-target=armv8-linux-gcc --enable-pic --enable-realtime-only ${all_platforms}"
 gen_config_files linux/mipsel "--target=mips32-linux-gcc --disable-fast-unaligned ${all_platforms}"
 gen_config_files linux/generic "--target=generic-gnu --enable-pic --enable-realtime-only ${all_platforms}"
@@ -356,6 +357,7 @@ lint_config linux/x64
 lint_config linux/arm
 lint_config linux/arm-neon
 lint_config linux/arm-neon-cpu-detect
+lint_config linux/arm-neon-no-asm-offsets
 lint_config linux/arm64
 lint_config linux/mipsel
 lint_config linux/generic
@@ -376,6 +378,7 @@ gen_rtcd_header linux/x64 x86_64
 gen_rtcd_header linux/arm armv6
 gen_rtcd_header linux/arm-neon armv7
 gen_rtcd_header linux/arm-neon-cpu-detect armv7
+gen_rtcd_header linux/arm-neon-no-asm-offsets armv7
 gen_rtcd_header linux/arm64 armv8
 gen_rtcd_header linux/mipsel mipsel
 gen_rtcd_header linux/generic generic
@@ -421,6 +424,12 @@ config=$(print_config linux/arm-neon-cpu-detect)
 make_clean
 make libvpx_srcs.txt target=libs $config > /dev/null
 convert_srcs_to_gypi libvpx_srcs.txt libvpx_srcs_arm_neon_cpu_detect
+
+echo "Generate ARM NEON NO ASM OFFSETS source list."
+config=$(print_config linux/arm-neon-no-asm-offsets)
+make_clean
+make libvpx_srcs.txt target=libs $config > /dev/null
+convert_srcs_to_gypi libvpx_srcs.txt libvpx_srcs_arm_neon_no_asm_offsets
 
 echo "Generate ARM64 source list."
 config=$(print_config linux/arm64)

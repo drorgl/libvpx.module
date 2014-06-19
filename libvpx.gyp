@@ -17,14 +17,21 @@
         'target_arch_full': 'generic',
       }, {
         'conditions': [
-          ['(target_arch=="arm" or target_arch=="armv7") and arm_neon==1', {
-            'target_arch_full': 'arm-neon',
+          ['android_webview_build==1', {
+            # Set WebView build to not use asm offsets.
+            'target_arch_full': 'arm-neon-no-asm-offsets',
           }, {
             'conditions': [
-              ['OS=="android" and ((target_arch=="arm" or target_arch=="armv7") and arm_neon==0)', {
-                'target_arch_full': 'arm-neon-cpu-detect',
+              ['(target_arch=="arm" or target_arch=="armv7") and arm_neon==1', {
+                'target_arch_full': 'arm-neon',
               }, {
-               'target_arch_full': '<(target_arch)',
+                'conditions': [
+                  ['OS=="android" and ((target_arch=="arm" or target_arch=="armv7") and arm_neon==0)', {
+                    'target_arch_full': 'arm-neon-cpu-detect',
+                  }, {
+                   'target_arch_full': '<(target_arch)',
+                  }],
+                ],
               }],
             ],
           }],
@@ -231,10 +238,6 @@
           # Encoder is configured to be realtime only.
           'target_name': 'libvpx',
           'type': 'static_library',
-          'dependencies': [
-            'gen_asm_offsets_vp8',
-            'gen_asm_offsets_vpx_scale',
-          ],
 
           # Copy the script to the output folder so that we can use it with
           # absolute path.
@@ -315,13 +318,25 @@
                 '-Wa,-I,<!(pwd)/source/config/<(OS_CATEGORY)/<(target_arch_full)',
                 '-Wa,-I,<!(pwd)/source/config',
               ],
+              'dependencies': [
+                'gen_asm_offsets_vp8',
+                'gen_asm_offsets_vpx_scale',
+              ],
             }],
             # Libvpx optimizations for ARMv6 or ARMv7 without NEON.
             ['arm_neon==0', {
               'conditions': [
                 ['OS=="android"', {
-                  'includes': [
-                    'libvpx_srcs_arm_neon_cpu_detect.gypi',
+                  'conditions': [
+                    ['android_webview_build==1', {
+                      'includes': [
+                        'libvpx_srcs_arm_neon_no_asm_offsets.gypi',
+                      ],
+                    }, {
+                      'includes': [
+                        'libvpx_srcs_arm_neon_cpu_detect.gypi',
+                      ],
+                    }],
                   ],
                   'dependencies': [
                     'libvpx_intrinsics_neon',
