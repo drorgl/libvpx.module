@@ -16,7 +16,7 @@
 #define ARCH_X86_64 0
 #define ARCH_PPC32 0
 #define ARCH_PPC64 0
-#define HAVE_EDSP 1
+#define HAVE_EDSP 0
 #define HAVE_MEDIA 1
 #define HAVE_NEON 1
 #define HAVE_NEON_ASM 1
