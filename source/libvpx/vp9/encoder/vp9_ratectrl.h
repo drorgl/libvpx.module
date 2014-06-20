@@ -30,7 +30,7 @@ typedef struct {
   int this_frame_target;           // Actual frame target after rc adjustment.
   int projected_frame_size;
   int sb64_target_rate;
-  int last_q[3];                   // Separate values for Intra/Inter/ARF-GF
+  int last_q[FRAME_TYPES];         // Separate values for Intra/Inter
   int last_boosted_qindex;         // Last boosted GF/KF/ARF q
 
   int gfu_boost;
@@ -61,7 +61,7 @@ typedef struct {
   int ni_av_qi;
   int ni_tot_qi;
   int ni_frames;
-  int avg_frame_qindex[3];        // 0 - KEY, 1 - INTER, 2 - ARF/GF
+  int avg_frame_qindex[FRAME_TYPES];
   double tot_q;
   double avg_q;
 
@@ -84,6 +84,10 @@ typedef struct {
 
   int worst_quality;
   int best_quality;
+
+  int64_t starting_buffer_level;
+  int64_t optimal_buffer_level;
+  int64_t maximum_buffer_size;
   // int active_best_quality;
 } RATE_CONTROL;
 
@@ -177,6 +181,9 @@ int vp9_compute_qdelta_by_rate(const RATE_CONTROL *rc, FRAME_TYPE frame_type,
                                int qindex, double rate_target_ratio);
 
 void vp9_rc_update_framerate(struct VP9_COMP *cpi);
+
+void vp9_rc_set_gf_max_interval(const struct VP9EncoderConfig *const oxcf,
+                                RATE_CONTROL *const rc);
 
 #ifdef __cplusplus
 }  // extern "C"

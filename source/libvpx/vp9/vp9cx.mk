@@ -23,6 +23,8 @@ VP9_CX_SRCS-yes += encoder/vp9_context_tree.h
 VP9_CX_SRCS-yes += encoder/vp9_cost.h
 VP9_CX_SRCS-yes += encoder/vp9_cost.c
 VP9_CX_SRCS-yes += encoder/vp9_dct.c
+VP9_CX_SRCS-$(CONFIG_DENOISING) += encoder/vp9_denoiser.c
+VP9_CX_SRCS-$(CONFIG_DENOISING) += encoder/vp9_denoiser.h
 VP9_CX_SRCS-yes += encoder/vp9_encodeframe.c
 VP9_CX_SRCS-yes += encoder/vp9_encodeframe.h
 VP9_CX_SRCS-yes += encoder/vp9_encodemb.c
@@ -112,12 +114,12 @@ VP9_CX_SRCS-$(HAVE_SSE2) += encoder/x86/vp9_subpel_variance.asm
 endif
 
 ifeq ($(ARCH_X86_64),yes)
-VP9_CX_SRCS-$(HAVE_SSSE3) += encoder/x86/vp9_quantize_ssse3.asm
-VP9_CX_SRCS-$(HAVE_SSSE3) += encoder/x86/vp9_dct_ssse3.asm
+VP9_CX_SRCS-$(HAVE_SSSE3) += encoder/x86/vp9_quantize_ssse3_x86_64.asm
+VP9_CX_SRCS-$(HAVE_SSSE3) += encoder/x86/vp9_dct_ssse3_x86_64.asm
 endif
 VP9_CX_SRCS-$(HAVE_SSSE3) += encoder/x86/vp9_sad_ssse3.asm
 VP9_CX_SRCS-$(HAVE_SSE4_1) += encoder/x86/vp9_sad_sse4.asm
-VP9_CX_SRCS-$(ARCH_X86_64) += encoder/x86/vp9_ssim_opt.asm
+VP9_CX_SRCS-$(ARCH_X86_64) += encoder/x86/vp9_ssim_opt_x86_64.asm
 
 VP9_CX_SRCS-$(HAVE_SSE2) += encoder/x86/vp9_dct_sse2.c
 VP9_CX_SRCS-$(HAVE_SSE2) += encoder/x86/vp9_dct32x32_sse2.c

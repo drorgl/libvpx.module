@@ -17,6 +17,10 @@ VPX_TEST_TOOLS_COMMON_SH=included
 set -e
 devnull='> /dev/null 2>&1'
 
+elog() {
+  echo "$@" 1>&2
+}
+
 vlog() {
   if [ "${VPX_TEST_VERBOSE_OUTPUT}" = "yes" ]; then
     echo "$@"
@@ -302,8 +306,13 @@ filter_strings() {
 # functions and are run unconditionally. Functions in positional parameter two
 # are run according to the rules specified in vpx_test_usage().
 run_tests() {
-  env_tests="verify_vpx_test_environment ${1}"
-  tests_to_filter="${2}"
+  local env_tests="verify_vpx_test_environment $1"
+  local tests_to_filter="$2"
+  local test_name="${VPX_TEST_NAME}"
+
+  if [ -z "${test_name}" ]; then
+    test_name="$(basename "${0%.*}")"
+  fi
 
   if [ "${VPX_TEST_RUN_DISABLED_TESTS}" != "yes" ]; then
     # Filter out DISABLED tests.
@@ -315,7 +324,7 @@ run_tests() {
     tests_to_filter=$(filter_strings "${tests_to_filter}" ${VPX_TEST_FILTER})
   fi
 
-  tests_to_run="${env_tests} ${tests_to_filter}"
+  local tests_to_run="${env_tests} ${tests_to_filter}"
 
   check_git_hashes
 
@@ -328,8 +337,8 @@ run_tests() {
     test_end "${test}"
   done
 
-  tested_config="$(test_configuration_target) @ $(current_hash)"
-  echo $(basename "${0%.*}"): Done, all tests pass for ${tested_config}.
+  local tested_config="$(test_configuration_target) @ $(current_hash)"
+  echo "${test_name}: Done, all tests pass for ${tested_config}."
 }
 
 vpx_test_usage() {
@@ -451,10 +460,19 @@ vlog "$(basename "${0%.*}") test configuration:
   LIBVPX_BIN_PATH=${LIBVPX_BIN_PATH}
   LIBVPX_CONFIG_PATH=${LIBVPX_CONFIG_PATH}
   LIBVPX_TEST_DATA_PATH=${LIBVPX_TEST_DATA_PATH}
-  VPX_TEST_OUTPUT_DIR=${VPX_TEST_OUTPUT_DIR}
-  VPX_TEST_VERBOSE_OUTPUT=${VPX_TEST_VERBOSE_OUTPUT}
+  VP8_IVF_FILE=${VP8_IVF_FILE}
+  VP9_IVF_FILE=${VP9_IVF_FILE}
+  VP9_WEBM_FILE=${VP9_WEBM_FILE}
+  VPX_TEST_EXE_SUFFIX=${VPX_TEST_EXE_SUFFIX}
   VPX_TEST_FILTER=${VPX_TEST_FILTER}
+  VPX_TEST_OUTPUT_DIR=${VPX_TEST_OUTPUT_DIR}
+  VPX_TEST_RAND=${VPX_TEST_RAND}
   VPX_TEST_RUN_DISABLED_TESTS=${VPX_TEST_RUN_DISABLED_TESTS}
-  VPX_TEST_SHOW_PROGRAM_OUTPUT=${VPX_TEST_SHOW_PROGRAM_OUTPUT}"
+  VPX_TEST_SHOW_PROGRAM_OUTPUT=${VPX_TEST_SHOW_PROGRAM_OUTPUT}
+  VPX_TEST_TEMP_ROOT=${VPX_TEST_TEMP_ROOT}
+  VPX_TEST_VERBOSE_OUTPUT=${VPX_TEST_VERBOSE_OUTPUT}
+  YUV_RAW_INPUT=${YUV_RAW_INPUT}
+  YUV_RAW_INPUT_WIDTH=${YUV_RAW_INPUT_WIDTH}
+  YUV_RAW_INPUT_HEIGHT=${YUV_RAW_INPUT_HEIGHT}"
 
 fi  # End $VPX_TEST_TOOLS_COMMON_SH pseudo include guard.

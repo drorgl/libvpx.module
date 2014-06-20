@@ -246,7 +246,8 @@ RTCD_EXTERN int (*vp8_refining_search_sad)(struct macroblock *x, struct block *b
 
 void vp8_regular_quantize_b_c(struct block *, struct blockd *);
 void vp8_regular_quantize_b_sse2(struct block *, struct blockd *);
-#define vp8_regular_quantize_b vp8_regular_quantize_b_sse2
+void vp8_regular_quantize_b_sse4_1(struct block *, struct blockd *);
+RTCD_EXTERN void (*vp8_regular_quantize_b)(struct block *, struct blockd *);
 
 void vp8_regular_quantize_b_pair_c(struct block *b1, struct block *b2, struct blockd *d1, struct blockd *d2);
 #define vp8_regular_quantize_b_pair vp8_regular_quantize_b_pair_c
@@ -507,6 +508,8 @@ static void setup_rtcd_internal(void)
     if (flags & HAS_SSE4_1) vp8_full_search_sad = vp8_full_search_sadx8;
     vp8_refining_search_sad = vp8_refining_search_sad_c;
     if (flags & HAS_SSE3) vp8_refining_search_sad = vp8_refining_search_sadx4;
+    vp8_regular_quantize_b = vp8_regular_quantize_b_sse2;
+    if (flags & HAS_SSE4_1) vp8_regular_quantize_b = vp8_regular_quantize_b_sse4_1;
     vp8_sad16x16 = vp8_sad16x16_wmt;
     if (flags & HAS_SSE3) vp8_sad16x16 = vp8_sad16x16_sse3;
     vp8_sad16x16x3 = vp8_sad16x16x3_c;
