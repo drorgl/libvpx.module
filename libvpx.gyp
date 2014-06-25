@@ -88,6 +88,17 @@
               '-I', '<(libvpx_source)',
               '-I', '<(shared_generated_dir)', # Generated assembly offsets
             ],
+            # yasm only gets the flags we define. It doesn't inherit any of the
+            # really useful defines that come with a gcc invocation. In this
+            # case, we rely on __ANDROID__ to set 'rand' to 'lrand48'.
+            # Previously we used the builtin _rand but that's gone away.
+            'conditions': [
+              ['OS=="android"', {
+                'yasm_flags': [
+                  '-D', '__ANDROID__',
+                ],
+              }],
+            ],
           },
           'dependencies': [
             'gen_asm_offsets_vp8',
