@@ -100,6 +100,10 @@ int vp8_denoiser_filter_c(unsigned char *mc_running_avg_y, int mc_avg_y_stride, 
 int vp8_denoiser_filter_sse2(unsigned char *mc_running_avg_y, int mc_avg_y_stride, unsigned char *running_avg_y, int avg_y_stride, unsigned char *sig, int sig_stride, unsigned int motion_magnitude, int increase_denoising);
 RTCD_EXTERN int (*vp8_denoiser_filter)(unsigned char *mc_running_avg_y, int mc_avg_y_stride, unsigned char *running_avg_y, int avg_y_stride, unsigned char *sig, int sig_stride, unsigned int motion_magnitude, int increase_denoising);
 
+int vp8_denoiser_filter_uv_c(unsigned char *mc_running_avg, int mc_avg_stride, unsigned char *running_avg, int avg_stride, unsigned char *sig, int sig_stride, unsigned int motion_magnitude, int increase_denoising);
+int vp8_denoiser_filter_uv_sse2(unsigned char *mc_running_avg, int mc_avg_stride, unsigned char *running_avg, int avg_stride, unsigned char *sig, int sig_stride, unsigned int motion_magnitude, int increase_denoising);
+RTCD_EXTERN int (*vp8_denoiser_filter_uv)(unsigned char *mc_running_avg, int mc_avg_stride, unsigned char *running_avg, int avg_stride, unsigned char *sig, int sig_stride, unsigned int motion_magnitude, int increase_denoising);
+
 void vp8_dequant_idct_add_c(short *input, short *dq, unsigned char *output, int stride);
 void vp8_dequant_idct_add_mmx(short *input, short *dq, unsigned char *output, int stride);
 RTCD_EXTERN void (*vp8_dequant_idct_add)(short *input, short *dq, unsigned char *output, int stride);
@@ -526,6 +530,8 @@ static void setup_rtcd_internal(void)
     if (flags & HAS_MMX) vp8_dc_only_idct_add = vp8_dc_only_idct_add_mmx;
     vp8_denoiser_filter = vp8_denoiser_filter_c;
     if (flags & HAS_SSE2) vp8_denoiser_filter = vp8_denoiser_filter_sse2;
+    vp8_denoiser_filter_uv = vp8_denoiser_filter_uv_c;
+    if (flags & HAS_SSE2) vp8_denoiser_filter_uv = vp8_denoiser_filter_uv_sse2;
     vp8_dequant_idct_add = vp8_dequant_idct_add_c;
     if (flags & HAS_MMX) vp8_dequant_idct_add = vp8_dequant_idct_add_mmx;
     vp8_dequant_idct_add_uv_block = vp8_dequant_idct_add_uv_block_c;

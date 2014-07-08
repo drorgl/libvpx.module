@@ -84,4 +84,5 @@
 .equ CONFIG_MULTIPLE_ARF ,  0
 .equ CONFIG_SPATIAL_SVC ,  0
 .equ CONFIG_DENOISING ,  0
+.equ CONFIG_FP_MB_STATS ,  0
 	.section	.note.GNU-stack,"",%progbits

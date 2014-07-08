@@ -5,7 +5,6 @@
 
 {
   'sources': [
-    '<(libvpx_source)/third_party/x86inc/x86inc.asm',
     '<(libvpx_source)/vp8/common/alloccommon.c',
     '<(libvpx_source)/vp8/common/alloccommon.h',
     '<(libvpx_source)/vp8/common/blockd.c',
@@ -281,6 +280,8 @@
     '<(libvpx_source)/vp9/encoder/vp9_quantize.h',
     '<(libvpx_source)/vp9/encoder/vp9_ratectrl.c',
     '<(libvpx_source)/vp9/encoder/vp9_ratectrl.h',
+    '<(libvpx_source)/vp9/encoder/vp9_rd.c',
+    '<(libvpx_source)/vp9/encoder/vp9_rd.h',
     '<(libvpx_source)/vp9/encoder/vp9_rdopt.c',
     '<(libvpx_source)/vp9/encoder/vp9_rdopt.h',
     '<(libvpx_source)/vp9/encoder/vp9_resize.c',

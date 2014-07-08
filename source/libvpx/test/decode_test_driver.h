@@ -49,7 +49,13 @@ class Decoder {
     vpx_codec_destroy(&decoder_);
   }
 
+  vpx_codec_err_t PeekStream(const uint8_t *cxdata, size_t size,
+                             vpx_codec_stream_info_t *stream_info);
+
   vpx_codec_err_t DecodeFrame(const uint8_t *cxdata, size_t size);
+
+  vpx_codec_err_t DecodeFrame(const uint8_t *cxdata, size_t size,
+                              void *user_priv);
 
   DxDataIterator GetDxData() {
     return DxDataIterator(&decoder_);
@@ -83,6 +89,10 @@ class Decoder {
     InitOnce();
     return vpx_codec_set_frame_buffer_functions(
         &decoder_, cb_get, cb_release, user_priv);
+  }
+
+  const char* GetDecoderName() {
+    return vpx_codec_iface_name(CodecInterface());
   }
 
  protected:

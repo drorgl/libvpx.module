@@ -20,6 +20,12 @@
 extern "C" {
 #endif
 
+typedef struct {
+  unsigned int sse;
+  int sum;
+  unsigned int var;
+} diff;
+
 struct macroblock_plane {
   DECLARE_ALIGNED(16, int16_t, src_diff[64 * 64]);
   int16_t *qcoeff;
@@ -29,6 +35,7 @@ struct macroblock_plane {
 
   // Quantizer setings
   int16_t *quant_fp;
+  int16_t *round_fp;
   int16_t *quant;
   int16_t *quant_shift;
   int16_t *zbin;
@@ -93,8 +100,6 @@ struct macroblock {
 
   int encode_breakout;
 
-  int in_active_map;
-
   // note that token_costs is the cost when eob node is skipped
   vp9_coeff_cost token_costs[TX_SIZES];
 
@@ -105,6 +110,9 @@ struct macroblock {
   // indicate if it is in the rd search loop or encoding process
   int use_lp32x32fdct;
   int skip_encode;
+
+  // use fast quantization process
+  int quant_fp;
 
   // skip forward transform and quantization
   int skip_txfm;
