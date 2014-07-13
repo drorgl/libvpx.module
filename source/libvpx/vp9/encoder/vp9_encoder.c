@@ -862,9 +862,7 @@ VP9_COMP *vp9_create_compressor(VP9EncoderConfig *oxcf) {
 
 #if CONFIG_DENOISING
 #ifdef OUTPUT_YUV_DENOISED
-  if (cpi->oxcf.noise_sensitivity > 0) {
-    yuv_denoised_file = fopen("denoised.yuv", "ab");
-  }
+  yuv_denoised_file = fopen("denoised.yuv", "ab");
 #endif
 #endif
 #ifdef OUTPUT_YUV_SRC
@@ -1122,9 +1120,7 @@ void vp9_remove_compressor(VP9_COMP *cpi) {
 
 #if CONFIG_DENOISING
 #ifdef OUTPUT_YUV_DENOISED
-  if (cpi->oxcf.noise_sensitivity > 0) {
-    fclose(yuv_denoised_file);
-  }
+  fclose(yuv_denoised_file);
 #endif
 #endif
 #ifdef OUTPUT_YUV_SRC
@@ -2100,7 +2096,7 @@ static void encode_frame_to_data_rate(VP9_COMP *cpi,
   cm->lf.mode_ref_delta_update = 0;
 
   // Initialize cpi->mv_step_param to default based on max resolution.
-  cpi->mv_step_param = vp9_init_search_range(sf, max_mv_def);
+  cpi->mv_step_param = vp9_init_search_range(max_mv_def);
   // Initialize cpi->max_mv_magnitude and cpi->mv_step_param if appropriate.
   if (sf->mv.auto_mv_step_size) {
     if (frame_is_intra_only(cm)) {
@@ -2112,7 +2108,7 @@ static void encode_frame_to_data_rate(VP9_COMP *cpi,
         // Allow mv_steps to correspond to twice the max mv magnitude found
         // in the previous frame, capped by the default max_mv_magnitude based
         // on resolution.
-        cpi->mv_step_param = vp9_init_search_range(sf, MIN(max_mv_def, 2 *
+        cpi->mv_step_param = vp9_init_search_range(MIN(max_mv_def, 2 *
                                  cpi->max_mv_magnitude));
       cpi->max_mv_magnitude = 0;
     }
@@ -2578,9 +2574,7 @@ int vp9_get_compressed_data(VP9_COMP *cpi, unsigned int *frame_flags,
 
       if (cpi->oxcf.arnr_max_frames > 0) {
         // Produce the filtered ARF frame.
-        // TODO(agrange) merge these two functions.
-        vp9_configure_arnr_filter(cpi, arf_src_index, rc->gfu_boost);
-        vp9_temporal_filter_prepare(cpi, arf_src_index);
+        vp9_temporal_filter(cpi, arf_src_index);
         vp9_extend_frame_borders(&cpi->alt_ref_buffer);
         force_src_buffer = &cpi->alt_ref_buffer;
       }

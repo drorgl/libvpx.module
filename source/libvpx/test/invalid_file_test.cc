@@ -25,9 +25,14 @@
 
 namespace {
 
+struct DecodeParam {
+  int threads;
+  const char *filename;
+};
+
 class InvalidFileTest
     : public ::libvpx_test::DecoderTest,
-      public ::libvpx_test::CodecTestWithParam<const char*> {
+      public ::libvpx_test::CodecTestWithParam<DecodeParam> {
  protected:
   InvalidFileTest() : DecoderTest(GET_PARAM(0)), res_file_(NULL) {}
 
@@ -55,7 +60,8 @@ class InvalidFileTest
 
     // Check results match.
     EXPECT_EQ(expected_res_dec, res_dec)
-        << "Results don't match: frame number = " << video.frame_number();
+        << "Results don't match: frame number = " << video.frame_number()
+        << ". (" << decoder->DecodeError() << ")";
 
     return !HasFailure();
   }
@@ -65,8 +71,11 @@ class InvalidFileTest
 };
 
 TEST_P(InvalidFileTest, ReturnCode) {
-  const std::string filename = GET_PARAM(1);
   libvpx_test::CompressedVideoSource *video = NULL;
+  const DecodeParam input = GET_PARAM(1);
+  vpx_codec_dec_cfg_t cfg = {0};
+  cfg.threads = input.threads;
+  const std::string filename = input.filename;
 
   // Open compressed video file.
   if (filename.substr(filename.length() - 3, 3) == "ivf") {
@@ -89,24 +98,30 @@ TEST_P(InvalidFileTest, ReturnCode) {
   OpenResFile(res_filename);
 
   // Decode frame, and check the md5 matching.
-  ASSERT_NO_FATAL_FAILURE(RunLoop(video));
+  ASSERT_NO_FATAL_FAILURE(RunLoop(video, cfg));
   delete video;
 }
 
-const char *const kVP9InvalidFileTests[] = {
-  "invalid-vp90-01.webm",
-  "invalid-vp90-02.webm",
-  "invalid-vp90-2-00-quantizer-00.webm.ivf.s5861_r01-05_b6-.ivf",
-  "invalid-vp90-03.webm",
-  "invalid-vp90-2-00-quantizer-11.webm.ivf.s52984_r01-05_b6-.ivf",
-  "invalid-vp90-2-00-quantizer-11.webm.ivf.s52984_r01-05_b6-z.ivf",
+const DecodeParam kVP9InvalidFileTests[] = {
+  {1, "invalid-vp90-01-v2.webm"},
+  {1, "invalid-vp90-02-v2.webm"},
+  {1, "invalid-vp90-2-00-quantizer-00.webm.ivf.s5861_r01-05_b6-.ivf"},
+  {1, "invalid-vp90-03-v2.webm"},
+  {1, "invalid-vp90-2-00-quantizer-11.webm.ivf.s52984_r01-05_b6-.ivf"},
+  {1, "invalid-vp90-2-00-quantizer-11.webm.ivf.s52984_r01-05_b6-z.ivf"},
 };
 
-#define NELEMENTS(x) static_cast<int>(sizeof(x) / sizeof(x[0]))
-
 VP9_INSTANTIATE_TEST_CASE(InvalidFileTest,
-                          ::testing::ValuesIn(kVP9InvalidFileTests,
-                                              kVP9InvalidFileTests +
-                                              NELEMENTS(kVP9InvalidFileTests)));
+                          ::testing::ValuesIn(kVP9InvalidFileTests));
 
+const DecodeParam kMultiThreadedVP9InvalidFileTests[] = {
+  {4, "invalid-vp90-2-08-tile_1x4_frame_parallel_all_key.webm"},
+};
+
+INSTANTIATE_TEST_CASE_P(
+    VP9MultiThreaded, InvalidFileTest,
+    ::testing::Combine(
+        ::testing::Values(
+            static_cast<const libvpx_test::CodecFactory*>(&libvpx_test::kVP9)),
+        ::testing::ValuesIn(kMultiThreadedVP9InvalidFileTests)));
 }  // namespace

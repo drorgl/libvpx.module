@@ -253,6 +253,7 @@ static void set_rt_speed_feature(VP9_COMP *cpi, SPEED_FEATURES *sf,
   }
 
   if (speed >= 5) {
+    sf->use_quant_fp = cm->frame_type == KEY_FRAME ? 0 : 1;
     sf->auto_min_max_partition_size = (cm->frame_type == KEY_FRAME) ?
         RELAXED_NEIGHBORING_MIN_MAX : STRICT_NEIGHBORING_MIN_MAX;
     sf->max_partition_size = BLOCK_32X32;
@@ -265,7 +266,6 @@ static void set_rt_speed_feature(VP9_COMP *cpi, SPEED_FEATURES *sf,
     sf->max_delta_qindex = (cm->frame_type == KEY_FRAME) ? 20 : 15;
     sf->partition_search_type = REFERENCE_PARTITION;
     sf->use_nonrd_pick_mode = 1;
-    sf->mv.search_method = FAST_DIAMOND;
     sf->allow_skip_recode = 0;
   }
 
@@ -287,7 +287,7 @@ static void set_rt_speed_feature(VP9_COMP *cpi, SPEED_FEATURES *sf,
     sf->mv.reduce_first_step_size = 1;
   }
   if (speed >= 7) {
-    sf->use_quant_fp = cm->frame_type == KEY_FRAME ? 0 : 1;
+    sf->mv.search_method = FAST_DIAMOND;
     sf->mv.fullpel_search_step_param = 10;
     sf->lpf_pick = LPF_PICK_MINIMAL_LPF;
     sf->encode_breakout_thresh = (MIN(cm->width, cm->height) >= 720) ?
@@ -396,7 +396,6 @@ void vp9_set_speed_features(VP9_COMP *cpi) {
 
   if (sf->mv.subpel_search_method == SUBPEL_TREE) {
     cpi->find_fractional_mv_step = vp9_find_best_sub_pixel_tree;
-    cpi->find_fractional_mv_step_comp = vp9_find_best_sub_pixel_comp_tree;
   }
 
   cpi->mb.optimize = sf->optimize_coefficients == 1 && cpi->pass != 1;

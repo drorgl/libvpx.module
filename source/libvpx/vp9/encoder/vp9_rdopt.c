@@ -1367,7 +1367,7 @@ static int64_t rd_pick_best_sub8x8_mode(VP9_COMP *cpi, MACROBLOCK *x,
             // Take wtd average of the step_params based on the last frame's
             // max mv magnitude and the best ref mvs of the current block for
             // the given reference.
-            step_param = (vp9_init_search_range(&cpi->sf, max_mv) +
+            step_param = (vp9_init_search_range(max_mv) +
                               cpi->mv_step_param) / 2;
           } else {
             step_param = cpi->mv_step_param;
@@ -1422,7 +1422,8 @@ static int64_t rd_pick_best_sub8x8_mode(VP9_COMP *cpi, MACROBLOCK *x,
                                          cpi->sf.mv.subpel_iters_per_step,
                                          x->nmvjointcost, x->mvcost,
                                          &distortion,
-                                         &x->pred_sse[mbmi->ref_frame[0]]);
+                                         &x->pred_sse[mbmi->ref_frame[0]],
+                                         NULL, 0, 0);
 
             // save motion search result for use in compound prediction
             seg_mvs[i][mbmi->ref_frame[0]].as_mv = *new_mv;
@@ -1778,7 +1779,7 @@ static void single_motion_search(VP9_COMP *cpi, MACROBLOCK *x,
     // Take wtd average of the step_params based on the last frame's
     // max mv magnitude and that based on the best ref mvs of the current
     // block for the given reference.
-    step_param = (vp9_init_search_range(&cpi->sf, x->max_mv_context[ref]) +
+    step_param = (vp9_init_search_range(x->max_mv_context[ref]) +
                     cpi->mv_step_param) / 2;
   } else {
     step_param = cpi->mv_step_param;
@@ -1792,8 +1793,8 @@ static void single_motion_search(VP9_COMP *cpi, MACROBLOCK *x,
   }
 
   if (cpi->sf.adaptive_motion_search) {
-    int bwl = b_width_log2_lookup[bsize];
-    int bhl = b_height_log2_lookup[bsize];
+    int bwl = b_width_log2(bsize);
+    int bhl = b_height_log2(bsize);
     int i;
     int tlevel = x->pred_mv_sad[ref] >> (bwl + bhl + 4);
 
@@ -1838,7 +1839,7 @@ static void single_motion_search(VP9_COMP *cpi, MACROBLOCK *x,
                                  cpi->sf.mv.subpel_force_stop,
                                  cpi->sf.mv.subpel_iters_per_step,
                                  x->nmvjointcost, x->mvcost,
-                                 &dis, &x->pred_sse[ref]);
+                                 &dis, &x->pred_sse[ref], NULL, 0, 0);
   }
   *rate_mv = vp9_mv_bit_cost(&tmp_mv->as_mv, &ref_mv,
                              x->nmvjointcost, x->mvcost, MV_COST_WEIGHT);
@@ -1954,7 +1955,7 @@ static void joint_motion_search(VP9_COMP *cpi, MACROBLOCK *x,
     if (bestsme < INT_MAX) {
       int dis; /* TODO: use dis in distortion calculation later. */
       unsigned int sse;
-      bestsme = cpi->find_fractional_mv_step_comp(
+      bestsme = cpi->find_fractional_mv_step(
           x, &tmp_mv,
           &ref_mv[id].as_mv,
           cpi->common.allow_high_precision_mv,
@@ -2265,8 +2266,8 @@ static int64_t handle_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
         thresh_ac = clamp(thresh_ac, min_thresh, max_thresh);
 
         // Adjust threshold according to partition size.
-        thresh_ac >>= 8 - (b_width_log2_lookup[bsize] +
-            b_height_log2_lookup[bsize]);
+        thresh_ac >>= 8 - (b_width_log2(bsize) +
+            b_height_log2(bsize));
         thresh_dc = (xd->plane[0].dequant[0] * xd->plane[0].dequant[0] >> 6);
       } else {
         thresh_ac = 0;
