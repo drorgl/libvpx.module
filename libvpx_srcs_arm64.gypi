@@ -214,6 +214,7 @@
     '<(libvpx_source)/vp9/decoder/vp9_read_bit_buffer.h',
     '<(libvpx_source)/vp9/decoder/vp9_reader.c',
     '<(libvpx_source)/vp9/decoder/vp9_reader.h',
+    '<(libvpx_source)/vp9/encoder/arm/neon/vp9_sad_neon.c',
     '<(libvpx_source)/vp9/encoder/vp9_aq_complexity.c',
     '<(libvpx_source)/vp9/encoder/vp9_aq_complexity.h',
     '<(libvpx_source)/vp9/encoder/vp9_aq_cyclicrefresh.c',

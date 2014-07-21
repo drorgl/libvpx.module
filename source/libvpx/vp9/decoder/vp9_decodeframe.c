@@ -620,22 +620,33 @@ static void setup_display_size(VP9_COMMON *cm, struct vp9_read_bit_buffer *rb) {
     vp9_read_frame_size(rb, &cm->display_width, &cm->display_height);
 }
 
-static void apply_frame_size(VP9_COMMON *cm, int width, int height) {
+static void resize_context_buffers(VP9_COMMON *cm, int width, int height) {
+#if CONFIG_SIZE_LIMIT
+  if (width > DECODE_WIDTH_LIMIT || height > DECODE_HEIGHT_LIMIT)
+    vpx_internal_error(&cm->error, VPX_CODEC_CORRUPT_FRAME,
+                       "Width and height beyond allowed size.");
+#endif
   if (cm->width != width || cm->height != height) {
-    // Change in frame size.
-    // TODO(agrange) Don't test width/height, check overall size.
-    if (width > cm->width || height > cm->height) {
-      // Rescale frame buffers only if they're not big enough already.
-      if (vp9_resize_frame_buffers(cm, width, height))
+    // Change in frame size (assumption: color format does not change).
+    if (cm->width == 0 || cm->height == 0 ||
+        width * height > cm->width * cm->height) {
+      if (vp9_alloc_context_buffers(cm, width, height))
         vpx_internal_error(&cm->error, VPX_CODEC_MEM_ERROR,
                            "Failed to allocate frame buffers");
+    } else {
+      vp9_set_mb_mi(cm, width, height);
     }
-
+    vp9_init_context_buffers(cm);
     cm->width = width;
     cm->height = height;
-
-    vp9_update_frame_size(cm);
   }
+}
+
+static void setup_frame_size(VP9_COMMON *cm, struct vp9_read_bit_buffer *rb) {
+  int width, height;
+  vp9_read_frame_size(rb, &width, &height);
+  resize_context_buffers(cm, width, height);
+  setup_display_size(cm, rb);
 
   if (vp9_realloc_frame_buffer(
           get_frame_new_buffer(cm), cm->width, cm->height,
@@ -645,13 +656,6 @@ static void apply_frame_size(VP9_COMMON *cm, int width, int height) {
     vpx_internal_error(&cm->error, VPX_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
   }
-}
-
-static void setup_frame_size(VP9_COMMON *cm, struct vp9_read_bit_buffer *rb) {
-  int width, height;
-  vp9_read_frame_size(rb, &width, &height);
-  apply_frame_size(cm, width, height);
-  setup_display_size(cm, rb);
 }
 
 static void setup_frame_size_with_refs(VP9_COMMON *cm,
@@ -675,16 +679,23 @@ static void setup_frame_size_with_refs(VP9_COMMON *cm,
   // dimensions.
   for (i = 0; i < REFS_PER_FRAME; ++i) {
     RefBuffer *const ref_frame = &cm->frame_refs[i];
-    const int ref_width = ref_frame->buf->y_width;
-    const int ref_height = ref_frame->buf->y_height;
-
-    if (!valid_ref_frame_size(ref_width, ref_height, width, height))
+    if (!valid_ref_frame_size(ref_frame->buf->y_width, ref_frame->buf->y_height,
+                              width, height))
       vpx_internal_error(&cm->error, VPX_CODEC_CORRUPT_FRAME,
                          "Referenced frame has invalid size");
   }
 
-  apply_frame_size(cm, width, height);
+  resize_context_buffers(cm, width, height);
   setup_display_size(cm, rb);
+
+  if (vp9_realloc_frame_buffer(
+          get_frame_new_buffer(cm), cm->width, cm->height,
+          cm->subsampling_x, cm->subsampling_y, VP9_DEC_BORDER_IN_PIXELS,
+          &cm->frame_bufs[cm->new_fb_idx].raw_frame_buffer, cm->get_fb_cb,
+          cm->cb_priv)) {
+    vpx_internal_error(&cm->error, VPX_CODEC_MEM_ERROR,
+                       "Failed to allocate frame buffer");
+  }
 }
 
 static void setup_tile_info(VP9_COMMON *cm, struct vp9_read_bit_buffer *rb) {
@@ -1065,9 +1076,11 @@ int vp9_read_sync_code(struct vp9_read_bit_buffer *const rb) {
          vp9_rb_read_literal(rb, 8) == VP9_SYNC_CODE_2;
 }
 
-static BITSTREAM_PROFILE read_profile(struct vp9_read_bit_buffer *rb) {
+BITSTREAM_PROFILE vp9_read_profile(struct vp9_read_bit_buffer *rb) {
   int profile = vp9_rb_read_bit(rb);
   profile |= vp9_rb_read_bit(rb) << 1;
+  if (profile > 2)
+    profile += vp9_rb_read_bit(rb);
   return (BITSTREAM_PROFILE) profile;
 }
 
@@ -1083,7 +1096,7 @@ static size_t read_uncompressed_header(VP9Decoder *pbi,
       vpx_internal_error(&cm->error, VPX_CODEC_UNSUP_BITSTREAM,
                          "Invalid frame marker");
 
-  cm->profile = read_profile(rb);
+  cm->profile = vp9_read_profile(rb);
   if (cm->profile >= MAX_PROFILES)
     vpx_internal_error(&cm->error, VPX_CODEC_UNSUP_BITSTREAM,
                        "Unsupported bitstream profile");
@@ -1118,7 +1131,7 @@ static size_t read_uncompressed_header(VP9Decoder *pbi,
     cm->color_space = (COLOR_SPACE)vp9_rb_read_literal(rb, 3);
     if (cm->color_space != SRGB) {
       vp9_rb_read_bit(rb);  // [16,235] (including xvycc) vs [0,255] range
-      if (cm->profile >= PROFILE_1) {
+      if (cm->profile == PROFILE_1 || cm->profile == PROFILE_3) {
         cm->subsampling_x = vp9_rb_read_bit(rb);
         cm->subsampling_y = vp9_rb_read_bit(rb);
         vp9_rb_read_bit(rb);  // has extra plane
@@ -1126,20 +1139,20 @@ static size_t read_uncompressed_header(VP9Decoder *pbi,
         cm->subsampling_y = cm->subsampling_x = 1;
       }
     } else {
-      if (cm->profile >= PROFILE_1) {
+      if (cm->profile == PROFILE_1 || cm->profile == PROFILE_3) {
         cm->subsampling_y = cm->subsampling_x = 0;
         vp9_rb_read_bit(rb);  // has extra plane
       } else {
         vpx_internal_error(&cm->error, VPX_CODEC_UNSUP_BITSTREAM,
-                           "RGB not supported in profile 0");
+                           "4:4:4 color not supported in profile 0");
       }
     }
 
     pbi->refresh_frame_flags = (1 << REF_FRAMES) - 1;
 
     for (i = 0; i < REFS_PER_FRAME; ++i) {
-      cm->frame_refs[i].idx = cm->new_fb_idx;
-      cm->frame_refs[i].buf = get_frame_new_buffer(cm);
+      cm->frame_refs[i].idx = -1;
+      cm->frame_refs[i].buf = NULL;
     }
 
     setup_frame_size(cm, rb);

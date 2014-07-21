@@ -51,8 +51,6 @@
 
 void vp9_coef_tree_initialize();
 
-#define DEFAULT_INTERP_FILTER SWITCHABLE
-
 #define SHARP_FILTER_QTHRESH 0          /* Q threshold for 8-tap sharp filter */
 
 #define ALTREF_HIGH_PRECISION_MV 1      // Whether to use high precision mv
@@ -174,7 +172,7 @@ static void dealloc_compressor_data(VP9_COMP *cpi) {
   vp9_cyclic_refresh_free(cpi->cyclic_refresh);
   cpi->cyclic_refresh = NULL;
 
-  vp9_free_frame_buffers(cm);
+  vp9_free_ref_frame_buffers(cm);
   vp9_free_context_buffers(cm);
 
   vp9_free_frame_buffer(&cpi->last_frame_uf);
@@ -200,12 +198,11 @@ static void dealloc_compressor_data(VP9_COMP *cpi) {
     cpi->source_diff_var = NULL;
   }
 
-#if CONFIG_FP_MB_STATS
-  if (cpi->use_fp_mb_stats) {
-    vpx_free(cpi->twopass.this_frame_mb_stats.mb_stats);
-    cpi->twopass.this_frame_mb_stats.mb_stats = NULL;
+  for (i = 0; i < MAX_LAG_BUFFERS; ++i) {
+    vp9_free_frame_buffer(&cpi->svc.scaled_frames[i]);
   }
-#endif
+  vpx_memset(&cpi->svc.scaled_frames[0], 0,
+             MAX_LAG_BUFFERS * sizeof(cpi->svc.scaled_frames[0]));
 }
 
 static void save_coding_context(VP9_COMP *cpi) {
@@ -427,7 +424,7 @@ static void alloc_raw_frame_buffers(VP9_COMP *cpi) {
 
 static void alloc_ref_frame_buffers(VP9_COMP *cpi) {
   VP9_COMMON *const cm = &cpi->common;
-  if (vp9_alloc_frame_buffers(cm, cm->width, cm->height))
+  if (vp9_alloc_ref_frame_buffers(cm, cm->width, cm->height))
     vpx_internal_error(&cm->error, VPX_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffers");
 }
@@ -474,8 +471,19 @@ void vp9_alloc_compressor_data(VP9_COMP *cpi) {
 static void update_frame_size(VP9_COMP *cpi) {
   VP9_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &cpi->mb.e_mbd;
-  vp9_update_frame_size(cm);
+
+  vp9_set_mb_mi(cm, cm->width, cm->height);
+  vp9_init_context_buffers(cm);
   init_macroblockd(cm, xd);
+
+  if (cpi->use_svc && cpi->svc.number_temporal_layers == 1) {
+    if (vp9_realloc_frame_buffer(&cpi->alt_ref_buffer,
+                                 cm->width, cm->height,
+                                 cm->subsampling_x, cm->subsampling_y,
+                                 VP9_ENC_BORDER_IN_PIXELS, NULL, NULL, NULL))
+      vpx_internal_error(&cm->error, VPX_CODEC_MEM_ERROR,
+                         "Failed to reallocate alt_ref_buffer");
+  }
 }
 
 void vp9_new_framerate(VP9_COMP *cpi, double framerate) {
@@ -628,7 +636,7 @@ void vp9_change_config(struct VP9_COMP *cpi, const VP9EncoderConfig *oxcf) {
   rc->worst_quality = cpi->oxcf.worst_allowed_q;
   rc->best_quality = cpi->oxcf.best_allowed_q;
 
-  cm->interp_filter = DEFAULT_INTERP_FILTER;
+  cm->interp_filter = cpi->sf.default_interp_filter;
 
   cm->display_width = cpi->oxcf.width;
   cm->display_height = cpi->oxcf.height;
@@ -742,9 +750,6 @@ VP9_COMP *vp9_create_compressor(VP9EncoderConfig *oxcf) {
 
   cm->current_video_frame = 0;
 
-  // Set reference frame sign bias for ALTREF frame to 1 (for now)
-  cm->ref_frame_sign_bias[ALTREF_FRAME] = 1;
-
   cpi->gold_is_last = 0;
   cpi->alt_is_last = 0;
   cpi->gold_is_alt = 0;
@@ -778,11 +783,11 @@ VP9_COMP *vp9_create_compressor(VP9EncoderConfig *oxcf) {
 #if CONFIG_FP_MB_STATS
   cpi->use_fp_mb_stats = 0;
   if (cpi->use_fp_mb_stats) {
-    // a place holder for the mb stats obtained from the first pass
-    CHECK_MEM_ERROR(cm, cpi->twopass.this_frame_mb_stats.mb_stats,
-                    vpx_calloc(cm->MBs * sizeof(FIRSTPASS_MB_STATS), 1));
+    // a place holder used to store the first pass mb stats in the first pass
+    CHECK_MEM_ERROR(cm, cpi->twopass.frame_mb_stats_buf,
+                    vpx_calloc(cm->MBs * sizeof(uint8_t), 1));
   } else {
-    cpi->twopass.this_frame_mb_stats.mb_stats = NULL;
+    cpi->twopass.frame_mb_stats_buf = NULL;
   }
 #endif
 
@@ -925,6 +930,19 @@ VP9_COMP *vp9_create_compressor(VP9EncoderConfig *oxcf) {
 
       vp9_init_second_pass_spatial_svc(cpi);
     } else {
+#if CONFIG_FP_MB_STATS
+      if (cpi->use_fp_mb_stats) {
+        const size_t psz = cpi->common.MBs * sizeof(uint8_t);
+        const int ps = (int)(oxcf->firstpass_mb_stats_in.sz / psz);
+
+        cpi->twopass.firstpass_mb_stats.mb_stats_start =
+            oxcf->firstpass_mb_stats_in.buf;
+        cpi->twopass.firstpass_mb_stats.mb_stats_end =
+            cpi->twopass.firstpass_mb_stats.mb_stats_start +
+            (ps - 1) * cpi->common.MBs * sizeof(uint8_t);
+      }
+#endif
+
       cpi->twopass.stats_in_start = oxcf->two_pass_stats_in.buf;
       cpi->twopass.stats_in = cpi->twopass.stats_in_start;
       cpi->twopass.stats_in_end = &cpi->twopass.stats_in[packets - 1];
@@ -1114,6 +1132,13 @@ void vp9_remove_compressor(VP9_COMP *cpi) {
                   sizeof(cpi->mbgraph_stats[0]); ++i) {
     vpx_free(cpi->mbgraph_stats[i].mb_stats);
   }
+
+#if CONFIG_FP_MB_STATS
+  if (cpi->use_fp_mb_stats) {
+    vpx_free(cpi->twopass.frame_mb_stats_buf);
+    cpi->twopass.frame_mb_stats_buf = NULL;
+  }
+#endif
 
   vp9_remove_common(&cpi->common);
   vpx_free(cpi);
@@ -2057,6 +2082,22 @@ static void configure_skippable_frame(VP9_COMP *cpi) {
     twopass->stats_in->pcnt_inter - twopass->stats_in->pcnt_motion == 1);
 }
 
+static void set_arf_sign_bias(VP9_COMP *cpi) {
+  VP9_COMMON *const cm = &cpi->common;
+  int arf_sign_bias;
+
+  if ((cpi->pass == 2) && cpi->multi_arf_allowed) {
+    const GF_GROUP *const gf_group = &cpi->twopass.gf_group;
+    arf_sign_bias = cpi->rc.source_alt_ref_active &&
+                    (!cpi->refresh_alt_ref_frame ||
+                     (gf_group->rf_level[gf_group->index] == GF_ARF_LOW));
+  } else {
+    arf_sign_bias =
+      (cpi->rc.source_alt_ref_active && !cpi->refresh_alt_ref_frame);
+  }
+  cm->ref_frame_sign_bias[ALTREF_FRAME] = arf_sign_bias;
+}
+
 static void encode_frame_to_data_rate(VP9_COMP *cpi,
                                       size_t *size,
                                       uint8_t *dest,
@@ -2089,8 +2130,8 @@ static void encode_frame_to_data_rate(VP9_COMP *cpi,
   cpi->zbin_mode_boost = 0;
   cpi->zbin_mode_boost_enabled = 0;
 
-  // Current default encoder behavior for the altref sign bias.
-  cm->ref_frame_sign_bias[ALTREF_FRAME] = cpi->rc.source_alt_ref_active;
+  // Set the arf sign bias for this frame.
+  set_arf_sign_bias(cpi);
 
   // Set default state for segment based loop filter update flags.
   cm->lf.mode_ref_delta_update = 0;
@@ -2217,7 +2258,7 @@ static void encode_frame_to_data_rate(VP9_COMP *cpi,
   q = vp9_rc_pick_q_and_bounds(cpi, &bottom_index, &top_index);
 
   if (!frame_is_intra_only(cm)) {
-    cm->interp_filter = DEFAULT_INTERP_FILTER;
+    cm->interp_filter = cpi->sf.default_interp_filter;
     /* TODO: Decide this more intelligently */
     vp9_set_high_precision_mv(cpi, q < HIGH_PRECISION_MV_QTHRESH);
   }
@@ -2486,7 +2527,7 @@ void adjust_frame_rate(VP9_COMP *cpi) {
 static int get_arf_src_index(VP9_COMP *cpi) {
   RATE_CONTROL *const rc = &cpi->rc;
   int arf_src_index = 0;
-  if (is_altref_enabled(&cpi->oxcf)) {
+  if (is_altref_enabled(cpi)) {
     if (cpi->pass == 2) {
       const GF_GROUP *const gf_group = &cpi->twopass.gf_group;
       if (gf_group->update_type[gf_group->index] == ARF_UPDATE) {
@@ -2565,12 +2606,26 @@ int vp9_get_compressed_data(VP9_COMP *cpi, unsigned int *frame_flags,
 #ifdef CONFIG_SPATIAL_SVC
     if (is_spatial_svc)
       cpi->source = vp9_svc_lookahead_peek(cpi, cpi->lookahead,
-                                           arf_src_index, 1);
+                                           arf_src_index, 0);
     else
 #endif
       cpi->source = vp9_lookahead_peek(cpi->lookahead, arf_src_index);
     if (cpi->source != NULL) {
       cpi->alt_ref_source = cpi->source;
+
+#ifdef CONFIG_SPATIAL_SVC
+      if (is_spatial_svc && cpi->svc.spatial_layer_id > 0) {
+        int i;
+        // Reference a hidden frame from a lower layer
+        for (i = cpi->svc.spatial_layer_id - 1; i >= 0; --i) {
+          if (cpi->oxcf.ss_play_alternate[i]) {
+            cpi->gld_fb_idx = cpi->svc.layer_context[i].alt_ref_idx;
+            break;
+          }
+        }
+      }
+      cpi->svc.layer_context[cpi->svc.spatial_layer_id].has_alt_frame = 1;
+#endif
 
       if (cpi->oxcf.arnr_max_frames > 0) {
         // Produce the filtered ARF frame.
@@ -2787,6 +2842,8 @@ int vp9_get_compressed_data(VP9_COMP *cpi, unsigned int *frame_flags,
           PSNR_STATS psnr2;
           double frame_ssim2 = 0, weight = 0;
 #if CONFIG_VP9_POSTPROC
+          // TODO(agrange) Add resizing of post-proc buffer in here when the
+          // encoder is changed to use on-demand buffer allocation.
           vp9_deblock(cm->frame_to_show, &cm->post_proc_buffer,
                       cm->lf.filter_level * 10 / 6);
 #endif
@@ -2904,10 +2961,11 @@ int vp9_set_internal_size(VP9_COMP *cpi,
   // always go to the next whole number
   cm->width = (hs - 1 + cpi->oxcf.width * hr) / hs;
   cm->height = (vs - 1 + cpi->oxcf.height * vr) / vs;
-
   assert(cm->width <= cpi->initial_width);
   assert(cm->height <= cpi->initial_height);
+
   update_frame_size(cpi);
+
   return 0;
 }
 
@@ -2940,10 +2998,11 @@ int vp9_set_size_literal(VP9_COMP *cpi, unsigned int width,
       printf("Warning: Desired height too large, changed to %d\n", cm->height);
     }
   }
-
   assert(cm->width <= cpi->initial_width);
   assert(cm->height <= cpi->initial_height);
+
   update_frame_size(cpi);
+
   return 0;
 }
 

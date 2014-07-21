@@ -20,14 +20,9 @@ extern "C" {
 
 #if CONFIG_FP_MB_STATS
 typedef struct {
-  PREDICTION_MODE mode;
-  int err;
-  int_mv mv;
+  uint8_t *mb_stats_start;
+  uint8_t *mb_stats_end;
 } FIRSTPASS_MB_STATS;
-
-typedef struct {
-  FIRSTPASS_MB_STATS *mb_stats;
-} FIRSTPASS_FRAME_MB_STATS;
 #endif
 
 typedef struct {
@@ -73,7 +68,6 @@ typedef struct {
 
 typedef struct {
   unsigned int section_intra_rating;
-  unsigned int next_iiratio;
   FIRSTPASS_STATS total_stats;
   FIRSTPASS_STATS this_frame_stats;
   const FIRSTPASS_STATS *stats_in;
@@ -89,7 +83,9 @@ typedef struct {
   double gf_intra_err_min;
 
 #if CONFIG_FP_MB_STATS
-  FIRSTPASS_FRAME_MB_STATS this_frame_mb_stats;
+  uint8_t *frame_mb_stats_buf;
+  uint8_t *this_frame_mb_stats;
+  FIRSTPASS_MB_STATS firstpass_mb_stats;
 #endif
 
   // Projected total bits available for a key frame group of frames

@@ -398,7 +398,8 @@ int vp9_refining_search_sad_c(const struct macroblock *x, struct mv *ref_mv, int
 #define vp9_refining_search_sad vp9_refining_search_sad_c
 
 unsigned int vp9_sad16x16_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int  ref_stride);
-#define vp9_sad16x16 vp9_sad16x16_c
+unsigned int vp9_sad16x16_neon(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int  ref_stride);
+RTCD_EXTERN unsigned int (*vp9_sad16x16)(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int  ref_stride);
 
 unsigned int vp9_sad16x16_avg_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int  ref_stride, const uint8_t *second_pred);
 #define vp9_sad16x16_avg vp9_sad16x16_avg_c
@@ -446,7 +447,8 @@ void vp9_sad32x16x4d_c(const uint8_t *src_ptr, int  src_stride, const uint8_t* c
 #define vp9_sad32x16x4d vp9_sad32x16x4d_c
 
 unsigned int vp9_sad32x32_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int  ref_stride);
-#define vp9_sad32x32 vp9_sad32x32_c
+unsigned int vp9_sad32x32_neon(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int  ref_stride);
+RTCD_EXTERN unsigned int (*vp9_sad32x32)(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int  ref_stride);
 
 unsigned int vp9_sad32x32_avg_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int  ref_stride, const uint8_t *second_pred);
 #define vp9_sad32x32_avg vp9_sad32x32_avg_c
@@ -506,7 +508,8 @@ void vp9_sad64x32x4d_c(const uint8_t *src_ptr, int  src_stride, const uint8_t* c
 #define vp9_sad64x32x4d vp9_sad64x32x4d_c
 
 unsigned int vp9_sad64x64_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int  ref_stride);
-#define vp9_sad64x64 vp9_sad64x64_c
+unsigned int vp9_sad64x64_neon(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int  ref_stride);
+RTCD_EXTERN unsigned int (*vp9_sad64x64)(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int  ref_stride);
 
 unsigned int vp9_sad64x64_avg_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int  ref_stride, const uint8_t *second_pred);
 #define vp9_sad64x64_avg vp9_sad64x64_avg_c
@@ -801,6 +804,12 @@ static void setup_rtcd_internal(void)
     if (flags & HAS_NEON) vp9_lpf_vertical_8 = vp9_lpf_vertical_8_neon;
     vp9_lpf_vertical_8_dual = vp9_lpf_vertical_8_dual_c;
     if (flags & HAS_NEON) vp9_lpf_vertical_8_dual = vp9_lpf_vertical_8_dual_neon;
+    vp9_sad16x16 = vp9_sad16x16_c;
+    if (flags & HAS_NEON) vp9_sad16x16 = vp9_sad16x16_neon;
+    vp9_sad32x32 = vp9_sad32x32_c;
+    if (flags & HAS_NEON) vp9_sad32x32 = vp9_sad32x32_neon;
+    vp9_sad64x64 = vp9_sad64x64_c;
+    if (flags & HAS_NEON) vp9_sad64x64 = vp9_sad64x64_neon;
     vp9_tm_predictor_16x16 = vp9_tm_predictor_16x16_c;
     if (flags & HAS_NEON) vp9_tm_predictor_16x16 = vp9_tm_predictor_16x16_neon;
     vp9_tm_predictor_32x32 = vp9_tm_predictor_32x32_c;

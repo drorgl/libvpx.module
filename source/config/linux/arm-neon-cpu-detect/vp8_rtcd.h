@@ -335,7 +335,6 @@ RTCD_EXTERN void (*vp8_sixtap_predict16x16)(unsigned char *src, int src_pitch, i
 
 void vp8_sixtap_predict4x4_c(unsigned char *src, int src_pitch, int xofst, int yofst, unsigned char *dst, int dst_pitch);
 void vp8_sixtap_predict4x4_armv6(unsigned char *src, int src_pitch, int xofst, int yofst, unsigned char *dst, int dst_pitch);
-void vp8_sixtap_predict4x4_neon(unsigned char *src, int src_pitch, int xofst, int yofst, unsigned char *dst, int dst_pitch);
 RTCD_EXTERN void (*vp8_sixtap_predict4x4)(unsigned char *src, int src_pitch, int xofst, int yofst, unsigned char *dst, int dst_pitch);
 
 void vp8_sixtap_predict8x4_c(unsigned char *src, int src_pitch, int xofst, int yofst, unsigned char *dst, int dst_pitch);
@@ -550,7 +549,6 @@ static void setup_rtcd_internal(void)
     if (flags & HAS_NEON) vp8_sixtap_predict16x16 = vp8_sixtap_predict16x16_neon;
     vp8_sixtap_predict4x4 = vp8_sixtap_predict4x4_c;
     if (flags & HAS_MEDIA) vp8_sixtap_predict4x4 = vp8_sixtap_predict4x4_armv6;
-    if (flags & HAS_NEON) vp8_sixtap_predict4x4 = vp8_sixtap_predict4x4_neon;
     vp8_sixtap_predict8x4 = vp8_sixtap_predict8x4_c;
     if (flags & HAS_MEDIA) vp8_sixtap_predict8x4 = vp8_sixtap_predict8x4_armv6;
     if (flags & HAS_NEON) vp8_sixtap_predict8x4 = vp8_sixtap_predict8x4_neon;

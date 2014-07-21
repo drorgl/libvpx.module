@@ -34,6 +34,7 @@ LIBVPX_TEST_SRCS-$(CONFIG_VP9_DECODER) += user_priv_test.cc
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += active_map_test.cc
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += borders_test.cc
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += cpu_speed_test.cc
+LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += frame_size_tests.cc
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += resize_test.cc
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += vp9_lossless_test.cc
 
@@ -773,6 +774,8 @@ LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-15-segkey_adpq.webm
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-15-segkey_adpq.webm.md5
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-16-intra-only.webm
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-16-intra-only.webm.md5
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-17-show-existing-frame.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp90-2-17-show-existing-frame.webm.md5
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp91-2-04-yuv444.webm
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += vp91-2-04-yuv444.webm.md5
 
@@ -783,8 +786,8 @@ LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-02-v2.webm
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-02-v2.webm.res
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-03-v2.webm
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-03-v2.webm.res
-LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-00-quantizer-00.webm.ivf.s5861_r01-05_b6-.ivf
-LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-00-quantizer-00.webm.ivf.s5861_r01-05_b6-.ivf.res
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-00-quantizer-00.webm.ivf.s5861_r01-05_b6-.v2.ivf
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-00-quantizer-00.webm.ivf.s5861_r01-05_b6-.v2.ivf.res
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-00-quantizer-11.webm.ivf.s52984_r01-05_b6-.ivf
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-00-quantizer-11.webm.ivf.s52984_r01-05_b6-.ivf.res
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-00-quantizer-11.webm.ivf.s52984_r01-05_b6-z.ivf
@@ -827,7 +830,11 @@ LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += \
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += \
   vp90-2-tos_854x356_tile_1x2_656kbps.webm
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += \
+  vp90-2-tos_854x356_tile_1x2_fpm_546kbps.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += \
   vp90-2-tos_1280x534_tile_1x4_1306kbps.webm
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += \
+  vp90-2-tos_1280x534_tile_1x4_fpm_952kbps.webm
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += \
   vp90-2-tos_1920x800_tile_1x4_fpm_2335kbps.webm
 endif  # CONFIG_DECODE_PERF_TESTS
