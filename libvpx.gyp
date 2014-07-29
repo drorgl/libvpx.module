@@ -181,14 +181,6 @@
                 '-Wno-parentheses-equality',
               ],
             }],
-            ['chromeos == 1', {
-              # ChromeOS needs these files for animated WebM avatars.
-              'sources': [
-                '<(libvpx_source)/third_party/libmkv/EbmlIDs.h',
-                '<(libvpx_source)/third_party/libmkv/EbmlWriter.c',
-                '<(libvpx_source)/third_party/libmkv/EbmlWriter.h',
-              ],
-            }],
           ],
         },
       ],
@@ -350,14 +342,6 @@
             ['OS == "android"', {
               'includes': [
                 '../../build/android/cpufeatures.gypi',
-              ],
-            }],
-            ['chromeos == 1', {
-              # ChromeOS needs these files for animated WebM avatars.
-              'sources': [
-                '<(libvpx_source)/third_party/libmkv/EbmlIDs.h',
-                '<(libvpx_source)/third_party/libmkv/EbmlWriter.c',
-                '<(libvpx_source)/third_party/libmkv/EbmlWriter.h',
               ],
             }],
             ['OS == "ios"', {
