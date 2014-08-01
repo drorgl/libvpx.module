@@ -99,6 +99,12 @@
                 ],
               }],
             ],
+            'clang_warning_flags': [
+              # libvpx heavily relies on implicit enum casting.
+              '-Wno-conversion',
+              # libvpx does `if ((a == b))` in some places.
+              '-Wno-parentheses-equality',
+            ],
           },
           'dependencies': [
             'gen_asm_offsets_vp8',
@@ -165,20 +171,6 @@
                     #'libvpx_intrinsics_avx2',
                   ],
                 }],
-              ],
-            }],
-            ['clang == 1', {
-              'xcode_settings': {
-                'WARNING_CFLAGS': [
-                  # libvpx heavily relies on implicit enum casting.
-                  '-Wno-conversion',
-                  # libvpx does `if ((a == b))` in some places.
-                  '-Wno-parentheses-equality',
-                ],
-              },
-              'cflags': [
-                '-Wno-conversion',
-                '-Wno-parentheses-equality',
               ],
             }],
           ],
