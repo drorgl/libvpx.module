@@ -486,6 +486,7 @@
             'unpack_lib_search_path_list': [
               '-a', '<(PRODUCT_DIR)/libvpx_asm_offsets_vp8.a',
               '-a', '<(LIB_DIR)/third_party/libvpx/libvpx_asm_offsets_vp8.a',
+              '-a', '<(LIB_DIR)/chromium/src/third_party/libvpx/libvpx_asm_offsets_vp8.a',
               '-a', '<(LIB_DIR)/Source/WebKit/chromium/third_party/libvpx/libvpx_asm_offsets_vp8.a',
               '-a', '<(lib_intermediate_name)',
             ],
@@ -559,6 +560,7 @@
             'unpack_lib_search_path_list': [
               '-a', '<(PRODUCT_DIR)/libvpx_asm_offsets_vpx_scale.a',
               '-a', '<(LIB_DIR)/third_party/libvpx/libvpx_asm_offsets_vpx_scale.a',
+              '-a', '<(LIB_DIR)/chromium/src/third_party/libvpx/libvpx_asm_offsets_vpx_scale.a',
               '-a', '<(LIB_DIR)/Source/WebKit/chromium/third_party/libvpx/libvpx_asm_offsets_vpx_scale.a',
               '-a', '<(lib_intermediate_name)',
             ],
