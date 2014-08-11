@@ -1259,6 +1259,14 @@ void vp8_alloc_compressor_data(VP8_COMP *cpi)
 
     vpx_free(cpi->tplist);
     CHECK_MEM_ERROR(cpi->tplist, vpx_malloc(sizeof(TOKENLIST) * cm->mb_rows));
+
+#if CONFIG_TEMPORAL_DENOISING
+    if (cpi->oxcf.noise_sensitivity > 0) {
+      vp8_denoiser_free(&cpi->denoiser);
+      vp8_denoiser_allocate(&cpi->denoiser, width, height,
+                            cm->mb_rows, cm->mb_cols);
+    }
+#endif
 }
 
 
