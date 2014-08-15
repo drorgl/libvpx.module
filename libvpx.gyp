@@ -478,6 +478,9 @@
               'process_outputs_as_sources': 1,
             },
           ],
+          'sources': [
+            '<(INTERMEDIATE_DIR)/vp8_asm_enc_offsets.obj',
+          ],
         }, {
           'variables': {
             'unpack_lib_search_path_list': [
@@ -549,6 +552,9 @@
               'process_outputs_as_sources': 1,
             },
           ],
+          'sources': [
+            '<(INTERMEDIATE_DIR)/vpx_scale_asm_offsets.obj',
+          ],
         }, {
           'variables': {
             'unpack_lib_search_path_list': [
@@ -562,6 +568,10 @@
             'unpack_lib_name':'vpx_scale_asm_offsets.o'
           },
           'includes': ['unpack_lib_posix.gypi'],
+         # Need this otherwise gyp won't run the rule on them.
+          'sources': [
+            '<(INTERMEDIATE_DIR)/vpx_scale_asm_offsets.o',
+          ],
         }],
       ],
       'includes': ['obj_int_extract.gypi'],
