@@ -137,6 +137,7 @@ typedef struct VP9Common {
 
   int mi_idx;
   int prev_mi_idx;
+  int mi_alloc_size;
   MODE_INFO *mip_array[2];
   MODE_INFO **mi_grid_base_array[2];
 
@@ -188,11 +189,6 @@ typedef struct VP9Common {
   int error_resilient_mode;
   int frame_parallel_decoding_mode;
 
-  // Flag indicates if prev_mi can be used in coding:
-  //   0: encoder assumes decoder does not have prev_mi
-  //   1: encoder assumes decoder has and uses prev_mi
-  unsigned int coding_use_prev_mi;
-
   int log2_tile_cols, log2_tile_rows;
 
   // Private data associated with the frame buffer callbacks.
@@ -206,6 +202,15 @@ typedef struct VP9Common {
   PARTITION_CONTEXT *above_seg_context;
   ENTROPY_CONTEXT *above_context;
 } VP9_COMMON;
+
+static INLINE YV12_BUFFER_CONFIG *get_ref_frame(VP9_COMMON *cm, int index) {
+  if (index < 0 || index >= REF_FRAMES)
+    return NULL;
+  if (cm->ref_frame_map[index] < 0)
+    return NULL;
+  assert(cm->ref_frame_map[index] < FRAME_BUFFERS);
+  return &cm->frame_bufs[cm->ref_frame_map[index]].buf;
+}
 
 static INLINE YV12_BUFFER_CONFIG *get_frame_new_buffer(VP9_COMMON *cm) {
   return &cm->frame_bufs[cm->new_fb_idx].buf;
@@ -269,6 +274,11 @@ static INLINE void set_skip_context(MACROBLOCKD *xd, int mi_row, int mi_col) {
     pd->above_context = &xd->above_context[i][above_idx >> pd->subsampling_x];
     pd->left_context = &xd->left_context[i][left_idx >> pd->subsampling_y];
   }
+}
+
+static INLINE int calc_mi_size(int len) {
+  // len is in mi units.
+  return len + MI_BLOCK_SIZE;
 }
 
 static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,

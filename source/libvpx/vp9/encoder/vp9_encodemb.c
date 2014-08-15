@@ -32,7 +32,7 @@ struct optimize_ctx {
 struct encode_b_args {
   MACROBLOCK *x;
   struct optimize_ctx *ctx;
-  unsigned char *skip;
+  int8_t *skip;
 };
 
 void vp9_subtract_block_c(int rows, int cols,
@@ -348,6 +348,7 @@ void vp9_xform_quant_fp(MACROBLOCK *x, int plane, int block,
       break;
     default:
       assert(0);
+      break;
   }
 }
 
@@ -394,6 +395,7 @@ void vp9_xform_quant_dc(MACROBLOCK *x, int plane, int block,
       break;
     default:
       assert(0);
+      break;
   }
 }
 
@@ -444,6 +446,7 @@ void vp9_xform_quant(MACROBLOCK *x, int plane, int block,
       break;
     default:
       assert(0);
+      break;
   }
 }
 
@@ -472,22 +475,22 @@ static void encode_block(int plane, int block, BLOCK_SIZE plane_bsize,
     return;
   }
 
-  if (x->skip_txfm == 0) {
-    // full forward transform and quantization
-    if (!x->skip_recode) {
+  if (!x->skip_recode) {
+    if (x->skip_txfm[plane] == 0) {
+      // full forward transform and quantization
       if (x->quant_fp)
         vp9_xform_quant_fp(x, plane, block, plane_bsize, tx_size);
       else
         vp9_xform_quant(x, plane, block, plane_bsize, tx_size);
+    } else if (x->skip_txfm[plane] == 2) {
+      // fast path forward transform and quantization
+      vp9_xform_quant_dc(x, plane, block, plane_bsize, tx_size);
+    } else {
+      // skip forward transform
+      p->eobs[block] = 0;
+      *a = *l = 0;
+      return;
     }
-  } else if (x->skip_txfm == 2) {
-    // fast path forward transform and quantization
-    vp9_xform_quant_dc(x, plane, block, plane_bsize, tx_size);
-  } else {
-    // skip forward transform
-    p->eobs[block] = 0;
-    *a = *l = 0;
-    return;
   }
 
   if (x->optimize && (!x->skip_recode || !x->skip_optimize)) {
@@ -521,6 +524,7 @@ static void encode_block(int plane, int block, BLOCK_SIZE plane_bsize,
       break;
     default:
       assert(0 && "Invalid transform size");
+      break;
   }
 }
 
@@ -692,6 +696,7 @@ static void encode_block_intra(int plane, int block, BLOCK_SIZE plane_bsize,
       break;
     default:
       assert(0);
+      break;
   }
   if (*eob)
     *(args->skip) = 0;
@@ -699,7 +704,7 @@ static void encode_block_intra(int plane, int block, BLOCK_SIZE plane_bsize,
 
 void vp9_encode_block_intra(MACROBLOCK *x, int plane, int block,
                             BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
-                            unsigned char *skip) {
+                            int8_t *skip) {
   struct encode_b_args arg = {x, NULL, skip};
   encode_block_intra(plane, block, plane_bsize, tx_size, &arg);
 }

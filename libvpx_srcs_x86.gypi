@@ -219,7 +219,6 @@
     '<(libvpx_source)/vp9/common/x86/vp9_intrapred_sse2.asm',
     '<(libvpx_source)/vp9/common/x86/vp9_intrapred_ssse3.asm',
     '<(libvpx_source)/vp9/common/x86/vp9_loopfilter_mmx.asm',
-    '<(libvpx_source)/vp9/common/x86/vp9_postproc_x86.h',
     '<(libvpx_source)/vp9/common/x86/vp9_subpixel_8t_sse2.asm',
     '<(libvpx_source)/vp9/common/x86/vp9_subpixel_8t_ssse3.asm',
     '<(libvpx_source)/vp9/common/x86/vp9_subpixel_bilinear_sse2.asm',

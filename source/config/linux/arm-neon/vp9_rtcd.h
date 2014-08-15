@@ -217,10 +217,12 @@ void vp9_fdct4x4_1_c(const int16_t *input, int16_t *output, int stride);
 #define vp9_fdct4x4_1 vp9_fdct4x4_1_c
 
 void vp9_fdct8x8_c(const int16_t *input, int16_t *output, int stride);
-#define vp9_fdct8x8 vp9_fdct8x8_c
+void vp9_fdct8x8_neon(const int16_t *input, int16_t *output, int stride);
+#define vp9_fdct8x8 vp9_fdct8x8_neon
 
 void vp9_fdct8x8_1_c(const int16_t *input, int16_t *output, int stride);
-#define vp9_fdct8x8_1 vp9_fdct8x8_1_c
+void vp9_fdct8x8_1_neon(const int16_t *input, int16_t *output, int stride);
+#define vp9_fdct8x8_1 vp9_fdct8x8_1_neon
 
 void vp9_fht16x16_c(const int16_t *input, int16_t *output, int stride, int tx_type);
 #define vp9_fht16x16 vp9_fht16x16_c
@@ -241,10 +243,12 @@ void vp9_fwht4x4_c(const int16_t *input, int16_t *output, int stride);
 #define vp9_fwht4x4 vp9_fwht4x4_c
 
 void vp9_get16x16var_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, int *sum);
-#define vp9_get16x16var vp9_get16x16var_c
+void vp9_get16x16var_neon(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, int *sum);
+#define vp9_get16x16var vp9_get16x16var_neon
 
 void vp9_get8x8var_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, int *sum);
-#define vp9_get8x8var vp9_get8x8var_c
+void vp9_get8x8var_neon(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse, int *sum);
+#define vp9_get8x8var vp9_get8x8var_neon
 
 unsigned int vp9_get_mb_ss_c(const int16_t *);
 #define vp9_get_mb_ss vp9_get_mb_ss_c
@@ -389,7 +393,8 @@ void vp9_quantize_b_32x32_c(const int16_t *coeff_ptr, intptr_t n_coeffs, int ski
 #define vp9_quantize_b_32x32 vp9_quantize_b_32x32_c
 
 void vp9_quantize_fp_c(const int16_t *coeff_ptr, intptr_t n_coeffs, int skip_block, const int16_t *zbin_ptr, const int16_t *round_ptr, const int16_t *quant_ptr, const int16_t *quant_shift_ptr, int16_t *qcoeff_ptr, int16_t *dqcoeff_ptr, const int16_t *dequant_ptr, int zbin_oq_value, uint16_t *eob_ptr, const int16_t *scan, const int16_t *iscan);
-#define vp9_quantize_fp vp9_quantize_fp_c
+void vp9_quantize_fp_neon(const int16_t *coeff_ptr, intptr_t n_coeffs, int skip_block, const int16_t *zbin_ptr, const int16_t *round_ptr, const int16_t *quant_ptr, const int16_t *quant_shift_ptr, int16_t *qcoeff_ptr, int16_t *dqcoeff_ptr, const int16_t *dequant_ptr, int zbin_oq_value, uint16_t *eob_ptr, const int16_t *scan, const int16_t *iscan);
+#define vp9_quantize_fp vp9_quantize_fp_neon
 
 void vp9_quantize_fp_32x32_c(const int16_t *coeff_ptr, intptr_t n_coeffs, int skip_block, const int16_t *zbin_ptr, const int16_t *round_ptr, const int16_t *quant_ptr, const int16_t *quant_shift_ptr, int16_t *qcoeff_ptr, int16_t *dqcoeff_ptr, const int16_t *dequant_ptr, int zbin_oq_value, uint16_t *eob_ptr, const int16_t *scan, const int16_t *iscan);
 #define vp9_quantize_fp_32x32 vp9_quantize_fp_32x32_c
@@ -551,7 +556,8 @@ void vp9_sad8x4x8_c(const uint8_t *src_ptr, int src_stride, const uint8_t *ref_p
 #define vp9_sad8x4x8 vp9_sad8x4x8_c
 
 unsigned int vp9_sad8x8_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int  ref_stride);
-#define vp9_sad8x8 vp9_sad8x8_c
+unsigned int vp9_sad8x8_neon(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int  ref_stride);
+#define vp9_sad8x8 vp9_sad8x8_neon
 
 unsigned int vp9_sad8x8_avg_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int  ref_stride, const uint8_t *second_pred);
 #define vp9_sad8x8_avg vp9_sad8x8_avg_c
@@ -605,7 +611,8 @@ unsigned int vp9_sub_pixel_avg_variance8x8_c(const uint8_t *src_ptr, int source_
 #define vp9_sub_pixel_avg_variance8x8 vp9_sub_pixel_avg_variance8x8_c
 
 unsigned int vp9_sub_pixel_variance16x16_c(const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
-#define vp9_sub_pixel_variance16x16 vp9_sub_pixel_variance16x16_c
+unsigned int vp9_sub_pixel_variance16x16_neon(const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
+#define vp9_sub_pixel_variance16x16 vp9_sub_pixel_variance16x16_neon
 
 unsigned int vp9_sub_pixel_variance16x32_c(const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 #define vp9_sub_pixel_variance16x32 vp9_sub_pixel_variance16x32_c
@@ -617,7 +624,8 @@ unsigned int vp9_sub_pixel_variance32x16_c(const uint8_t *src_ptr, int source_st
 #define vp9_sub_pixel_variance32x16 vp9_sub_pixel_variance32x16_c
 
 unsigned int vp9_sub_pixel_variance32x32_c(const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
-#define vp9_sub_pixel_variance32x32 vp9_sub_pixel_variance32x32_c
+unsigned int vp9_sub_pixel_variance32x32_neon(const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
+#define vp9_sub_pixel_variance32x32 vp9_sub_pixel_variance32x32_neon
 
 unsigned int vp9_sub_pixel_variance32x64_c(const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 #define vp9_sub_pixel_variance32x64 vp9_sub_pixel_variance32x64_c
@@ -641,10 +649,12 @@ unsigned int vp9_sub_pixel_variance8x4_c(const uint8_t *src_ptr, int source_stri
 #define vp9_sub_pixel_variance8x4 vp9_sub_pixel_variance8x4_c
 
 unsigned int vp9_sub_pixel_variance8x8_c(const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
-#define vp9_sub_pixel_variance8x8 vp9_sub_pixel_variance8x8_c
+unsigned int vp9_sub_pixel_variance8x8_neon(const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
+#define vp9_sub_pixel_variance8x8 vp9_sub_pixel_variance8x8_neon
 
 void vp9_subtract_block_c(int rows, int cols, int16_t *diff_ptr, ptrdiff_t diff_stride, const uint8_t *src_ptr, ptrdiff_t src_stride, const uint8_t *pred_ptr, ptrdiff_t pred_stride);
-#define vp9_subtract_block vp9_subtract_block_c
+void vp9_subtract_block_neon(int rows, int cols, int16_t *diff_ptr, ptrdiff_t diff_stride, const uint8_t *src_ptr, ptrdiff_t src_stride, const uint8_t *pred_ptr, ptrdiff_t pred_stride);
+#define vp9_subtract_block vp9_subtract_block_neon
 
 void vp9_temporal_filter_apply_c(uint8_t *frame1, unsigned int stride, uint8_t *frame2, unsigned int block_width, unsigned int block_height, int strength, int filter_weight, unsigned int *accumulator, uint16_t *count);
 #define vp9_temporal_filter_apply vp9_temporal_filter_apply_c
@@ -682,7 +692,8 @@ void vp9_v_predictor_8x8_neon(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *a
 #define vp9_v_predictor_8x8 vp9_v_predictor_8x8_neon
 
 unsigned int vp9_variance16x16_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
-#define vp9_variance16x16 vp9_variance16x16_c
+unsigned int vp9_variance16x16_neon(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
+#define vp9_variance16x16 vp9_variance16x16_neon
 
 unsigned int vp9_variance16x32_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 #define vp9_variance16x32 vp9_variance16x32_c
@@ -694,7 +705,8 @@ unsigned int vp9_variance32x16_c(const uint8_t *src_ptr, int source_stride, cons
 #define vp9_variance32x16 vp9_variance32x16_c
 
 unsigned int vp9_variance32x32_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
-#define vp9_variance32x32 vp9_variance32x32_c
+unsigned int vp9_variance32x32_neon(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
+#define vp9_variance32x32 vp9_variance32x32_neon
 
 unsigned int vp9_variance32x64_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 #define vp9_variance32x64 vp9_variance32x64_c
@@ -718,7 +730,8 @@ unsigned int vp9_variance8x4_c(const uint8_t *src_ptr, int source_stride, const 
 #define vp9_variance8x4 vp9_variance8x4_c
 
 unsigned int vp9_variance8x8_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
-#define vp9_variance8x8 vp9_variance8x8_c
+unsigned int vp9_variance8x8_neon(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
+#define vp9_variance8x8 vp9_variance8x8_neon
 
 void vp9_rtcd(void);
 

@@ -337,7 +337,7 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(
     NEON, FwdTrans8x8DCT,
     ::testing::Values(
-        make_tuple(&vp9_fdct8x8_c, &vp9_idct8x8_64_add_neon, 0)));
+        make_tuple(&vp9_fdct8x8_neon, &vp9_idct8x8_64_add_neon, 0)));
 INSTANTIATE_TEST_CASE_P(
     DISABLED_NEON, FwdTrans8x8HT,
     ::testing::Values(
@@ -366,19 +366,5 @@ INSTANTIATE_TEST_CASE_P(
     SSSE3, FwdTrans8x8DCT,
     ::testing::Values(
         make_tuple(&vp9_fdct8x8_ssse3, &vp9_idct8x8_64_add_ssse3, 0)));
-#endif
-
-#if HAVE_AVX2
-INSTANTIATE_TEST_CASE_P(
-    AVX2, FwdTrans8x8DCT,
-    ::testing::Values(
-        make_tuple(&vp9_fdct8x8_avx2, &vp9_idct8x8_64_add_c, 0)));
-INSTANTIATE_TEST_CASE_P(
-    AVX2, FwdTrans8x8HT,
-    ::testing::Values(
-        make_tuple(&vp9_fht8x8_avx2, &vp9_iht8x8_64_add_c, 0),
-        make_tuple(&vp9_fht8x8_avx2, &vp9_iht8x8_64_add_c, 1),
-        make_tuple(&vp9_fht8x8_avx2, &vp9_iht8x8_64_add_c, 2),
-        make_tuple(&vp9_fht8x8_avx2, &vp9_iht8x8_64_add_c, 3)));
 #endif
 }  // namespace
