@@ -456,9 +456,8 @@ $vp8_short_fdct8x4_media=vp8_short_fdct8x4_armv6;
 $vp8_short_fdct8x4_neon_asm=vp8_short_fdct8x4_neon;
 
 add_proto qw/void vp8_short_walsh4x4/, "short *input, short *output, int pitch";
-specialize qw/vp8_short_walsh4x4 sse2 media neon_asm/;
+specialize qw/vp8_short_walsh4x4 sse2 media neon/;
 $vp8_short_walsh4x4_media=vp8_short_walsh4x4_armv6;
-$vp8_short_walsh4x4_neon_asm=vp8_short_walsh4x4_neon;
 
 #
 # Quantizer
@@ -503,19 +502,16 @@ specialize qw/vp8_mbuverror mmx sse2/;
 $vp8_mbuverror_sse2=vp8_mbuverror_xmm;
 
 add_proto qw/void vp8_subtract_b/, "struct block *be, struct blockd *bd, int pitch";
-specialize qw/vp8_subtract_b mmx sse2 media neon_asm/;
+specialize qw/vp8_subtract_b mmx sse2 media neon/;
 $vp8_subtract_b_media=vp8_subtract_b_armv6;
-$vp8_subtract_b_neon_asm=vp8_subtract_b_neon;
 
 add_proto qw/void vp8_subtract_mby/, "short *diff, unsigned char *src, int src_stride, unsigned char *pred, int pred_stride";
-specialize qw/vp8_subtract_mby mmx sse2 media neon_asm/;
+specialize qw/vp8_subtract_mby mmx sse2 media neon/;
 $vp8_subtract_mby_media=vp8_subtract_mby_armv6;
-$vp8_subtract_mby_neon_asm=vp8_subtract_mby_neon;
 
 add_proto qw/void vp8_subtract_mbuv/, "short *diff, unsigned char *usrc, unsigned char *vsrc, int src_stride, unsigned char *upred, unsigned char *vpred, int pred_stride";
-specialize qw/vp8_subtract_mbuv mmx sse2 media neon_asm/;
+specialize qw/vp8_subtract_mbuv mmx sse2 media neon/;
 $vp8_subtract_mbuv_media=vp8_subtract_mbuv_armv6;
-$vp8_subtract_mbuv_neon_asm=vp8_subtract_mbuv_neon;
 
 #
 # Motion search

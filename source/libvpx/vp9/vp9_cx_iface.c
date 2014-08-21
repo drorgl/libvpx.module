@@ -325,6 +325,7 @@ static vpx_codec_err_t set_encoder_config(
     VP9EncoderConfig *oxcf,
     const vpx_codec_enc_cfg_t *cfg,
     const struct vp9_extracfg *extra_cfg) {
+  const int is_vbr = cfg->rc_end_usage == VPX_VBR;
   oxcf->profile = cfg->g_profile;
   oxcf->width   = cfg->g_w;
   oxcf->height  = cfg->g_h;
@@ -334,17 +335,16 @@ static vpx_codec_err_t set_encoder_config(
   if (oxcf->init_framerate > 180)
     oxcf->init_framerate = 30;
 
+  oxcf->mode = BEST;
+
   switch (cfg->g_pass) {
     case VPX_RC_ONE_PASS:
-      oxcf->mode = ONE_PASS_GOOD;
       oxcf->pass = 0;
       break;
     case VPX_RC_FIRST_PASS:
-      oxcf->mode = TWO_PASS_FIRST;
       oxcf->pass = 1;
       break;
     case VPX_RC_LAST_PASS:
-      oxcf->mode = TWO_PASS_SECOND_BEST;
       oxcf->pass = 2;
       break;
   }
@@ -371,9 +371,9 @@ static vpx_codec_err_t set_encoder_config(
   oxcf->scaled_frame_width       = cfg->rc_scaled_width;
   oxcf->scaled_frame_height      = cfg->rc_scaled_height;
 
-  oxcf->maximum_buffer_size_ms   = cfg->rc_buf_sz;
-  oxcf->starting_buffer_level_ms = cfg->rc_buf_initial_sz;
-  oxcf->optimal_buffer_level_ms  = cfg->rc_buf_optimal_sz;
+  oxcf->maximum_buffer_size_ms   = is_vbr ? 240000 : cfg->rc_buf_sz;
+  oxcf->starting_buffer_level_ms = is_vbr ? 60000 : cfg->rc_buf_initial_sz;
+  oxcf->optimal_buffer_level_ms  = is_vbr ? 60000 : cfg->rc_buf_optimal_sz;
 
   oxcf->drop_frames_water_mark   = cfg->rc_dropframe_thresh;
 
@@ -668,7 +668,6 @@ static vpx_codec_err_t encoder_init(vpx_codec_ctx_t *ctx,
 
     ctx->priv = &priv->base;
     ctx->priv->sz = sizeof(*ctx->priv);
-    ctx->priv->iface = ctx->iface;
     ctx->priv->alg_priv = priv;
     ctx->priv->init_flags = ctx->init_flags;
     ctx->priv->enc.total_encoders = 1;
@@ -718,31 +717,36 @@ static vpx_codec_err_t encoder_destroy(vpx_codec_alg_priv_t *ctx) {
   return VPX_CODEC_OK;
 }
 
-static void pick_quickcompress_mode(vpx_codec_alg_priv_t  *ctx,
+static void pick_quickcompress_mode(vpx_codec_alg_priv_t *ctx,
                                     unsigned long duration,
                                     unsigned long deadline) {
-  // Use best quality mode if no deadline is given.
-  MODE new_qc = ONE_PASS_BEST;
+  MODE new_mode = BEST;
 
-  if (deadline) {
-    // Convert duration parameter from stream timebase to microseconds
-    const uint64_t duration_us = (uint64_t)duration * 1000000 *
-                               (uint64_t)ctx->cfg.g_timebase.num /
-                               (uint64_t)ctx->cfg.g_timebase.den;
+  switch (ctx->cfg.g_pass) {
+    case VPX_RC_ONE_PASS:
+      if (deadline > 0) {
+        const vpx_codec_enc_cfg_t *const cfg = &ctx->cfg;
 
-    // If the deadline is more that the duration this frame is to be shown,
-    // use good quality mode. Otherwise use realtime mode.
-    new_qc = (deadline > duration_us) ? ONE_PASS_GOOD : REALTIME;
+        // Convert duration parameter from stream timebase to microseconds.
+        const uint64_t duration_us = (uint64_t)duration * 1000000 *
+           (uint64_t)cfg->g_timebase.num /(uint64_t)cfg->g_timebase.den;
+
+        // If the deadline is more that the duration this frame is to be shown,
+        // use good quality mode. Otherwise use realtime mode.
+        new_mode = (deadline > duration_us) ? GOOD : REALTIME;
+      } else {
+        new_mode = BEST;
+      }
+      break;
+    case VPX_RC_FIRST_PASS:
+      break;
+    case VPX_RC_LAST_PASS:
+      new_mode = deadline > 0 ? GOOD : BEST;
+      break;
   }
 
-  if (ctx->cfg.g_pass == VPX_RC_FIRST_PASS)
-    new_qc = TWO_PASS_FIRST;
-  else if (ctx->cfg.g_pass == VPX_RC_LAST_PASS)
-    new_qc = (new_qc == ONE_PASS_BEST) ? TWO_PASS_SECOND_BEST
-                                          : TWO_PASS_SECOND_GOOD;
-
-  if (ctx->oxcf.mode != new_qc) {
-    ctx->oxcf.mode = new_qc;
+  if (ctx->oxcf.mode != new_mode) {
+    ctx->oxcf.mode = new_mode;
     vp9_change_config(ctx->cpi, &ctx->oxcf);
   }
 }

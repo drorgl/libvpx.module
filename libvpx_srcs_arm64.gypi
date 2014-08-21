@@ -95,6 +95,8 @@
     '<(libvpx_source)/vp8/decoder/treereader.h',
     '<(libvpx_source)/vp8/encoder/arm/dct_arm.c',
     '<(libvpx_source)/vp8/encoder/arm/neon/denoising_neon.c',
+    '<(libvpx_source)/vp8/encoder/arm/neon/subtract_neon.c',
+    '<(libvpx_source)/vp8/encoder/arm/neon/vp8_shortwalsh4x4_neon.c',
     '<(libvpx_source)/vp8/encoder/arm/quantize_arm.c',
     '<(libvpx_source)/vp8/encoder/bitstream.c',
     '<(libvpx_source)/vp8/encoder/bitstream.h',

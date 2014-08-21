@@ -13,6 +13,7 @@
 .equ HAVE_NEON_ASM ,  0
 .equ HAVE_MIPS32 ,  0
 .equ HAVE_DSPR2 ,  0
+.equ HAVE_MIPS64 ,  0
 .equ HAVE_MMX ,  0
 .equ HAVE_SSE ,  0
 .equ HAVE_SSE2 ,  0

@@ -490,24 +490,24 @@ static void choose_tx_size_from_rd(VP9_COMP *cpi, MACROBLOCK *x,
                              {INT64_MAX, INT64_MAX},
                              {INT64_MAX, INT64_MAX},
                              {INT64_MAX, INT64_MAX}};
-  TX_SIZE n, m;
+  int n, m;
   int s0, s1;
   const TX_SIZE max_mode_tx_size = tx_mode_to_biggest_tx_size[cm->tx_mode];
   int64_t best_rd = INT64_MAX;
-  TX_SIZE best_tx = TX_4X4;
+  TX_SIZE best_tx = max_tx_size;
 
   const vp9_prob *tx_probs = get_tx_probs2(max_tx_size, xd, &cm->fc.tx_probs);
   assert(skip_prob > 0);
   s0 = vp9_cost_bit(skip_prob, 0);
   s1 = vp9_cost_bit(skip_prob, 1);
 
-  for (n = TX_4X4; n <= max_tx_size; n++) {
+  for (n = max_tx_size; n >= 0;  n--) {
     txfm_rd_in_plane(x, &r[n][0], &d[n], &s[n],
                      &sse[n], ref_best_rd, 0, bs, n,
                      cpi->sf.use_fast_coef_costing);
     r[n][1] = r[n][0];
     if (r[n][0] < INT_MAX) {
-      for (m = 0; m <= n - (n == max_tx_size); m++) {
+      for (m = 0; m <= n - (n == (int) max_tx_size); m++) {
         if (m == n)
           r[n][1] += vp9_cost_zero(tx_probs[m]);
         else
@@ -522,6 +522,13 @@ static void choose_tx_size_from_rd(VP9_COMP *cpi, MACROBLOCK *x,
       rd[n][0] = RDCOST(x->rdmult, x->rddiv, r[n][0] + s0, d[n]);
       rd[n][1] = RDCOST(x->rdmult, x->rddiv, r[n][1] + s0, d[n]);
     }
+
+    // Early termination in transform size search.
+    if (cpi->sf.tx_size_search_breakout &&
+        (rd[n][1] == INT64_MAX ||
+        (n < (int) max_tx_size && rd[n][1] > rd[n + 1][1]) ||
+        s[n] == 1))
+      break;
 
     if (rd[n][1] < best_rd) {
       best_tx = n;
@@ -2523,10 +2530,7 @@ int64_t vp9_rd_pick_inter_mode_sb(VP9_COMP *cpi, MACROBLOCK *x,
   int64_t dist_uv[TX_SIZES];
   int skip_uv[TX_SIZES];
   PREDICTION_MODE mode_uv[TX_SIZES];
-  int64_t mode_distortions[MB_MODE_COUNT] = {-1};
   int intra_cost_penalty = 20 * vp9_dc_quant(cm->base_qindex, cm->y_dc_delta_q);
-  const int bws = num_8x8_blocks_wide_lookup[bsize] / 2;
-  const int bhs = num_8x8_blocks_high_lookup[bsize] / 2;
   int best_skip2 = 0;
   int mode_skip_mask = 0;
   int mode_skip_start = cpi->sf.mode_skip_start + 1;
@@ -2613,18 +2617,6 @@ int64_t vp9_rd_pick_inter_mode_sb(VP9_COMP *cpi, MACROBLOCK *x,
     }
   }
 
-  // TODO(JBB): This is to make up for the fact that we don't have sad
-  // functions that work when the block size reads outside the umv.  We
-  // should fix this either by making the motion search just work on
-  // a representative block in the boundary ( first ) and then implement a
-  // function that does sads when inside the border..
-  if ((mi_row + bhs) > cm->mi_rows || (mi_col + bws) > cm->mi_cols) {
-    const int new_modes_mask =
-        (1 << THR_NEWMV) | (1 << THR_NEWG) | (1 << THR_NEWA) |
-        (1 << THR_COMP_NEWLA) | (1 << THR_COMP_NEWGA);
-    mode_skip_mask |= new_modes_mask;
-  }
-
   if (bsize > cpi->sf.max_intra_bsize) {
     const int all_intra_modes = (1 << THR_DC) | (1 << THR_TM) |
         (1 << THR_H_PRED) | (1 << THR_V_PRED) | (1 << THR_D135_PRED) |
@@ -2647,6 +2639,12 @@ int64_t vp9_rd_pick_inter_mode_sb(VP9_COMP *cpi, MACROBLOCK *x,
     int64_t total_sse = INT64_MAX;
     int early_term = 0;
 
+    this_mode = vp9_mode_order[mode_index].mode;
+    ref_frame = vp9_mode_order[mode_index].ref_frame[0];
+    if (ref_frame != INTRA_FRAME && !(inter_mode_mask & (1 << this_mode)))
+      continue;
+    second_ref_frame = vp9_mode_order[mode_index].ref_frame[1];
+
     // Look at the reference frame of the best mode so far and set the
     // skip mask to look at a subset of the remaining modes.
     if (mode_index == mode_skip_start && best_mode_index >= 0) {
@@ -2668,6 +2666,13 @@ int64_t vp9_rd_pick_inter_mode_sb(VP9_COMP *cpi, MACROBLOCK *x,
           break;
       }
     }
+
+    if (cpi->sf.alt_ref_search_fp && cpi->rc.is_src_frame_alt_ref) {
+      mode_skip_mask = 0;
+      if (!(ref_frame == ALTREF_FRAME && second_ref_frame == NONE))
+        continue;
+    }
+
     if (mode_skip_mask & (1 << mode_index))
       continue;
 
@@ -2675,12 +2680,6 @@ int64_t vp9_rd_pick_inter_mode_sb(VP9_COMP *cpi, MACROBLOCK *x,
     if (rd_less_than_thresh(best_rd, rd_threshes[mode_index],
                             rd_thresh_freq_fact[mode_index]))
       continue;
-
-    this_mode = vp9_mode_order[mode_index].mode;
-    ref_frame = vp9_mode_order[mode_index].ref_frame[0];
-    if (ref_frame != INTRA_FRAME && !(inter_mode_mask & (1 << this_mode)))
-      continue;
-    second_ref_frame = vp9_mode_order[mode_index].ref_frame[1];
 
     if (cpi->sf.motion_field_mode_search) {
       const int mi_width  = MIN(num_8x8_blocks_wide_lookup[bsize],
@@ -2907,12 +2906,6 @@ int64_t vp9_rd_pick_inter_mode_sb(VP9_COMP *cpi, MACROBLOCK *x,
         best_pred_rd[i] = MIN(best_pred_rd[i], this_rd);
       for (i = 0; i < SWITCHABLE_FILTER_CONTEXTS; i++)
         best_filter_rd[i] = MIN(best_filter_rd[i], this_rd);
-    }
-
-    // Store the respective mode distortions for later use.
-    if (mode_distortions[this_mode] == -1
-        || distortion2 < mode_distortions[this_mode]) {
-      mode_distortions[this_mode] = distortion2;
     }
 
     // Did this mode help.. i.e. is it the new best mode

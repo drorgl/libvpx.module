@@ -338,7 +338,6 @@ typedef struct vpx_codec_priv_cb_pair {
  */
 struct vpx_codec_priv {
   unsigned int                    sz;
-  vpx_codec_iface_t              *iface;
   struct vpx_codec_alg_priv      *alg_priv;
   const char                     *err_detail;
   vpx_codec_flags_t               init_flags;
@@ -347,7 +346,6 @@ struct vpx_codec_priv {
     vpx_codec_priv_cb_pair_t    put_slice_cb;
   } dec;
   struct {
-    int                         tbd;
     struct vpx_fixed_buf        cx_data_dst_buf;
     unsigned int                cx_data_pad_before;
     unsigned int                cx_data_pad_after;

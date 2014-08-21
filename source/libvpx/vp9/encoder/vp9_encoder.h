@@ -82,36 +82,19 @@ typedef enum {
 } VPX_SCALING;
 
 typedef enum {
-  // Good Quality Fast Encoding. The encoder balances quality with the
-  // amount of time it takes to encode the output. (speed setting
-  // controls how fast)
-  ONE_PASS_GOOD = 1,
+  // Good Quality Fast Encoding. The encoder balances quality with the amount of
+  // time it takes to encode the output. Speed setting controls how fast.
+  GOOD,
 
-  // One Pass - Best Quality. The encoder places priority on the
-  // quality of the output over encoding speed. The output is compressed
-  // at the highest possible quality. This option takes the longest
-  // amount of time to encode. (speed setting ignored)
-  ONE_PASS_BEST = 2,
+  // The encoder places priority on the quality of the output over encoding
+  // speed. The output is compressed at the highest possible quality. This
+  // option takes the longest amount of time to encode. Speed setting ignored.
+  BEST,
 
-  // Two Pass - First Pass. The encoder generates a file of statistics
-  // for use in the second encoding pass. (speed setting controls how fast)
-  TWO_PASS_FIRST = 3,
-
-  // Two Pass - Second Pass. The encoder uses the statistics that were
-  // generated in the first encoding pass to create the compressed
-  // output. (speed setting controls how fast)
-  TWO_PASS_SECOND_GOOD = 4,
-
-  // Two Pass - Second Pass Best.  The encoder uses the statistics that
-  // were generated in the first encoding pass to create the compressed
-  // output using the highest possible quality, and taking a
-  // longer amount of time to encode. (speed setting ignored)
-  TWO_PASS_SECOND_BEST = 5,
-
-  // Realtime/Live Encoding. This mode is optimized for realtime
-  // encoding (for example, capturing a television signal or feed from
-  // a live camera). (speed setting controls how fast)
-  REALTIME = 6,
+  // Realtime/Live Encoding. This mode is optimized for realtime encoding (for
+  // example, capturing a television signal or feed from a live camera). Speed
+  // setting controls how fast.
+  REALTIME
 } MODE;
 
 typedef enum {
@@ -241,7 +224,7 @@ static INLINE int is_lossless_requested(const VP9EncoderConfig *cfg) {
 }
 
 static INLINE int is_best_mode(MODE mode) {
-  return mode == ONE_PASS_BEST || mode == TWO_PASS_SECOND_BEST;
+  return mode == BEST;
 }
 
 typedef struct VP9_COMP {
@@ -260,10 +243,6 @@ typedef struct VP9_COMP {
   YV12_BUFFER_CONFIG scaled_source;
   YV12_BUFFER_CONFIG *unscaled_last_source;
   YV12_BUFFER_CONFIG scaled_last_source;
-
-  int gold_is_last;  // gold same as last frame ( short circuit gold searches)
-  int alt_is_last;  // Alt same as last ( short circuit altref search)
-  int gold_is_alt;  // don't do both alt and gold search ( just do gold).
 
   int skippable_frame;
 
@@ -495,14 +474,6 @@ static INLINE YV12_BUFFER_CONFIG *get_ref_frame_buffer(
       .buf;
 }
 
-// Intra only frames, golden frames (except alt ref overlays) and
-// alt ref frames tend to be coded at a higher than ambient quality
-static INLINE int frame_is_boosted(const VP9_COMP *cpi) {
-  return frame_is_intra_only(&cpi->common) || cpi->refresh_alt_ref_frame ||
-         (cpi->refresh_golden_frame && !cpi->rc.is_src_frame_alt_ref) ||
-         vp9_is_upper_layer_key_frame(cpi);
-}
-
 static INLINE int get_token_alloc(int mb_rows, int mb_cols) {
   // TODO(JBB): double check we can't exceed this token count if we have a
   // 32x32 transform crossing a boundary at a multiple of 16.
@@ -519,8 +490,6 @@ void vp9_alloc_compressor_data(VP9_COMP *cpi);
 void vp9_scale_references(VP9_COMP *cpi);
 
 void vp9_update_reference_frames(VP9_COMP *cpi);
-
-int64_t vp9_rescale(int64_t val, int64_t num, int denom);
 
 void vp9_set_high_precision_mv(VP9_COMP *cpi, int allow_high_precision_mv);
 

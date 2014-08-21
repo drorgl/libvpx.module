@@ -63,7 +63,8 @@ typedef enum {
 typedef enum {
   NOT_IN_USE = 0,
   RELAXED_NEIGHBORING_MIN_MAX = 1,
-  STRICT_NEIGHBORING_MIN_MAX = 2
+  CONSTRAIN_NEIGHBORING_MIN_MAX = 2,
+  STRICT_NEIGHBORING_MIN_MAX = 3
 } AUTO_MIN_MAX_MODE;
 
 typedef enum {
@@ -290,6 +291,8 @@ typedef struct SPEED_FEATURES {
 
   int motion_field_mode_search;
 
+  int alt_ref_search_fp;
+
   // Fast quantization process path
   int use_quant_fp;
 
@@ -373,6 +376,10 @@ typedef struct SPEED_FEATURES {
 
   // default interp filter choice
   INTERP_FILTER default_interp_filter;
+
+  // Early termination in transform size search, which only applies while
+  // tx_size_search_method is USE_FULL_RD.
+  int tx_size_search_breakout;
 } SPEED_FEATURES;
 
 struct VP9_COMP;

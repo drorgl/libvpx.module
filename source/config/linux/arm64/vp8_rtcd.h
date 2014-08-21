@@ -284,7 +284,8 @@ void vp8_short_inv_walsh4x4_1_c(short *input, short *output);
 #define vp8_short_inv_walsh4x4_1 vp8_short_inv_walsh4x4_1_c
 
 void vp8_short_walsh4x4_c(short *input, short *output, int pitch);
-#define vp8_short_walsh4x4 vp8_short_walsh4x4_c
+void vp8_short_walsh4x4_neon(short *input, short *output, int pitch);
+#define vp8_short_walsh4x4 vp8_short_walsh4x4_neon
 
 void vp8_sixtap_predict16x16_c(unsigned char *src, int src_pitch, int xofst, int yofst, unsigned char *dst, int dst_pitch);
 void vp8_sixtap_predict16x16_neon(unsigned char *src, int src_pitch, int xofst, int yofst, unsigned char *dst, int dst_pitch);
@@ -320,13 +321,16 @@ unsigned int vp8_sub_pixel_variance8x8_c(const unsigned char  *src_ptr, int  sou
 #define vp8_sub_pixel_variance8x8 vp8_sub_pixel_variance8x8_c
 
 void vp8_subtract_b_c(struct block *be, struct blockd *bd, int pitch);
-#define vp8_subtract_b vp8_subtract_b_c
+void vp8_subtract_b_neon(struct block *be, struct blockd *bd, int pitch);
+#define vp8_subtract_b vp8_subtract_b_neon
 
 void vp8_subtract_mbuv_c(short *diff, unsigned char *usrc, unsigned char *vsrc, int src_stride, unsigned char *upred, unsigned char *vpred, int pred_stride);
-#define vp8_subtract_mbuv vp8_subtract_mbuv_c
+void vp8_subtract_mbuv_neon(short *diff, unsigned char *usrc, unsigned char *vsrc, int src_stride, unsigned char *upred, unsigned char *vpred, int pred_stride);
+#define vp8_subtract_mbuv vp8_subtract_mbuv_neon
 
 void vp8_subtract_mby_c(short *diff, unsigned char *src, int src_stride, unsigned char *pred, int pred_stride);
-#define vp8_subtract_mby vp8_subtract_mby_c
+void vp8_subtract_mby_neon(short *diff, unsigned char *src, int src_stride, unsigned char *pred, int pred_stride);
+#define vp8_subtract_mby vp8_subtract_mby_neon
 
 unsigned int vp8_variance16x16_c(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);
 unsigned int vp8_variance16x16_neon(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);

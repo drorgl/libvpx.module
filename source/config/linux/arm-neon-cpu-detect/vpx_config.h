@@ -22,6 +22,7 @@
 #define HAVE_NEON_ASM 1
 #define HAVE_MIPS32 0
 #define HAVE_DSPR2 0
+#define HAVE_MIPS64 0
 #define HAVE_MMX 0
 #define HAVE_SSE 0
 #define HAVE_SSE2 0

@@ -27,6 +27,8 @@
         '<(libvpx_source)/vp8/common/arm/neon/sixtappredict_neon.c',
         '<(libvpx_source)/vp8/common/arm/neon/variance_neon.c',
         '<(libvpx_source)/vp8/encoder/arm/neon/denoising_neon.c',
+        '<(libvpx_source)/vp8/encoder/arm/neon/subtract_neon.c',
+        '<(libvpx_source)/vp8/encoder/arm/neon/vp8_shortwalsh4x4_neon.c',
         '<(libvpx_source)/vp9/common/arm/neon/vp9_convolve_neon.c',
         '<(libvpx_source)/vp9/common/arm/neon/vp9_idct16x16_neon.c',
         '<(libvpx_source)/vp9/common/arm/neon/vp9_loopfilter_16_neon.c',
