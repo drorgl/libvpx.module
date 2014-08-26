@@ -59,6 +59,15 @@
       ],
       'cflags': [ '-mssse3', ],
       'xcode_settings': { 'OTHER_CFLAGS': [ '-mssse3' ] },
+      'conditions': [
+        ['OS=="win" and clang==1', {
+          # cl.exe's /arch flag doesn't have a setting for SSSE3/4, and cl.exe
+          # doesn't need it for intrinsics. clang-cl does need it, though.
+          'msvs_settings': {
+            'VCCLCompilerTool': { 'AdditionalOptions': [ '-mssse3' ] },
+          },
+        }],
+      ],
     },
     {
       'target_name': 'libvpx_intrinsics_sse4_1',
@@ -72,6 +81,15 @@
       ],
       'cflags': [ '-msse4.1', ],
       'xcode_settings': { 'OTHER_CFLAGS': [ '-msse4.1' ] },
+      'conditions': [
+        ['OS=="win" and clang==1', {
+          # cl.exe's /arch flag doesn't have a setting for SSSE3/4, and cl.exe
+          # doesn't need it for intrinsics. clang-cl does need it, though.
+          'msvs_settings': {
+            'VCCLCompilerTool': { 'AdditionalOptions': [ '-msse4.1' ] },
+          },
+        }],
+      ],
     },
   ],
 }

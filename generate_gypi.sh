@@ -89,6 +89,16 @@ function write_target_definition {
   echo "          'EnableEnhancedInstructionSet': '3', # /arch:AVX" >> $2
   echo "        }," >> $2
   echo "      }," >> $2
+  elif [[ $4 == ssse3 || $4 == sse4.1 ]]; then
+  echo "      'conditions': [" >> $2
+  echo "        ['OS==\"win\" and clang==1', {" >> $2
+  echo "          # cl.exe's /arch flag doesn't have a setting for SSSE3/4, and cl.exe" >> $2
+  echo "          # doesn't need it for intrinsics. clang-cl does need it, though." >> $2
+  echo "          'msvs_settings': {" >> $2
+  echo "            'VCCLCompilerTool': { 'AdditionalOptions': [ '-m$4' ] }," >> $2
+  echo "          }," >> $2
+  echo "        }]," >> $2
+  echo "      ]," >> $2
   fi
   echo "    }," >> $2
 }
