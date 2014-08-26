@@ -38,17 +38,9 @@
         '<(libvpx_source)/vp9/encoder/arm/neon/vp9_subtract_neon.c',
         '<(libvpx_source)/vp9/encoder/arm/neon/vp9_variance_neon.c',
       ],
-      'conditions': [
-        ['os_posix==1 and OS!="mac" and OS!="ios"', {
-          'cflags!': [ '-mfpu=vfpv3-d16' ],
-          'cflags': [ '-mfpu=neon', ],
-        }],
-        ['OS=="mac" or OS=="ios"', {
-          'xcode_settings': {
-            'OTHER_CFLAGS': [ '-mfpu=neon', ],
-          },
-        }],
-      ],
+      'cflags!': [ '-mfpu=vfpv3-d16' ],
+      'cflags': [ '-mfpu=neon', ],
+      'xcode_settings': { 'OTHER_CFLAGS': [ '-mfpu=neon' ] },
     },
   ],
 }

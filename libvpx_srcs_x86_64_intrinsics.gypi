@@ -18,17 +18,8 @@
         '<(libvpx_source)/vp8/encoder/x86/vp8_enc_stubs_mmx.c',
         '<(libvpx_source)/vp9/encoder/x86/vp9_variance_mmx.c',
       ],
-      'conditions': [
-        ['os_posix==1 and OS!="mac" and OS!="ios"', {
-          'cflags!': [ '-mfpu=vfpv3-d16' ],
-          'cflags': [ '-mmmx', ],
-        }],
-        ['OS=="mac" or OS=="ios"', {
-          'xcode_settings': {
-            'OTHER_CFLAGS': [ '-mmmx', ],
-          },
-        }],
-      ],
+      'cflags': [ '-mmmx', ],
+      'xcode_settings': { 'OTHER_CFLAGS': [ '-mmmx' ] },
     },
     {
       'target_name': 'libvpx_intrinsics_sse2',
@@ -50,17 +41,8 @@
         '<(libvpx_source)/vp9/encoder/x86/vp9_dct_sse2.c',
         '<(libvpx_source)/vp9/encoder/x86/vp9_variance_sse2.c',
       ],
-      'conditions': [
-        ['os_posix==1 and OS!="mac" and OS!="ios"', {
-          'cflags!': [ '-mfpu=vfpv3-d16' ],
-          'cflags': [ '-msse2', ],
-        }],
-        ['OS=="mac" or OS=="ios"', {
-          'xcode_settings': {
-            'OTHER_CFLAGS': [ '-msse2', ],
-          },
-        }],
-      ],
+      'cflags': [ '-msse2', ],
+      'xcode_settings': { 'OTHER_CFLAGS': [ '-msse2' ] },
     },
     {
       'target_name': 'libvpx_intrinsics_ssse3',
@@ -75,17 +57,8 @@
         '<(libvpx_source)/vp9/common/x86/vp9_idct_intrin_ssse3.c',
         '<(libvpx_source)/vp9/common/x86/vp9_subpixel_8t_intrin_ssse3.c',
       ],
-      'conditions': [
-        ['os_posix==1 and OS!="mac" and OS!="ios"', {
-          'cflags!': [ '-mfpu=vfpv3-d16' ],
-          'cflags': [ '-mssse3', ],
-        }],
-        ['OS=="mac" or OS=="ios"', {
-          'xcode_settings': {
-            'OTHER_CFLAGS': [ '-mssse3', ],
-          },
-        }],
-      ],
+      'cflags': [ '-mssse3', ],
+      'xcode_settings': { 'OTHER_CFLAGS': [ '-mssse3' ] },
     },
     {
       'target_name': 'libvpx_intrinsics_sse4_1',
@@ -97,17 +70,8 @@
       'sources': [
         '<(libvpx_source)/vp8/encoder/x86/quantize_sse4.c',
       ],
-      'conditions': [
-        ['os_posix==1 and OS!="mac" and OS!="ios"', {
-          'cflags!': [ '-mfpu=vfpv3-d16' ],
-          'cflags': [ '-msse4.1', ],
-        }],
-        ['OS=="mac" or OS=="ios"', {
-          'xcode_settings': {
-            'OTHER_CFLAGS': [ '-msse4.1', ],
-          },
-        }],
-      ],
+      'cflags': [ '-msse4.1', ],
+      'xcode_settings': { 'OTHER_CFLAGS': [ '-msse4.1' ] },
     },
   ],
 }
