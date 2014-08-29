@@ -5,6 +5,9 @@
   'variables': {
     'libvpx_build_vp9%': 1,
     'libvpx_source%': 'source/libvpx',
+    # Disable LTO for neon targets
+    # crbug.com/408997
+    'use_lto%': 0,
     'conditions': [
       ['os_posix==1', {
         'asm_obj_extension': 'o',

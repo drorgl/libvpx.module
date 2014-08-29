@@ -80,6 +80,16 @@ function write_target_definition {
   echo "      ]," >> $2
   if [[ $4 == fpu=neon ]]; then
   echo "      'cflags!': [ '-mfpu=vfpv3-d16' ]," >> $2
+  echo "      'conditions': [" >> $2
+  echo "        # Disable LTO in neon targets due to compiler bug" >> $2
+  echo "        # crbug.com/408997" >> $2
+  echo "        ['use_lto==1', {" >> $2
+  echo "          'cflags!': [" >> $2
+  echo "            '-flto'," >> $2
+  echo "            '-ffat-lto-objects'," >> $2
+  echo "          ]," >> $2
+  echo "        }]," >> $2
+  echo "      ]," >> $2
   fi
   echo "      'cflags': [ '-m$4', ]," >> $2
   echo "      'xcode_settings': { 'OTHER_CFLAGS': [ '-m$4' ] }," >> $2

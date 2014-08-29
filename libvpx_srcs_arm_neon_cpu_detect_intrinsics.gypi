@@ -39,6 +39,16 @@
         '<(libvpx_source)/vp9/encoder/arm/neon/vp9_variance_neon.c',
       ],
       'cflags!': [ '-mfpu=vfpv3-d16' ],
+      'conditions': [
+        # Disable LTO in neon targets due to compiler bug
+        # crbug.com/408997
+        ['use_lto==1', {
+          'cflags!': [
+            '-flto',
+            '-ffat-lto-objects',
+          ],
+        }],
+      ],
       'cflags': [ '-mfpu=neon', ],
       'xcode_settings': { 'OTHER_CFLAGS': [ '-mfpu=neon' ] },
     },
