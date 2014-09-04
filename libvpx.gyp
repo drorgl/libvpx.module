@@ -74,7 +74,8 @@
       # support for neon and hide it behind Android cpu-features.
       'includes': ['libvpx_srcs_arm_neon_cpu_detect_intrinsics.gypi', ],
     }],
-    [ '(target_arch != "arm" and target_arch != "armv7") and target_arch != "mipsel"', {
+    [ '(target_arch != "arm" and target_arch != "armv7") and \
+       (target_arch != "mipsel" and target_arch != "mips64el")', {
       'targets': [
         {
           # This libvpx target contains both encoder and decoder.
@@ -181,8 +182,8 @@
       ],
     },
     ],
-    # 'libvpx' target for mips builds.
-    [ 'target_arch=="mipsel" ', {
+    # 'libvpx' target for mipsel and mips64el builds.
+    [ 'target_arch=="mipsel" or target_arch=="mips64el"', {
       'targets': [
         {
           # This libvpx target contains both encoder and decoder.

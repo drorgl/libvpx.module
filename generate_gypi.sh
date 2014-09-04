@@ -239,7 +239,7 @@ function make_clean {
 function lint_config {
   # mips does not contain any assembly so the header does not need to be
   # compared to the asm.
-  if [[ "$1" != *mipsel ]]; then
+  if [[ "$1" != *mipsel && "$1" != *mips64el ]]; then
     $BASE_DIR/lint_config.sh \
       -h $BASE_DIR/$LIBVPX_CONFIG_DIR/$1/vpx_config.h \
       -a $BASE_DIR/$LIBVPX_CONFIG_DIR/$1/vpx_config.asm
@@ -276,7 +276,7 @@ function gen_rtcd_header {
   echo "Generate $LIBVPX_CONFIG_DIR/$1/*_rtcd.h files."
 
   rm -rf $BASE_DIR/$TEMP_DIR/libvpx.config
-  if [ "$2" = "mipsel" ]; then
+  if [[ "$2" == "mipsel" || "$2" == "mips64el" ]]; then
     print_config_basic $1 > $BASE_DIR/$TEMP_DIR/libvpx.config
   else
     $BASE_DIR/lint_config.sh -p \
@@ -320,7 +320,7 @@ function gen_config_files {
   ./configure $2  > /dev/null
 
   # Generate vpx_config.asm. Do not create one for mips.
-  if [[ "$1" != *mipsel ]]; then
+  if [[ "$1" != *mipsel && "$1" != *mips64el ]]; then
     if [[ "$1" == *x64* ]] || [[ "$1" == *ia32* ]]; then
       egrep "#define [A-Z0-9_]+ [01]" vpx_config.h | awk '{print $2 " equ " $3}' > vpx_config.asm
     else
@@ -349,6 +349,7 @@ gen_config_files linux/arm-neon "--target=armv7-linux-gcc --enable-pic --enable-
 gen_config_files linux/arm-neon-cpu-detect "--target=armv7-linux-gcc --enable-pic --enable-realtime-only --enable-runtime-cpu-detect --disable-edsp ${all_platforms}"
 gen_config_files linux/arm64 "--force-target=armv8-linux-gcc --enable-pic --enable-realtime-only --disable-edsp ${all_platforms}"
 gen_config_files linux/mipsel "--target=mips32-linux-gcc --disable-fast-unaligned ${all_platforms}"
+gen_config_files linux/mips64el "--target=mips64-linux-gcc --disable-fast-unaligned ${all_platforms}"
 gen_config_files linux/generic "--target=generic-gnu --enable-pic --enable-realtime-only ${all_platforms}"
 gen_config_files win/ia32 "--target=x86-win32-vs12 --enable-realtime-only ${all_platforms}"
 gen_config_files win/x64 "--target=x86_64-win64-vs12 --enable-realtime-only ${all_platforms}"
@@ -368,6 +369,7 @@ lint_config linux/arm-neon
 lint_config linux/arm-neon-cpu-detect
 lint_config linux/arm64
 lint_config linux/mipsel
+lint_config linux/mips64el
 lint_config linux/generic
 lint_config win/ia32
 lint_config win/x64
@@ -388,6 +390,7 @@ gen_rtcd_header linux/arm-neon armv7
 gen_rtcd_header linux/arm-neon-cpu-detect armv7
 gen_rtcd_header linux/arm64 armv8
 gen_rtcd_header linux/mipsel mipsel
+gen_rtcd_header linux/mips64el mips64el
 gen_rtcd_header linux/generic generic
 gen_rtcd_header win/ia32 x86
 gen_rtcd_header win/x64 x86_64
@@ -443,6 +446,8 @@ config=$(print_config_basic linux/mipsel)
 make_clean
 make libvpx_srcs.txt target=libs $config > /dev/null
 convert_srcs_to_gypi libvpx_srcs.txt libvpx_srcs_mips
+
+echo "MIPS64 source list is identical to MIPS source list. No need to generate it."
 
 echo "Generate NaCl source list."
 config=$(print_config_basic nacl)
