@@ -161,7 +161,6 @@
                 }, {
                   'includes': [
                     'libvpx_srcs_x86_64.gypi',
-                    'libvpx_srcs_nacl.gypi',
                   ],
                   'dependencies': [
                     'libvpx_intrinsics_mmx',
