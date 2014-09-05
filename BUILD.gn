@@ -170,10 +170,12 @@ static_library("libvpx_intrinsics_sse4_1") {
   }
 }
 
-static_library("libvpx_intrinsics_neon") {
-  configs += [ ":libvpx_config" ]
-  cflags = [ "-mfpu=neon", "-mfloat-abi=softfp" ]
-  sources = libvpx_srcs_arm_neon_cpu_detect_neon
+if (cpu_arch_full == "arm-neon-cpu-detect") {
+  static_library("libvpx_intrinsics_neon") {
+    configs += [ ":libvpx_config" ]
+    cflags = [ "-mfpu=neon", "-mfloat-abi=softfp" ]
+    sources = libvpx_srcs_arm_neon_cpu_detect_neon
+  }
 }
 
 static_library("libvpx") {
