@@ -170,7 +170,8 @@ static_library("libvpx_intrinsics_sse4_1") {
   }
 }
 
-if (cpu_arch_full == "arm-neon-cpu-detect") {
+# TOOD(hclam): NEON intrinsics are not building on GN yet.
+if (cpu_arch_full == "arm-neon-cpu-detect" && media_use_libvpx) {
   static_library("libvpx_intrinsics_neon") {
     configs += [ ":libvpx_config" ]
     cflags = [ "-mfpu=neon", "-mfloat-abi=softfp" ]
