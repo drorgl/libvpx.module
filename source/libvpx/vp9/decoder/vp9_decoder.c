@@ -25,6 +25,7 @@
 #include "vp9/common/vp9_postproc.h"
 #endif
 #include "vp9/common/vp9_quant_common.h"
+#include "vp9/common/vp9_reconintra.h"
 #include "vp9/common/vp9_systemdependent.h"
 
 #include "vp9/decoder/vp9_decodeframe.h"
@@ -36,7 +37,9 @@ static void initialize_dec() {
   static int init_done = 0;
 
   if (!init_done) {
+    vp9_rtcd();
     vp9_init_neighbors();
+    vp9_init_intra_predictors();
     init_done = 1;
   }
 }
@@ -59,13 +62,12 @@ VP9Decoder *vp9_decoder_create() {
   cm->error.setjmp = 1;
   initialize_dec();
 
-  vp9_rtcd();
-
   // Initialize the references to not point to any frame buffers.
   vpx_memset(&cm->ref_frame_map, -1, sizeof(cm->ref_frame_map));
 
   cm->current_video_frame = 0;
   pbi->ready_for_new_data = 1;
+  cm->bit_depth = VPX_BITS_8;
 
   // vp9_init_dequantizer() is first called here. Add check in
   // frame_init_dequantizer() to avoid unnecessary calling of
@@ -96,10 +98,8 @@ void vp9_decoder_remove(VP9Decoder *pbi) {
   }
   vpx_free(pbi->tile_workers);
 
-  if (pbi->num_tile_workers) {
-    const int sb_rows =
-        mi_cols_aligned_to_sb(cm->mi_rows) >> MI_BLOCK_SIZE_LOG2;
-    vp9_loop_filter_dealloc(&pbi->lf_row_sync, sb_rows);
+  if (pbi->num_tile_workers > 0) {
+    vp9_loop_filter_dealloc(&pbi->lf_row_sync);
   }
 
   vp9_remove_common(cm);

@@ -59,10 +59,12 @@ int vp8_block_error_c(short *coeff, short *dqcoeff);
 #define vp8_block_error vp8_block_error_c
 
 void vp8_build_intra_predictors_mbuv_s_c(struct macroblockd *x, unsigned char * uabove_row, unsigned char * vabove_row,  unsigned char *uleft, unsigned char *vleft, int left_stride, unsigned char * upred_ptr, unsigned char * vpred_ptr, int pred_stride);
-#define vp8_build_intra_predictors_mbuv_s vp8_build_intra_predictors_mbuv_s_c
+void vp8_build_intra_predictors_mbuv_s_neon(struct macroblockd *x, unsigned char * uabove_row, unsigned char * vabove_row,  unsigned char *uleft, unsigned char *vleft, int left_stride, unsigned char * upred_ptr, unsigned char * vpred_ptr, int pred_stride);
+RTCD_EXTERN void (*vp8_build_intra_predictors_mbuv_s)(struct macroblockd *x, unsigned char * uabove_row, unsigned char * vabove_row,  unsigned char *uleft, unsigned char *vleft, int left_stride, unsigned char * upred_ptr, unsigned char * vpred_ptr, int pred_stride);
 
 void vp8_build_intra_predictors_mby_s_c(struct macroblockd *x, unsigned char * yabove_row, unsigned char * yleft, int left_stride, unsigned char * ypred_ptr, int y_stride);
-#define vp8_build_intra_predictors_mby_s vp8_build_intra_predictors_mby_s_c
+void vp8_build_intra_predictors_mby_s_neon(struct macroblockd *x, unsigned char * yabove_row, unsigned char * yleft, int left_stride, unsigned char * ypred_ptr, int y_stride);
+RTCD_EXTERN void (*vp8_build_intra_predictors_mby_s)(struct macroblockd *x, unsigned char * yabove_row, unsigned char * yleft, int left_stride, unsigned char * ypred_ptr, int y_stride);
 
 void vp8_clear_system_state_c();
 #define vp8_clear_system_state vp8_clear_system_state_c
@@ -420,10 +422,6 @@ unsigned int vp8_variance_halfpixvar16x16_v_armv6(const unsigned char *src_ptr, 
 unsigned int vp8_variance_halfpixvar16x16_v_neon(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);
 RTCD_EXTERN unsigned int (*vp8_variance_halfpixvar16x16_v)(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);
 
-void vp8_yv12_copy_partial_frame_c(struct yv12_buffer_config *src_ybc, struct yv12_buffer_config *dst_ybc);
-void vp8_yv12_copy_partial_frame_neon(struct yv12_buffer_config *src_ybc, struct yv12_buffer_config *dst_ybc);
-RTCD_EXTERN void (*vp8_yv12_copy_partial_frame)(struct yv12_buffer_config *src_ybc, struct yv12_buffer_config *dst_ybc);
-
 void vp8_rtcd(void);
 
 #include "vpx_config.h"
@@ -444,6 +442,10 @@ static void setup_rtcd_internal(void)
     if (flags & HAS_NEON) vp8_bilinear_predict8x4 = vp8_bilinear_predict8x4_neon;
     vp8_bilinear_predict8x8 = vp8_bilinear_predict8x8_armv6;
     if (flags & HAS_NEON) vp8_bilinear_predict8x8 = vp8_bilinear_predict8x8_neon;
+    vp8_build_intra_predictors_mbuv_s = vp8_build_intra_predictors_mbuv_s_c;
+    if (flags & HAS_NEON) vp8_build_intra_predictors_mbuv_s = vp8_build_intra_predictors_mbuv_s_neon;
+    vp8_build_intra_predictors_mby_s = vp8_build_intra_predictors_mby_s_c;
+    if (flags & HAS_NEON) vp8_build_intra_predictors_mby_s = vp8_build_intra_predictors_mby_s_neon;
     vp8_copy_mem16x16 = vp8_copy_mem16x16_v6;
     if (flags & HAS_NEON) vp8_copy_mem16x16 = vp8_copy_mem16x16_neon;
     vp8_copy_mem8x4 = vp8_copy_mem8x4_v6;
@@ -544,8 +546,6 @@ static void setup_rtcd_internal(void)
     if (flags & HAS_NEON) vp8_variance_halfpixvar16x16_hv = vp8_variance_halfpixvar16x16_hv_neon;
     vp8_variance_halfpixvar16x16_v = vp8_variance_halfpixvar16x16_v_armv6;
     if (flags & HAS_NEON) vp8_variance_halfpixvar16x16_v = vp8_variance_halfpixvar16x16_v_neon;
-    vp8_yv12_copy_partial_frame = vp8_yv12_copy_partial_frame_c;
-    if (flags & HAS_NEON) vp8_yv12_copy_partial_frame = vp8_yv12_copy_partial_frame_neon;
 }
 #endif
 

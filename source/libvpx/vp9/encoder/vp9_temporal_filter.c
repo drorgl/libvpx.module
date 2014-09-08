@@ -145,6 +145,7 @@ static int temporal_filter_find_matching_mb_c(VP9_COMP *cpi,
   int bestsme = INT_MAX;
   int distortion;
   unsigned int sse;
+  int sad_list[5];
 
   MV best_ref_mv1 = {0, 0};
   MV best_ref_mv1_full; /* full-pixel value of best_ref_mv1 */
@@ -168,6 +169,7 @@ static int temporal_filter_find_matching_mb_c(VP9_COMP *cpi,
 
   // Ignore mv costing by sending NULL pointer instead of cost arrays
   vp9_hex_search(x, &best_ref_mv1_full, step_param, sadpb, 1,
+                 cond_sad_list(cpi, sad_list),
                  &cpi->fn_ptr[BLOCK_16X16], 0, &best_ref_mv1, ref_mv);
 
   // Ignore mv costing by sending NULL pointer instead of cost array
@@ -177,6 +179,7 @@ static int temporal_filter_find_matching_mb_c(VP9_COMP *cpi,
                                          x->errorperbit,
                                          &cpi->fn_ptr[BLOCK_16X16],
                                          0, mv_sf->subpel_iters_per_step,
+                                         cond_sad_list(cpi, sad_list),
                                          NULL, NULL,
                                          &distortion, &sse, NULL, 0, 0);
 
@@ -188,6 +191,7 @@ static int temporal_filter_find_matching_mb_c(VP9_COMP *cpi,
 }
 
 static void temporal_filter_iterate_c(VP9_COMP *cpi,
+                                      YV12_BUFFER_CONFIG **frames,
                                       int frame_count,
                                       int alt_ref_index,
                                       int strength,
@@ -203,7 +207,7 @@ static void temporal_filter_iterate_c(VP9_COMP *cpi,
   DECLARE_ALIGNED_ARRAY(16, unsigned int, accumulator, 16 * 16 * 3);
   DECLARE_ALIGNED_ARRAY(16, uint16_t, count, 16 * 16 * 3);
   MACROBLOCKD *mbd = &cpi->mb.e_mbd;
-  YV12_BUFFER_CONFIG *f = cpi->frames[alt_ref_index];
+  YV12_BUFFER_CONFIG *f = frames[alt_ref_index];
   uint8_t *dst1, *dst2;
   DECLARE_ALIGNED_ARRAY(16, uint8_t,  predictor, 16 * 16 * 3);
   const int mb_uv_height = 16 >> mbd->plane[1].subsampling_y;
@@ -247,7 +251,7 @@ static void temporal_filter_iterate_c(VP9_COMP *cpi,
         const int thresh_low  = 10000;
         const int thresh_high = 20000;
 
-        if (cpi->frames[frame] == NULL)
+        if (frames[frame] == NULL)
           continue;
 
         mbd->mi[0]->bmi[0].as_mv[0].as_mv.row = 0;
@@ -258,9 +262,9 @@ static void temporal_filter_iterate_c(VP9_COMP *cpi,
         } else {
           // Find best match in this frame by MC
           int err = temporal_filter_find_matching_mb_c(cpi,
-              cpi->frames[alt_ref_index]->y_buffer + mb_y_offset,
-              cpi->frames[frame]->y_buffer + mb_y_offset,
-              cpi->frames[frame]->y_stride);
+              frames[alt_ref_index]->y_buffer + mb_y_offset,
+              frames[frame]->y_buffer + mb_y_offset,
+              frames[frame]->y_stride);
 
           // Assign higher weight to matching MB if it's error
           // score is lower. If not applying MC default behavior
@@ -272,10 +276,10 @@ static void temporal_filter_iterate_c(VP9_COMP *cpi,
         if (filter_weight != 0) {
           // Construct the predictors
           temporal_filter_predictors_mb_c(mbd,
-              cpi->frames[frame]->y_buffer + mb_y_offset,
-              cpi->frames[frame]->u_buffer + mb_uv_offset,
-              cpi->frames[frame]->v_buffer + mb_uv_offset,
-              cpi->frames[frame]->y_stride,
+              frames[frame]->y_buffer + mb_y_offset,
+              frames[frame]->u_buffer + mb_uv_offset,
+              frames[frame]->v_buffer + mb_uv_offset,
+              frames[frame]->y_stride,
               mb_uv_width, mb_uv_height,
               mbd->mi[0]->bmi[0].as_mv[0].as_mv.row,
               mbd->mi[0]->bmi[0].as_mv[0].as_mv.col,
@@ -429,6 +433,7 @@ void vp9_temporal_filter(VP9_COMP *cpi, int distance) {
   int frames_to_blur_backward;
   int frames_to_blur_forward;
   struct scale_factors sf;
+  YV12_BUFFER_CONFIG *frames[MAX_LAG_BUFFERS] = {NULL};
 
   // Apply context specific adjustments to the arnr filter parameters.
   adjust_arnr_filter(cpi, distance, rc->gfu_boost, &frames_to_blur, &strength);
@@ -437,16 +442,15 @@ void vp9_temporal_filter(VP9_COMP *cpi, int distance) {
   start_frame = distance + frames_to_blur_forward;
 
   // Setup frame pointers, NULL indicates frame not included in filter.
-  vp9_zero(cpi->frames);
   for (frame = 0; frame < frames_to_blur; ++frame) {
     const int which_buffer = start_frame - frame;
     struct lookahead_entry *buf = vp9_lookahead_peek(cpi->lookahead,
                                                      which_buffer);
-    cpi->frames[frames_to_blur - 1 - frame] = &buf->img;
+    frames[frames_to_blur - 1 - frame] = &buf->img;
   }
 
   // Setup scaling factors. Scaling on each of the arnr frames is not supported
-  if (is_spatial_svc(cpi)) {
+  if (is_two_pass_svc(cpi)) {
     // In spatial svc the scaling factors might be less then 1/2. So we will use
     // non-normative scaling.
     int frame_used = 0;
@@ -457,19 +461,21 @@ void vp9_temporal_filter(VP9_COMP *cpi, int distance) {
                                       get_frame_new_buffer(cm)->y_crop_height);
 
     for (frame = 0; frame < frames_to_blur; ++frame) {
-      if (cm->mi_cols * MI_SIZE != cpi->frames[frame]->y_width ||
-          cm->mi_rows * MI_SIZE != cpi->frames[frame]->y_height) {
+      if (cm->mi_cols * MI_SIZE != frames[frame]->y_width ||
+          cm->mi_rows * MI_SIZE != frames[frame]->y_height) {
         if (vp9_realloc_frame_buffer(&cpi->svc.scaled_frames[frame_used],
                                      cm->width, cm->height,
                                      cm->subsampling_x, cm->subsampling_y,
+#if CONFIG_VP9_HIGHBITDEPTH
+                                     cm->use_highbitdepth,
+#endif
                                      VP9_ENC_BORDER_IN_PIXELS, NULL, NULL,
                                      NULL))
           vpx_internal_error(&cm->error, VPX_CODEC_MEM_ERROR,
                              "Failed to reallocate alt_ref_buffer");
 
-        cpi->frames[frame] =
-            vp9_scale_if_required(cm, cpi->frames[frame],
-                                  &cpi->svc.scaled_frames[frame_used]);
+        frames[frame] = vp9_scale_if_required(cm, frames[frame],
+                            &cpi->svc.scaled_frames[frame_used]);
         ++frame_used;
       }
     }
@@ -480,6 +486,6 @@ void vp9_temporal_filter(VP9_COMP *cpi, int distance) {
                                       cm->width, cm->height);
   }
 
-  temporal_filter_iterate_c(cpi, frames_to_blur, frames_to_blur_backward,
-                            strength, &sf);
+  temporal_filter_iterate_c(cpi, frames, frames_to_blur,
+                            frames_to_blur_backward, strength, &sf);
 }

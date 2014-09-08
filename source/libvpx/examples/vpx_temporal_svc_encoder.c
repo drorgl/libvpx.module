@@ -12,6 +12,7 @@
 //  encoding scheme based on temporal scalability for video applications
 //  that benefit from a scalable bitstream.
 
+#include <assert.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -438,7 +439,7 @@ static void set_temporal_layer_pattern(int layering_mode,
 }
 
 int main(int argc, char **argv) {
-  VpxVideoWriter *outfile[VPX_TS_MAX_LAYERS];
+  VpxVideoWriter *outfile[VPX_TS_MAX_LAYERS] = {NULL};
   vpx_codec_ctx_t codec;
   vpx_codec_enc_cfg_t cfg;
   int frame_cnt = 0;
@@ -456,7 +457,6 @@ int main(int argc, char **argv) {
   int layering_mode = 0;
   int layer_flags[VPX_TS_MAX_PERIODICITY] = {0};
   int flag_periodicity = 1;
-  int max_intra_size_pct;
   vpx_svc_layer_id_t layer_id = {0, 0};
   const VpxInterface *encoder = NULL;
   FILE *infile = NULL;
@@ -570,6 +570,8 @@ int main(int argc, char **argv) {
     outfile[i] = vpx_video_writer_open(file_name, kContainerIVF, &info);
     if (!outfile[i])
       die("Failed to open %s for writing", file_name);
+
+    assert(outfile[i] != NULL);
   }
   // No spatial layers in this encoder.
   cfg.ss_number_layers = 1;
@@ -595,11 +597,11 @@ int main(int argc, char **argv) {
   // This controls the maximum target size of the key frame.
   // For generating smaller key frames, use a smaller max_intra_size_pct
   // value, like 100 or 200.
-  max_intra_size_pct = (int) (((double)cfg.rc_buf_optimal_sz * 0.5)
-      * ((double) cfg.g_timebase.den / cfg.g_timebase.num) / 10.0);
-  // For low-quality key frame.
-  max_intra_size_pct = 200;
-  vpx_codec_control(&codec, VP8E_SET_MAX_INTRA_BITRATE_PCT, max_intra_size_pct);
+  {
+    const int max_intra_size_pct = 200;
+    vpx_codec_control(&codec, VP8E_SET_MAX_INTRA_BITRATE_PCT,
+                      max_intra_size_pct);
+  }
 
   frame_avail = 1;
   while (frame_avail || got_data) {

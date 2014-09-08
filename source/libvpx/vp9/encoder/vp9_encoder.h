@@ -114,9 +114,10 @@ typedef enum {
 
 typedef struct VP9EncoderConfig {
   BITSTREAM_PROFILE profile;
-  BIT_DEPTH bit_depth;
+  vpx_bit_depth_t bit_depth;     // Codec bit-depth.
   int width;  // width of data passed to the compressor
   int height;  // height of data passed to the compressor
+  unsigned int input_bit_depth;  // Input bit depth.
   double init_framerate;  // set to passed in framerate
   int64_t target_bandwidth;  // bandwidth to be used in kilobits per second
 
@@ -203,16 +204,15 @@ typedef struct VP9EncoderConfig {
 
   int arnr_max_frames;
   int arnr_strength;
-  int arnr_type;
 
   int tile_columns;
   int tile_rows;
 
-  struct vpx_fixed_buf         two_pass_stats_in;
-  struct vpx_codec_pkt_list  *output_pkt_list;
+  vpx_fixed_buf_t two_pass_stats_in;
+  struct vpx_codec_pkt_list *output_pkt_list;
 
 #if CONFIG_FP_MB_STATS
-  struct vpx_fixed_buf         firstpass_mb_stats_in;
+  vpx_fixed_buf_t firstpass_mb_stats_in;
 #endif
 
   vp8e_tuning tuning;
@@ -223,19 +223,13 @@ static INLINE int is_lossless_requested(const VP9EncoderConfig *cfg) {
   return cfg->best_allowed_q == 0 && cfg->worst_allowed_q == 0;
 }
 
-static INLINE int is_best_mode(MODE mode) {
-  return mode == BEST;
-}
-
 typedef struct VP9_COMP {
   QUANTS quants;
   MACROBLOCK mb;
   VP9_COMMON common;
   VP9EncoderConfig oxcf;
   struct lookahead_ctx    *lookahead;
-  struct lookahead_entry  *source;
   struct lookahead_entry  *alt_ref_source;
-  struct lookahead_entry  *last_source;
 
   YV12_BUFFER_CONFIG *Source;
   YV12_BUFFER_CONFIG *Last_Source;  // NULL for first frame and alt_ref frames
@@ -275,6 +269,11 @@ typedef struct VP9_COMP {
 
   CODING_CONTEXT coding_context;
 
+  int *nmvcosts[2];
+  int *nmvcosts_hp[2];
+  int *nmvsadcosts[2];
+  int *nmvsadcosts_hp[2];
+
   int zbin_mode_boost;
   int zbin_mode_boost_enabled;
 
@@ -286,6 +285,7 @@ typedef struct VP9_COMP {
   double framerate;
 
   vp9_coeff_count coef_counts[TX_SIZES][PLANE_TYPES];
+  int interp_filter_selected[MAX_REF_FRAMES][SWITCHABLE];
 
   struct vpx_codec_pkt_list  *output_pkt_list;
 
@@ -332,7 +332,7 @@ typedef struct VP9_COMP {
   TWO_PASS twopass;
 
   YV12_BUFFER_CONFIG alt_ref_buffer;
-  YV12_BUFFER_CONFIG *frames[MAX_LAG_BUFFERS];
+
 
 #if CONFIG_INTERNAL_STATS
   unsigned int mode_chosen_counts[MAX_MODES];
@@ -371,10 +371,6 @@ typedef struct VP9_COMP {
 
   int droppable;
 
-  int dummy_packing;    /* flag to indicate if packing is dummy */
-
-  unsigned int tx_stepdown_count[TX_SIZES];
-
   int initial_width;
   int initial_height;
 
@@ -393,7 +389,7 @@ typedef struct VP9_COMP {
   search_site_config ss_cfg;
 
   int mbmode_cost[INTRA_MODES];
-  unsigned inter_mode_cost[INTER_MODE_CONTEXTS][INTER_MODES];
+  unsigned int inter_mode_cost[INTER_MODE_CONTEXTS][INTER_MODES];
   int intra_uv_mode_cost[FRAME_TYPES][INTRA_MODES];
   int y_mode_costs[INTRA_MODES][INTRA_MODES][INTRA_MODES];
   int switchable_interp_costs[SWITCHABLE_FILTER_CONTEXTS][SWITCHABLE_FILTERS];
@@ -499,16 +495,17 @@ YV12_BUFFER_CONFIG *vp9_scale_if_required(VP9_COMMON *cm,
 
 void vp9_apply_encoding_flags(VP9_COMP *cpi, vpx_enc_frame_flags_t flags);
 
-static INLINE int is_spatial_svc(const struct VP9_COMP *const cpi) {
+static INLINE int is_two_pass_svc(const struct VP9_COMP *const cpi) {
   return cpi->use_svc &&
-         cpi->svc.number_temporal_layers == 1 &&
-         cpi->svc.number_spatial_layers > 1;
+         (cpi->svc.number_temporal_layers > 1 ||
+          cpi->svc.number_spatial_layers > 1) &&
+         (cpi->oxcf.pass == 1 || cpi->oxcf.pass == 2);
 }
 
 static INLINE int is_altref_enabled(const VP9_COMP *const cpi) {
   return cpi->oxcf.mode != REALTIME && cpi->oxcf.lag_in_frames > 0 &&
          (cpi->oxcf.play_alternate &&
-          (!is_spatial_svc(cpi) ||
+          (!is_two_pass_svc(cpi) ||
            cpi->oxcf.ss_play_alternate[cpi->svc.spatial_layer_id]));
 }
 
@@ -523,6 +520,10 @@ static INLINE void set_ref_ptrs(VP9_COMMON *cm, MACROBLOCKD *xd,
 
 static INLINE int get_chessboard_index(const int frame_index) {
   return frame_index & 0x1;
+}
+
+static INLINE int *cond_sad_list(const struct VP9_COMP *cpi, int *sad_list) {
+  return cpi->sf.mv.subpel_search_method != SUBPEL_TREE ? sad_list : NULL;
 }
 
 #ifdef __cplusplus

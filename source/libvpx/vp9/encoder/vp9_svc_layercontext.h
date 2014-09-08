@@ -25,9 +25,11 @@ typedef struct {
   double framerate;
   int avg_frame_size;
   TWO_PASS twopass;
-  struct vpx_fixed_buf rc_twopass_stats_in;
+  vpx_fixed_buf_t rc_twopass_stats_in;
   unsigned int current_video_frame_in_layer;
   int is_key_frame;
+  int frames_from_key_frame;
+  FRAME_TYPE last_frame_type;
   vpx_svc_parameters_t svc_params_received;
   struct lookahead_entry  *alt_ref_source;
   int alt_ref_idx;
@@ -80,7 +82,7 @@ void vp9_save_layer_context(struct VP9_COMP *const cpi);
 void vp9_init_second_pass_spatial_svc(struct VP9_COMP *cpi);
 
 // Increment number of video frames in layer
-void vp9_inc_frame_in_layer(SVC *svc);
+void vp9_inc_frame_in_layer(struct VP9_COMP *const cpi);
 
 // Check if current layer is key frame in spatial upper layer
 int vp9_is_upper_layer_key_frame(const struct VP9_COMP *const cpi);

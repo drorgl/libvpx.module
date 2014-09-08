@@ -480,9 +480,6 @@ unsigned int vp8_variance_halfpixvar16x16_v_mmx(const unsigned char *src_ptr, in
 unsigned int vp8_variance_halfpixvar16x16_v_wmt(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);
 RTCD_EXTERN unsigned int (*vp8_variance_halfpixvar16x16_v)(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);
 
-void vp8_yv12_copy_partial_frame_c(struct yv12_buffer_config *src_ybc, struct yv12_buffer_config *dst_ybc);
-#define vp8_yv12_copy_partial_frame vp8_yv12_copy_partial_frame_c
-
 void vp8_rtcd(void);
 
 #ifdef RTCD_C

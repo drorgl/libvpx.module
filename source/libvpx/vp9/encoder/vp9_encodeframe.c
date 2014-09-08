@@ -727,6 +727,7 @@ static void rd_pick_sb_modes(VP9_COMP *cpi, const TileInfo *const tile,
     p[i].eobs = ctx->eobs_pbuf[i][0];
   }
   ctx->is_coded = 0;
+  ctx->skippable = 0;
   x->skip_recode = 0;
 
   // Set to zero to make sure we do not use the previous encoded frame stats
@@ -1232,30 +1233,23 @@ static void set_source_var_based_partition(VP9_COMP *cpi,
   }
 }
 
-static int is_background(VP9_COMP *cpi, const TileInfo *const tile,
+static int is_background(const VP9_COMP *cpi, const TileInfo *const tile,
                          int mi_row, int mi_col) {
-  MACROBLOCK *x = &cpi->mb;
-  uint8_t *src, *pre;
-  int src_stride, pre_stride;
-
+  // This assumes the input source frames are of the same dimension.
   const int row8x8_remaining = tile->mi_row_end - mi_row;
   const int col8x8_remaining = tile->mi_col_end - mi_col;
-
+  const int x = mi_col * MI_SIZE;
+  const int y = mi_row * MI_SIZE;
+  const int src_stride = cpi->Source->y_stride;
+  const uint8_t *const src = &cpi->Source->y_buffer[y * src_stride + x];
+  const int pre_stride = cpi->Last_Source->y_stride;
+  const uint8_t *const pre = &cpi->Last_Source->y_buffer[y * pre_stride + x];
   int this_sad = 0;
   int threshold = 0;
 
-  // This assumes the input source frames are of the same dimension.
-  src_stride = cpi->Source->y_stride;
-  src = cpi->Source->y_buffer + (mi_row * MI_SIZE) * src_stride +
-            (mi_col * MI_SIZE);
-  pre_stride = cpi->Last_Source->y_stride;
-  pre = cpi->Last_Source->y_buffer + (mi_row * MI_SIZE) * pre_stride +
-          (mi_col * MI_SIZE);
-
   if (row8x8_remaining >= MI_BLOCK_SIZE &&
       col8x8_remaining >= MI_BLOCK_SIZE) {
-    this_sad = cpi->fn_ptr[BLOCK_64X64].sdf(src, src_stride,
-                                            pre, pre_stride);
+    this_sad = cpi->fn_ptr[BLOCK_64X64].sdf(src, src_stride, pre, pre_stride);
     threshold = (1 << 12);
   } else {
     int r, c;
@@ -1266,8 +1260,7 @@ static int is_background(VP9_COMP *cpi, const TileInfo *const tile,
     threshold = (row8x8_remaining * col8x8_remaining) << 6;
   }
 
-  x->in_static_area = (this_sad < 2 * threshold);
-  return x->in_static_area;
+  return this_sad < 2 * threshold;
 }
 
 static int sb_has_motion(const VP9_COMMON *cm, MODE_INFO **prev_mi_8x8,
@@ -2166,8 +2159,8 @@ static void rd_pick_partition(VP9_COMP *cpi, const TileInfo *const tile,
       sum_rd = RDCOST(x->rdmult, x->rddiv, this_rate, this_dist);
 
       if (sum_rd < best_rd) {
-        int64_t stop_thresh = 4096;
-        int64_t stop_thresh_rd;
+        int64_t dist_breakout_thr = cpi->sf.partition_search_breakout_dist_thr;
+        int rate_breakout_thr = cpi->sf.partition_search_breakout_rate_thr;
 
         best_rate = this_rate;
         best_dist = this_dist;
@@ -2175,14 +2168,18 @@ static void rd_pick_partition(VP9_COMP *cpi, const TileInfo *const tile,
         if (bsize >= BLOCK_8X8)
           pc_tree->partitioning = PARTITION_NONE;
 
-        // Adjust threshold according to partition size.
-        stop_thresh >>= 8 - (b_width_log2(bsize) +
+        // Adjust dist breakout threshold according to the partition size.
+        dist_breakout_thr >>= 8 - (b_width_log2(bsize) +
             b_height_log2(bsize));
 
-        stop_thresh_rd = RDCOST(x->rdmult, x->rddiv, 0, stop_thresh);
-        // If obtained distortion is very small, choose current partition
-        // and stop splitting.
-        if (!x->e_mbd.lossless && best_rd < stop_thresh_rd) {
+        // If all y, u, v transform blocks in this partition are skippable, and
+        // the dist & rate are within the thresholds, the partition search is
+        // terminated for current branch of the partition search tree.
+        // The dist & rate thresholds are set to 0 at speed 0 to disable the
+        // early termination at that speed.
+        if (!x->e_mbd.lossless &&
+            (ctx->skippable && best_dist < dist_breakout_thr &&
+            best_rate < rate_breakout_thr)) {
           do_split = 0;
           do_rect = 0;
         }
@@ -2606,8 +2603,6 @@ static MV_REFERENCE_FRAME get_frame_type(const VP9_COMP *cpi) {
 static TX_MODE select_tx_mode(const VP9_COMP *cpi) {
   if (cpi->mb.e_mbd.lossless)
     return ONLY_4X4;
-  if (cpi->common.frame_type == KEY_FRAME)
-    return TX_MODE_SELECT;
   if (cpi->sf.tx_size_search_method == USE_LARGESTALL)
     return ALLOW_32X32;
   else if (cpi->sf.tx_size_search_method == USE_FULL_RD||
@@ -3119,7 +3114,7 @@ static void encode_nonrd_sb_row(VP9_COMP *cpi, const TileInfo *const tile,
         break;
       case REFERENCE_PARTITION:
         if (sf->partition_check ||
-            !is_background(cpi, tile, mi_row, mi_col)) {
+            !(x->in_static_area = is_background(cpi, tile, mi_row, mi_col))) {
           set_modeinfo_offsets(cm, xd, mi_row, mi_col);
           auto_partition_range(cpi, tile, mi_row, mi_col,
                                &sf->min_partition_size,
@@ -3297,7 +3292,6 @@ static void encode_frame_internal(VP9_COMP *cpi) {
 
   vp9_zero(cm->counts);
   vp9_zero(cpi->coef_counts);
-  vp9_zero(cpi->tx_stepdown_count);
   vp9_zero(rd_opt->comp_pred_diff);
   vp9_zero(rd_opt->filter_diff);
   vp9_zero(rd_opt->tx_select_diff);

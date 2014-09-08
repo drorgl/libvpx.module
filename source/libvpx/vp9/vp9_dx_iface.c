@@ -58,28 +58,22 @@ static vpx_codec_err_t decoder_init(vpx_codec_ctx_t *ctx,
   (void)data;
 
   if (!ctx->priv) {
-    vpx_codec_alg_priv_t *alg_priv = vpx_memalign(32, sizeof(*alg_priv));
-    if (alg_priv == NULL)
+    vpx_codec_alg_priv_t *const priv = vpx_calloc(1, sizeof(*priv));
+    if (priv == NULL)
       return VPX_CODEC_MEM_ERROR;
 
-    vp9_zero(*alg_priv);
-
-    ctx->priv = (vpx_codec_priv_t *)alg_priv;
-    ctx->priv->sz = sizeof(*ctx->priv);
-    ctx->priv->alg_priv = alg_priv;
-    ctx->priv->alg_priv->si.sz = sizeof(ctx->priv->alg_priv->si);
+    ctx->priv = (vpx_codec_priv_t *)priv;
     ctx->priv->init_flags = ctx->init_flags;
-    ctx->priv->alg_priv->flushed = 0;
-    ctx->priv->alg_priv->frame_parallel_decode =
-        (ctx->init_flags & VPX_CODEC_USE_FRAME_THREADING);
 
-    // Disable frame parallel decoding for now.
-    ctx->priv->alg_priv->frame_parallel_decode = 0;
+    priv->si.sz = sizeof(priv->si);
+    priv->flushed = 0;
+    priv->frame_parallel_decode =
+        (ctx->init_flags & VPX_CODEC_USE_FRAME_THREADING);
+    priv->frame_parallel_decode = 0;  // Disable for now
 
     if (ctx->config.dec) {
-      // Update the reference to the config structure to an internal copy.
-      ctx->priv->alg_priv->cfg = *ctx->config.dec;
-      ctx->config.dec = &ctx->priv->alg_priv->cfg;
+      priv->cfg = *ctx->config.dec;
+      ctx->config.dec = &priv->cfg;
     }
   }
 
@@ -443,6 +437,7 @@ static vpx_image_t *decoder_get_frame(vpx_codec_alg_priv_t *ctx,
     // call to get_frame.
     if (!(*iter)) {
       img = &ctx->img;
+      img->bit_depth = (int)ctx->pbi->common.bit_depth;
       *iter = img;
     }
   }
@@ -591,6 +586,23 @@ static vpx_codec_err_t ctrl_get_display_size(vpx_codec_alg_priv_t *ctx,
   }
 }
 
+static vpx_codec_err_t ctrl_get_bit_depth(vpx_codec_alg_priv_t *ctx,
+                                          va_list args) {
+  unsigned int *const bit_depth = va_arg(args, unsigned int *);
+
+  if (bit_depth) {
+    if (ctx->pbi) {
+      const VP9_COMMON *const cm = &ctx->pbi->common;
+      *bit_depth = cm->bit_depth;
+      return VPX_CODEC_OK;
+    } else {
+      return VPX_CODEC_ERROR;
+    }
+  } else {
+    return VPX_CODEC_INVALID_PARAM;
+  }
+}
+
 static vpx_codec_err_t ctrl_set_invert_tile_order(vpx_codec_alg_priv_t *ctx,
                                                   va_list args) {
   ctx->invert_tile_order = va_arg(args, int);
@@ -623,6 +635,7 @@ static vpx_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   {VP8D_GET_FRAME_CORRUPTED,      ctrl_get_frame_corrupted},
   {VP9_GET_REFERENCE,             ctrl_get_reference},
   {VP9D_GET_DISPLAY_SIZE,         ctrl_get_display_size},
+  {VP9D_GET_BIT_DEPTH,            ctrl_get_bit_depth},
 
   { -1, NULL},
 };
@@ -647,12 +660,12 @@ CODEC_INTERFACE(vpx_codec_vp9_dx) = {
   },
   { // NOLINT
     0,
-    NOT_IMPLEMENTED,  // vpx_codec_enc_cfg_map_t
-    NOT_IMPLEMENTED,  // vpx_codec_encode_fn_t
-    NOT_IMPLEMENTED,  // vpx_codec_get_cx_data_fn_t
-    NOT_IMPLEMENTED,  // vpx_codec_enc_config_set_fn_t
-    NOT_IMPLEMENTED,  // vpx_codec_get_global_headers_fn_t
-    NOT_IMPLEMENTED,  // vpx_codec_get_preview_frame_fn_t
-    NOT_IMPLEMENTED   // vpx_codec_enc_mr_get_mem_loc_fn_t
+    NULL,  // vpx_codec_enc_cfg_map_t
+    NULL,  // vpx_codec_encode_fn_t
+    NULL,  // vpx_codec_get_cx_data_fn_t
+    NULL,  // vpx_codec_enc_config_set_fn_t
+    NULL,  // vpx_codec_get_global_headers_fn_t
+    NULL,  // vpx_codec_get_preview_frame_fn_t
+    NULL   // vpx_codec_enc_mr_get_mem_loc_fn_t
   }
 };

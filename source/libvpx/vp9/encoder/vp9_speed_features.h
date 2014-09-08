@@ -40,6 +40,7 @@ typedef enum {
 
 typedef enum {
   SUBPEL_TREE = 0,
+  SUBPEL_TREE_PRUNED = 1,
   // Other methods to come
 } SUBPEL_SEARCH_METHODS;
 
@@ -101,6 +102,12 @@ typedef enum {
   // Skips intra modes other than DC_PRED if the source variance is small
   FLAG_SKIP_INTRA_LOWVAR = 1 << 5,
 } MODE_SEARCH_SKIP_LOGIC;
+
+typedef enum {
+  FLAG_SKIP_EIGHTTAP = 1 << EIGHTTAP,
+  FLAG_SKIP_EIGHTTAP_SMOOTH = 1 << EIGHTTAP_SMOOTH,
+  FLAG_SKIP_EIGHTTAP_SHARP = 1 << EIGHTTAP_SHARP,
+} INTERP_FILTER_MASK;
 
 typedef enum {
   // Search partitions using RD/NONRD criterion
@@ -284,6 +291,9 @@ typedef struct SPEED_FEATURES {
   // was selected, and 2 means we use 8 tap if no 8x8 filter mode was selected.
   int adaptive_pred_interp_filter;
 
+  // Adaptive prediction mode search
+  int adaptive_mode_search;
+
   // Chessboard pattern prediction filter type search
   int cb_pred_filter_search;
 
@@ -380,6 +390,16 @@ typedef struct SPEED_FEATURES {
   // Early termination in transform size search, which only applies while
   // tx_size_search_method is USE_FULL_RD.
   int tx_size_search_breakout;
+
+  // adaptive interp_filter search to allow skip of certain filter types.
+  int adaptive_interp_filter_search;
+
+  // mask for skip evaluation of certain interp_filter type.
+  INTERP_FILTER_MASK interp_filter_search_mask;
+
+  // Partition search early breakout thresholds.
+  int64_t partition_search_breakout_dist_thr;
+  int partition_search_breakout_rate_thr;
 } SPEED_FEATURES;
 
 struct VP9_COMP;

@@ -28,15 +28,6 @@ struct mv;
 union int_mv;
 struct yv12_buffer_config;
 
-void vp9_blend_b_c(uint8_t *y, uint8_t *u, uint8_t *v, int y1, int u1, int v1, int alpha, int stride);
-#define vp9_blend_b vp9_blend_b_c
-
-void vp9_blend_mb_inner_c(uint8_t *y, uint8_t *u, uint8_t *v, int y1, int u1, int v1, int alpha, int stride);
-#define vp9_blend_mb_inner vp9_blend_mb_inner_c
-
-void vp9_blend_mb_outer_c(uint8_t *y, uint8_t *u, uint8_t *v, int y1, int u1, int v1, int alpha, int stride);
-#define vp9_blend_mb_outer vp9_blend_mb_outer_c
-
 int64_t vp9_block_error_c(const int16_t *coeff, const int16_t *dqcoeff, intptr_t block_size, int64_t *ssz);
 #define vp9_block_error vp9_block_error_c
 

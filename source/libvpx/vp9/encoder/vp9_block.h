@@ -76,16 +76,12 @@ struct macroblock {
   int pred_mv_sad[MAX_REF_FRAMES];
 
   int nmvjointcost[MV_JOINTS];
-  int nmvcosts[2][MV_VALS];
   int *nmvcost[2];
-  int nmvcosts_hp[2][MV_VALS];
   int *nmvcost_hp[2];
   int **mvcost;
 
   int nmvjointsadcost[MV_JOINTS];
-  int nmvsadcosts[2][MV_VALS];
   int *nmvsadcost[2];
-  int nmvsadcosts_hp[2][MV_VALS];
   int *nmvsadcost_hp[2];
   int **mvsadcost;
 
@@ -116,9 +112,9 @@ struct macroblock {
   int quant_fp;
 
   // skip forward transform and quantization
-  int skip_txfm[MAX_MB_PLANE];
+  uint8_t skip_txfm[MAX_MB_PLANE << 2];
 
-  int64_t bsse[MAX_MB_PLANE];
+  int64_t bsse[MAX_MB_PLANE << 2];
 
   // Used to store sub partition's choices.
   MV pred_mv[MAX_REF_FRAMES];

@@ -126,6 +126,7 @@ static int combined_motion_search(VP9_COMP *cpi, MACROBLOCK *x,
   const int tmp_row_min = x->mv_row_min;
   const int tmp_row_max = x->mv_row_max;
   int rv = 0;
+  int sad_list[5];
   const YV12_BUFFER_CONFIG *scaled_ref_frame = vp9_get_scaled_ref_frame(cpi,
                                                                         ref);
   if (cpi->common.show_frame &&
@@ -152,8 +153,9 @@ static int combined_motion_search(VP9_COMP *cpi, MACROBLOCK *x,
   mvp_full.col >>= 3;
   mvp_full.row >>= 3;
 
-  vp9_full_pixel_search(cpi, x, bsize, &mvp_full, step_param, sadpb, &ref_mv,
-                        &tmp_mv->as_mv, INT_MAX, 0);
+  vp9_full_pixel_search(cpi, x, bsize, &mvp_full, step_param, sadpb,
+                        cond_sad_list(cpi, sad_list),
+                        &ref_mv, &tmp_mv->as_mv, INT_MAX, 0);
 
   x->mv_col_min = tmp_col_min;
   x->mv_col_max = tmp_col_max;
@@ -179,6 +181,7 @@ static int combined_motion_search(VP9_COMP *cpi, MACROBLOCK *x,
                                  &cpi->fn_ptr[bsize],
                                  cpi->sf.mv.subpel_force_stop,
                                  cpi->sf.mv.subpel_iters_per_step,
+                                 cond_sad_list(cpi, sad_list),
                                  x->nmvjointcost, x->mvcost,
                                  &dis, &x->pred_sse[ref], NULL, 0, 0);
     x->pred_mv[ref] = tmp_mv->as_mv;
@@ -391,7 +394,7 @@ static void estimate_block_intra(int plane, int block, BLOCK_SIZE plane_bsize,
   args->dist += dist;
 }
 
-static const THR_MODES mode_idx[MAX_REF_FRAMES - 1][4] = {
+static const THR_MODES mode_idx[MAX_REF_FRAMES - 1][INTER_MODES] = {
   {THR_NEARESTMV, THR_NEARMV, THR_ZEROMV, THR_NEWMV},
   {THR_NEARESTG, THR_NEARG, THR_ZEROG, THR_NEWG},
   {THR_NEARESTA, THR_NEARA, THR_ZEROA, THR_NEWA},
@@ -420,7 +423,7 @@ int64_t vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
                                     VP9_ALT_FLAG };
   int64_t best_rd = INT64_MAX;
   int64_t this_rd = INT64_MAX;
-  int skip_txfm = 0;
+  uint8_t skip_txfm = 0;
   int rate = INT_MAX;
   int64_t dist = INT64_MAX;
   // var_y and sse_y are saved to be used in skipping checking
@@ -544,7 +547,7 @@ int64_t vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
         continue;
 
       mode_rd_thresh =  rd_threshes[mode_idx[ref_frame - LAST_FRAME]
-                                            [this_mode - NEARESTMV]];
+                                    [INTER_OFFSET(this_mode)]];
       if (rd_less_than_thresh(best_rd, mode_rd_thresh,
                               rd_thresh_freq_fact[this_mode]))
         continue;
@@ -656,8 +659,7 @@ int64_t vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
 
 #if CONFIG_VP9_TEMPORAL_DENOISING
       if (cpi->oxcf.noise_sensitivity > 0) {
-        vp9_denoiser_update_frame_stats(&cpi->denoiser, mbmi, sse_y,
-                                        this_mode, ctx);
+        vp9_denoiser_update_frame_stats(mbmi, sse_y, this_mode, ctx);
       }
 #endif
 

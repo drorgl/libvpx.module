@@ -330,6 +330,9 @@ static void set_ref(VP9_COMMON *const cm, MACROBLOCKD *const xd,
   if (!vp9_is_valid_scale(&ref_buffer->sf))
     vpx_internal_error(&cm->error, VPX_CODEC_UNSUP_BITSTREAM,
                        "Invalid scale factors");
+  if (ref_buffer->buf->corrupted)
+    vpx_internal_error(&cm->error, VPX_CODEC_CORRUPT_FRAME,
+                       "Block reference is corrupt");
   vp9_setup_pre_planes(xd, idx, ref_buffer->buf, mi_row, mi_col,
                        &ref_buffer->sf);
   xd->corrupted |= ref_buffer->buf->corrupted;
@@ -627,11 +630,14 @@ static void resize_context_buffers(VP9_COMMON *cm, int width, int height) {
                        "Width and height beyond allowed size.");
 #endif
   if (cm->width != width || cm->height != height) {
-    const int new_rows = ALIGN_POWER_OF_TWO(height,
-                                            MI_SIZE_LOG2) >> MI_SIZE_LOG2;
-    const int new_cols = ALIGN_POWER_OF_TWO(width,
-                                            MI_SIZE_LOG2) >> MI_SIZE_LOG2;
-    if (calc_mi_size(new_rows) * calc_mi_size(new_cols) > cm->mi_alloc_size) {
+    const int new_mi_rows =
+        ALIGN_POWER_OF_TWO(height, MI_SIZE_LOG2) >> MI_SIZE_LOG2;
+    const int new_mi_cols =
+        ALIGN_POWER_OF_TWO(width,  MI_SIZE_LOG2) >> MI_SIZE_LOG2;
+
+    // Allocations in vp9_alloc_context_buffers() depend on individual
+    // dimensions as well as the overall size.
+    if (new_mi_cols > cm->mi_cols || new_mi_rows > cm->mi_rows) {
       if (vp9_alloc_context_buffers(cm, width, height))
         vpx_internal_error(&cm->error, VPX_CODEC_MEM_ERROR,
                            "Failed to allocate context buffers");
@@ -652,7 +658,11 @@ static void setup_frame_size(VP9_COMMON *cm, struct vp9_read_bit_buffer *rb) {
 
   if (vp9_realloc_frame_buffer(
           get_frame_new_buffer(cm), cm->width, cm->height,
-          cm->subsampling_x, cm->subsampling_y, VP9_DEC_BORDER_IN_PIXELS,
+          cm->subsampling_x, cm->subsampling_y,
+#if CONFIG_VP9_HIGHBITDEPTH
+          cm->use_highbitdepth,
+#endif
+          VP9_DEC_BORDER_IN_PIXELS,
           &cm->frame_bufs[cm->new_fb_idx].raw_frame_buffer, cm->get_fb_cb,
           cm->cb_priv)) {
     vpx_internal_error(&cm->error, VPX_CODEC_MEM_ERROR,
@@ -670,6 +680,10 @@ static void setup_frame_size_with_refs(VP9_COMMON *cm,
       YV12_BUFFER_CONFIG *const buf = cm->frame_refs[i].buf;
       width = buf->y_crop_width;
       height = buf->y_crop_height;
+      if (buf->corrupted) {
+        vpx_internal_error(&cm->error, VPX_CODEC_CORRUPT_FRAME,
+                           "Frame reference is corrupt");
+      }
       found = 1;
       break;
     }
@@ -699,7 +713,11 @@ static void setup_frame_size_with_refs(VP9_COMMON *cm,
 
   if (vp9_realloc_frame_buffer(
           get_frame_new_buffer(cm), cm->width, cm->height,
-          cm->subsampling_x, cm->subsampling_y, VP9_DEC_BORDER_IN_PIXELS,
+          cm->subsampling_x, cm->subsampling_y,
+#if CONFIG_VP9_HIGHBITDEPTH
+          cm->use_highbitdepth,
+#endif
+          VP9_DEC_BORDER_IN_PIXELS,
           &cm->frame_bufs[cm->new_fb_idx].raw_frame_buffer, cm->get_fb_cb,
           cm->cb_priv)) {
     vpx_internal_error(&cm->error, VPX_CODEC_MEM_ERROR,
@@ -812,6 +830,8 @@ static const uint8_t *decode_tiles(VP9Decoder *pbi,
 
   if (cm->lf.filter_level) {
     LFWorkerData *const lf_data = (LFWorkerData*)pbi->lf_worker.data1;
+    // Be sure to sync as we might be resuming after a failed frame decode.
+    winterface->sync(&pbi->lf_worker);
     lf_data->frame_buffer = get_frame_new_buffer(cm);
     lf_data->cm = cm;
     vp9_copy(lf_data->planes, pbi->mb.plane);
@@ -881,7 +901,7 @@ static const uint8_t *decode_tiles(VP9Decoder *pbi,
         pbi->mb.corrupted |= tile_data->xd.corrupted;
       }
       // Loopfilter one row.
-      if (cm->lf.filter_level) {
+      if (cm->lf.filter_level && !pbi->mb.corrupted) {
         const int lf_start = mi_row - MI_BLOCK_SIZE;
         LFWorkerData *const lf_data = (LFWorkerData*)pbi->lf_worker.data1;
 
@@ -904,7 +924,7 @@ static const uint8_t *decode_tiles(VP9Decoder *pbi,
   }
 
   // Loopfilter remaining rows in the frame.
-  if (cm->lf.filter_level) {
+  if (cm->lf.filter_level && !pbi->mb.corrupted) {
     LFWorkerData *const lf_data = (LFWorkerData*)pbi->lf_worker.data1;
     winterface->sync(&pbi->lf_worker);
     lf_data->start = lf_data->stop;
@@ -993,6 +1013,7 @@ static const uint8_t *decode_tiles_mt(VP9Decoder *pbi,
 
   // Reset tile decoding hook
   for (n = 0; n < num_workers; ++n) {
+    winterface->sync(&pbi->tile_workers[n]);
     pbi->tile_workers[n].hook = (VP9WorkerHook)tile_worker_hook;
   }
 
@@ -1096,7 +1117,7 @@ BITSTREAM_PROFILE vp9_read_profile(struct vp9_read_bit_buffer *rb) {
 static void read_bitdepth_colorspace_sampling(
     VP9_COMMON *cm, struct vp9_read_bit_buffer *rb) {
   if (cm->profile >= PROFILE_2)
-    cm->bit_depth = vp9_rb_read_bit(rb) ? BITS_12 : BITS_10;
+    cm->bit_depth = vp9_rb_read_bit(rb) ? VPX_BITS_12 : VPX_BITS_10;
   cm->color_space = (COLOR_SPACE)vp9_rb_read_literal(rb, 3);
   if (cm->color_space != SRGB) {
     vp9_rb_read_bit(rb);  // [16,235] (including xvycc) vs [0,255] range
@@ -1140,6 +1161,7 @@ static size_t read_uncompressed_header(VP9Decoder *pbi,
                          "Invalid frame marker");
 
   cm->profile = vp9_read_profile(rb);
+
   if (cm->profile >= MAX_PROFILES)
     vpx_internal_error(&cm->error, VPX_CODEC_UNSUP_BITSTREAM,
                        "Unsupported bitstream profile");
@@ -1398,7 +1420,7 @@ void vp9_decode_frame(VP9Decoder *pbi,
 
   if (!first_partition_size) {
     // showing a frame directly
-    *p_data_end = data + 1;
+    *p_data_end = data + (cm->profile <= PROFILE_2 ? 1 : 2);
     return;
   }
 
@@ -1429,9 +1451,11 @@ void vp9_decode_frame(VP9Decoder *pbi,
   if (pbi->max_threads > 1 && tile_rows == 1 && tile_cols > 1 &&
       cm->frame_parallel_decoding_mode) {
     *p_data_end = decode_tiles_mt(pbi, data + first_partition_size, data_end);
-    // If multiple threads are used to decode tiles, then we use those threads
-    // to do parallel loopfiltering.
-    vp9_loop_filter_frame_mt(new_fb, pbi, cm, cm->lf.filter_level, 0);
+    if (!xd->corrupted) {
+      // If multiple threads are used to decode tiles, then we use those threads
+      // to do parallel loopfiltering.
+      vp9_loop_filter_frame_mt(new_fb, pbi, cm, cm->lf.filter_level, 0);
+    }
   } else {
     *p_data_end = decode_tiles(pbi, data + first_partition_size, data_end);
   }

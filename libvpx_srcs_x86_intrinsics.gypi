@@ -16,7 +16,6 @@
         '<(libvpx_source)/vp8/common/x86/idct_blk_mmx.c',
         '<(libvpx_source)/vp8/common/x86/variance_mmx.c',
         '<(libvpx_source)/vp8/encoder/x86/vp8_enc_stubs_mmx.c',
-        '<(libvpx_source)/vp9/encoder/x86/vp9_variance_mmx.c',
       ],
       'cflags': [ '-mmmx', ],
       'xcode_settings': { 'OTHER_CFLAGS': [ '-mmmx' ] },

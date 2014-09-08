@@ -366,9 +366,6 @@ unsigned int vp8_variance_halfpixvar16x16_v_c(const unsigned char *src_ptr, int 
 unsigned int vp8_variance_halfpixvar16x16_v_armv6(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);
 #define vp8_variance_halfpixvar16x16_v vp8_variance_halfpixvar16x16_v_armv6
 
-void vp8_yv12_copy_partial_frame_c(struct yv12_buffer_config *src_ybc, struct yv12_buffer_config *dst_ybc);
-#define vp8_yv12_copy_partial_frame vp8_yv12_copy_partial_frame_c
-
 void vp8_rtcd(void);
 
 #include "vpx_config.h"

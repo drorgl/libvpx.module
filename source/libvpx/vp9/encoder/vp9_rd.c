@@ -364,20 +364,16 @@ void vp9_mv_pred(VP9_COMP *cpi, MACROBLOCK *x,
                  int ref_frame, BLOCK_SIZE block_size) {
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = &xd->mi[0]->mbmi;
-  int_mv this_mv;
   int i;
   int zero_seen = 0;
   int best_index = 0;
   int best_sad = INT_MAX;
   int this_sad = INT_MAX;
   int max_mv = 0;
-
   uint8_t *src_y_ptr = x->plane[0].src.buf;
   uint8_t *ref_y_ptr;
-  int row_offset, col_offset;
-  int num_mv_refs = MAX_MV_REF_CANDIDATES +
+  const int num_mv_refs = MAX_MV_REF_CANDIDATES +
                     (cpi->sf.adaptive_motion_search &&
-                     cpi->common.show_frame &&
                      block_size < cpi->sf.max_partition_size);
 
   MV pred_mv[3];
@@ -387,19 +383,16 @@ void vp9_mv_pred(VP9_COMP *cpi, MACROBLOCK *x,
 
   // Get the sad for each candidate reference mv.
   for (i = 0; i < num_mv_refs; ++i) {
-    this_mv.as_mv = pred_mv[i];
+    const MV *this_mv = &pred_mv[i];
 
-    max_mv = MAX(max_mv,
-                 MAX(abs(this_mv.as_mv.row), abs(this_mv.as_mv.col)) >> 3);
-    // Only need to check zero mv once.
-    if (!this_mv.as_int && zero_seen)
+    max_mv = MAX(max_mv, MAX(abs(this_mv->row), abs(this_mv->col)) >> 3);
+    if (is_zero_mv(this_mv) && zero_seen)
       continue;
 
-    zero_seen = zero_seen || !this_mv.as_int;
+    zero_seen |= is_zero_mv(this_mv);
 
-    row_offset = this_mv.as_mv.row >> 3;
-    col_offset = this_mv.as_mv.col >> 3;
-    ref_y_ptr = ref_y_buffer + (ref_y_stride * row_offset) + col_offset;
+    ref_y_ptr =
+        &ref_y_buffer[ref_y_stride * (this_mv->row >> 3) + (this_mv->col >> 3)];
 
     // Find sad for current vector.
     this_sad = cpi->fn_ptr[block_size].sdf(src_y_ptr, x->plane[0].src.stride,
@@ -462,7 +455,7 @@ void vp9_set_rd_speed_thresholds(VP9_COMP *cpi) {
 
   // Set baseline threshold values.
   for (i = 0; i < MAX_MODES; ++i)
-    rd->thresh_mult[i] = is_best_mode(cpi->oxcf.mode) ? -500 : 0;
+    rd->thresh_mult[i] = cpi->oxcf.mode == BEST ? -500 : 0;
 
   rd->thresh_mult[THR_NEARESTMV] = 0;
   rd->thresh_mult[THR_NEARESTG] = 0;
@@ -548,7 +541,7 @@ void vp9_set_rd_speed_thresholds_sub8x8(VP9_COMP *cpi) {
   int i;
 
   for (i = 0; i < MAX_REFS; ++i)
-    rd->thresh_mult_sub8x8[i] = is_best_mode(cpi->oxcf.mode)  ? -500 : 0;
+    rd->thresh_mult_sub8x8[i] = cpi->oxcf.mode == BEST ? -500 : 0;
 
   rd->thresh_mult_sub8x8[THR_LAST] += 2500;
   rd->thresh_mult_sub8x8[THR_GOLD] += 2500;

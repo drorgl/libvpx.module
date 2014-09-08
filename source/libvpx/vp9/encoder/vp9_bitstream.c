@@ -294,6 +294,7 @@ static void pack_inter_mode_mvs(VP9_COMP *cpi, const MODE_INFO *mi,
       vp9_write_token(w, vp9_switchable_interp_tree,
                       cm->fc.switchable_interp_prob[ctx],
                       &switchable_interp_encodings[mbmi->interp_filter]);
+      ++cpi->interp_filter_selected[0][mbmi->interp_filter];
     } else {
       assert(mbmi->interp_filter == cm->interp_filter);
     }
@@ -670,8 +671,6 @@ static void update_coef_probs(VP9_COMP *cpi, vp9_writer* w) {
   vp9_coeff_stats frame_branch_ct[TX_SIZES][PLANE_TYPES];
   vp9_coeff_probs_model frame_coef_probs[TX_SIZES][PLANE_TYPES];
 
-  vp9_clear_system_state();
-
   for (tx_size = TX_4X4; tx_size <= TX_32X32; ++tx_size)
     build_tree_distribution(cpi, tx_size, frame_branch_ct[tx_size],
                             frame_coef_probs[tx_size]);
@@ -998,8 +997,10 @@ static void write_frame_size_with_refs(VP9_COMP *cpi,
 
     // Set "found" to 0 for temporal svc and for spatial svc key frame
     if (cpi->use_svc &&
-        (cpi->svc.number_spatial_layers == 1 ||
-         cpi->svc.layer_context[cpi->svc.spatial_layer_id].is_key_frame)) {
+        ((cpi->svc.number_temporal_layers > 1 &&
+         cpi->oxcf.rc_mode == VPX_CBR) ||
+        (cpi->svc.number_spatial_layers > 1 &&
+         cpi->svc.layer_context[cpi->svc.spatial_layer_id].is_key_frame))) {
       found = 0;
     }
     vp9_wb_write_bit(wb, found);
@@ -1045,8 +1046,8 @@ static void write_profile(BITSTREAM_PROFILE profile,
 static void write_bitdepth_colorspace_sampling(
     VP9_COMMON *const cm, struct vp9_write_bit_buffer *wb) {
   if (cm->profile >= PROFILE_2) {
-    assert(cm->bit_depth > BITS_8);
-    vp9_wb_write_bit(wb, cm->bit_depth - BITS_10);
+    assert(cm->bit_depth > VPX_BITS_8);
+    vp9_wb_write_bit(wb, cm->bit_depth == VPX_BITS_10 ? 0 : 1);
   }
   vp9_wb_write_literal(wb, cm->color_space, 3);
   if (cm->color_space != SRGB) {
@@ -1083,7 +1084,16 @@ static void write_uncompressed_header(VP9_COMP *cpi,
     write_bitdepth_colorspace_sampling(cm, wb);
     write_frame_size(cm, wb);
   } else {
-    if (!cm->show_frame)
+    // In spatial svc if it's not error_resilient_mode then we need to code all
+    // visible frames as invisible. But we need to keep the show_frame flag so
+    // that the publisher could know whether it is supposed to be visible.
+    // So we will code the show_frame flag as it is. Then code the intra_only
+    // bit here. This will make the bitstream incompatible. In the player we
+    // will change to show_frame flag to 0, then add an one byte frame with
+    // show_existing_frame flag which tells the decoder which frame we want to
+    // show.
+    if (!cm->show_frame ||
+        (is_two_pass_svc(cpi) && cm->error_resilient_mode == 0))
       vp9_wb_write_bit(wb, cm->intra_only);
 
     if (!cm->error_resilient_mode)

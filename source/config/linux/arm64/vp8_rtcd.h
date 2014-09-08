@@ -55,10 +55,12 @@ int vp8_block_error_c(short *coeff, short *dqcoeff);
 #define vp8_block_error vp8_block_error_c
 
 void vp8_build_intra_predictors_mbuv_s_c(struct macroblockd *x, unsigned char * uabove_row, unsigned char * vabove_row,  unsigned char *uleft, unsigned char *vleft, int left_stride, unsigned char * upred_ptr, unsigned char * vpred_ptr, int pred_stride);
-#define vp8_build_intra_predictors_mbuv_s vp8_build_intra_predictors_mbuv_s_c
+void vp8_build_intra_predictors_mbuv_s_neon(struct macroblockd *x, unsigned char * uabove_row, unsigned char * vabove_row,  unsigned char *uleft, unsigned char *vleft, int left_stride, unsigned char * upred_ptr, unsigned char * vpred_ptr, int pred_stride);
+#define vp8_build_intra_predictors_mbuv_s vp8_build_intra_predictors_mbuv_s_neon
 
 void vp8_build_intra_predictors_mby_s_c(struct macroblockd *x, unsigned char * yabove_row, unsigned char * yleft, int left_stride, unsigned char * ypred_ptr, int y_stride);
-#define vp8_build_intra_predictors_mby_s vp8_build_intra_predictors_mby_s_c
+void vp8_build_intra_predictors_mby_s_neon(struct macroblockd *x, unsigned char * yabove_row, unsigned char * yleft, int left_stride, unsigned char * ypred_ptr, int y_stride);
+#define vp8_build_intra_predictors_mby_s vp8_build_intra_predictors_mby_s_neon
 
 void vp8_clear_system_state_c();
 #define vp8_clear_system_state vp8_clear_system_state_c
@@ -92,10 +94,12 @@ void vp8_dequant_idct_add_neon(short *input, short *dq, unsigned char *output, i
 #define vp8_dequant_idct_add vp8_dequant_idct_add_neon
 
 void vp8_dequant_idct_add_uv_block_c(short *q, short *dq, unsigned char *dst_u, unsigned char *dst_v, int stride, char *eobs);
-#define vp8_dequant_idct_add_uv_block vp8_dequant_idct_add_uv_block_c
+void vp8_dequant_idct_add_uv_block_neon(short *q, short *dq, unsigned char *dst_u, unsigned char *dst_v, int stride, char *eobs);
+#define vp8_dequant_idct_add_uv_block vp8_dequant_idct_add_uv_block_neon
 
 void vp8_dequant_idct_add_y_block_c(short *q, short *dq, unsigned char *dst, int stride, char *eobs);
-#define vp8_dequant_idct_add_y_block vp8_dequant_idct_add_y_block_c
+void vp8_dequant_idct_add_y_block_neon(short *q, short *dq, unsigned char *dst, int stride, char *eobs);
+#define vp8_dequant_idct_add_y_block vp8_dequant_idct_add_y_block_neon
 
 void vp8_dequantize_b_c(struct blockd*, short *dqc);
 void vp8_dequantize_b_neon(struct blockd*, short *dqc);
@@ -132,10 +136,12 @@ void vp8_intra4x4_predict_c(unsigned char *Above, unsigned char *yleft, int left
 #define vp8_intra4x4_predict vp8_intra4x4_predict_c
 
 void vp8_loop_filter_bh_c(unsigned char *y, unsigned char *u, unsigned char *v, int ystride, int uv_stride, struct loop_filter_info *lfi);
-#define vp8_loop_filter_bh vp8_loop_filter_bh_c
+void vp8_loop_filter_bh_neon(unsigned char *y, unsigned char *u, unsigned char *v, int ystride, int uv_stride, struct loop_filter_info *lfi);
+#define vp8_loop_filter_bh vp8_loop_filter_bh_neon
 
 void vp8_loop_filter_bv_c(unsigned char *y, unsigned char *u, unsigned char *v, int ystride, int uv_stride, struct loop_filter_info *lfi);
-#define vp8_loop_filter_bv vp8_loop_filter_bv_c
+void vp8_loop_filter_bv_neon(unsigned char *y, unsigned char *u, unsigned char *v, int ystride, int uv_stride, struct loop_filter_info *lfi);
+#define vp8_loop_filter_bv vp8_loop_filter_bv_neon
 
 void vp8_loop_filter_mbh_c(unsigned char *y, unsigned char *u, unsigned char *v, int ystride, int uv_stride, struct loop_filter_info *lfi);
 void vp8_loop_filter_mbh_neon(unsigned char *y, unsigned char *u, unsigned char *v, int ystride, int uv_stride, struct loop_filter_info *lfi);
@@ -150,14 +156,16 @@ void vp8_loop_filter_bhs_neon(unsigned char *y, int ystride, const unsigned char
 #define vp8_loop_filter_simple_bh vp8_loop_filter_bhs_neon
 
 void vp8_loop_filter_bvs_c(unsigned char *y, int ystride, const unsigned char *blimit);
-#define vp8_loop_filter_simple_bv vp8_loop_filter_bvs_c
+void vp8_loop_filter_bvs_neon(unsigned char *y, int ystride, const unsigned char *blimit);
+#define vp8_loop_filter_simple_bv vp8_loop_filter_bvs_neon
 
 void vp8_loop_filter_simple_horizontal_edge_c(unsigned char *y, int ystride, const unsigned char *blimit);
 void vp8_loop_filter_mbhs_neon(unsigned char *y, int ystride, const unsigned char *blimit);
 #define vp8_loop_filter_simple_mbh vp8_loop_filter_mbhs_neon
 
 void vp8_loop_filter_simple_vertical_edge_c(unsigned char *y, int ystride, const unsigned char *blimit);
-#define vp8_loop_filter_simple_mbv vp8_loop_filter_simple_vertical_edge_c
+void vp8_loop_filter_mbvs_neon(unsigned char *y, int ystride, const unsigned char *blimit);
+#define vp8_loop_filter_simple_mbv vp8_loop_filter_mbvs_neon
 
 int vp8_mbblock_error_c(struct macroblock *mb, int dc);
 #define vp8_mbblock_error vp8_mbblock_error_c
@@ -267,10 +275,12 @@ void vp8_sad8x8x8_c(const unsigned char *src_ptr, int src_stride, const unsigned
 #define vp8_sad8x8x8 vp8_sad8x8x8_c
 
 void vp8_short_fdct4x4_c(short *input, short *output, int pitch);
-#define vp8_short_fdct4x4 vp8_short_fdct4x4_c
+void vp8_short_fdct4x4_neon(short *input, short *output, int pitch);
+#define vp8_short_fdct4x4 vp8_short_fdct4x4_neon
 
 void vp8_short_fdct8x4_c(short *input, short *output, int pitch);
-#define vp8_short_fdct8x4 vp8_short_fdct8x4_c
+void vp8_short_fdct8x4_neon(short *input, short *output, int pitch);
+#define vp8_short_fdct8x4 vp8_short_fdct8x4_neon
 
 void vp8_short_idct4x4llm_c(short *input, unsigned char *pred, int pitch, unsigned char *dst, int dst_stride);
 void vp8_short_idct4x4llm_neon(short *input, unsigned char *pred, int pitch, unsigned char *dst, int dst_stride);
@@ -359,9 +369,6 @@ unsigned int vp8_variance_halfpixvar16x16_hv_c(const unsigned char *src_ptr, int
 
 unsigned int vp8_variance_halfpixvar16x16_v_c(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);
 #define vp8_variance_halfpixvar16x16_v vp8_variance_halfpixvar16x16_v_c
-
-void vp8_yv12_copy_partial_frame_c(struct yv12_buffer_config *src_ybc, struct yv12_buffer_config *dst_ybc);
-#define vp8_yv12_copy_partial_frame vp8_yv12_copy_partial_frame_c
 
 void vp8_rtcd(void);
 
