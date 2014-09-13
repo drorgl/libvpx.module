@@ -179,6 +179,39 @@ if (cpu_arch_full == "arm-neon-cpu-detect") {
   }
 }
 
+# Converts ARM assembly files to GAS style.
+if (cpu_arch == "arm") {
+  action_foreach("convert_arm_assembly") {
+    script = "//third_party/libvpx/run_perl.py"
+    if (cpu_arch_full == "arm-neon") {
+      sources = libvpx_srcs_arm_neon_assembly
+    } else if (cpu_arch_full == "arm-neon-cpu-detect") {
+      sources = libvpx_srcs_arm_neon_cpu_detect_assembly
+    } else {
+      sources = libvpx_srcs_arm_assembly
+    }
+    outputs = [ "$target_gen_dir/{{source_name_part}}.S" ]
+    args = [
+      "-s",
+      rebase_path("//third_party/libvpx/source/libvpx/build/make/ads2gas.pl",
+                  root_build_dir),
+      "-i", "{{source}}",
+      "-o", rebase_path("$target_gen_dir/{{source_name_part}}.S")
+    ]
+  }
+
+  static_library("libvpx_assembly_arm") {
+    sources = get_target_outputs(":convert_arm_assembly")
+    deps = [ ":convert_arm_assembly" ]
+    configs -= [ "//build/config/compiler:compiler_arm_fpu" ]
+    configs += [ ":libvpx_config" ]
+    if (cpu_arch_full == "arm-neon" ||
+        cpu_arch_full == "arm-neon-cpu-detect") {
+      cflags = [ "-mfpu=neon" ]
+    }
+  }
+}
+
 static_library("libvpx") {
   if (!is_debug && is_win && is_official_build) {
     configs -= [ "//build/config/compiler:optimize" ]
@@ -206,7 +239,6 @@ static_library("libvpx") {
   } else if (cpu_arch == "arm64") {
     sources = libvpx_srcs_arm64
   }
-
   deps = [
     ":gen_asm_offsets_vp8",
   ]
@@ -225,5 +257,8 @@ static_library("libvpx") {
   }
   if (is_android) {
     deps += [ "//third_party/android_tools:cpu_features" ]
+  }
+  if (cpu_arch == "arm") {
+    deps += [ ":libvpx_assembly_arm" ]
   }
 }

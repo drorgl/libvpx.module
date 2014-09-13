@@ -255,7 +255,6 @@ function convert_srcs_to_project_files {
 
   # Write a single .gni file that includes all source files for all archs.
   if [ 0 -ne ${#x86_list} ]; then
-    # X86 systems need to separate C and assembly files for GN.
     local c_sources=$(echo "$source_list" | egrep '.(c|h)$')
     local assembly_sources=$(echo "$source_list" | egrep '.asm$')
     local mmx_sources=$(echo "$intrinsic_list" | grep '_mmx\.c$')
@@ -276,8 +275,11 @@ function convert_srcs_to_project_files {
     write_gni avx_sources $2_avx "$BASE_DIR/libvpx_srcs.gni"
     write_gni avx2_sources $2_avx2 "$BASE_DIR/libvpx_srcs.gni"
   else
+    local c_sources=$(echo "$source_list" | egrep '.(c|h)$')
+    local assembly_sources=$(echo "$source_list" | egrep '.asm$')
     local neon_sources=$(echo "$intrinsic_list" | grep '_neon\.c$')
-    write_gni source_list $2 "$BASE_DIR/libvpx_srcs.gni"
+    write_gni c_sources $2 "$BASE_DIR/libvpx_srcs.gni"
+    write_gni assembly_sources $2_assembly "$BASE_DIR/libvpx_srcs.gni"
     if [ 0 -ne ${#neon_sources} ]; then
       write_gni neon_sources $2_neon "$BASE_DIR/libvpx_srcs.gni"
     fi
