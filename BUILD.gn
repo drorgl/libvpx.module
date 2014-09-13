@@ -127,6 +127,10 @@ if (cpu_arch == "x86" || cpu_arch == "x64") {
      "//third_party/libvpx/source/libvpx",
       target_gen_dir
     ]
+    deps = [
+      ":gen_asm_offsets_vp8",
+      ":gen_asm_offsets_scale",
+    ]
   }
 }
 
@@ -202,13 +206,17 @@ if (cpu_arch == "arm") {
 
   static_library("libvpx_assembly_arm") {
     sources = get_target_outputs(":convert_arm_assembly")
-    deps = [ ":convert_arm_assembly" ]
     configs -= [ "//build/config/compiler:compiler_arm_fpu" ]
     configs += [ ":libvpx_config" ]
     if (cpu_arch_full == "arm-neon" ||
         cpu_arch_full == "arm-neon-cpu-detect") {
       cflags = [ "-mfpu=neon" ]
     }
+    deps = [
+      ":convert_arm_assembly",
+      ":gen_asm_offsets_vp8",
+      ":gen_asm_offsets_scale",
+    ]
   }
 }
 
@@ -239,10 +247,8 @@ static_library("libvpx") {
   } else if (cpu_arch == "arm64") {
     sources = libvpx_srcs_arm64
   }
-  deps = [
-    ":gen_asm_offsets_vp8",
-  ]
   configs += [ ":libvpx_config" ]
+  deps = []
   if (cpu_arch == "x86" || (cpu_arch == "x64" && !is_msan)) {
     deps += [
       ":libvpx_yasm",
