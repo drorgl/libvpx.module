@@ -128,6 +128,7 @@ LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += fdct4x4_test.cc
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += fdct8x8_test.cc
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += variance_test.cc
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += vp9_subtract_test.cc
+LIBVPX_TEST_SRCS-$(CONFIG_VP9)         += vp9_intrapred_test.cc
 
 ifeq ($(CONFIG_VP9_ENCODER),yes)
 LIBVPX_TEST_SRCS-$(CONFIG_SPATIAL_SVC) += svc_test.cc
@@ -811,14 +812,18 @@ LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-08-tile_1x2_frame_paral
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-08-tile_1x2_frame_parallel.webm.ivf.s47039_r01-05_b6-.ivf.res
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-08-tile_1x4_frame_parallel_all_key.webm
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-08-tile_1x4_frame_parallel_all_key.webm.res
-LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-09-aq2.webm.ivf.s3984_r01-05_b6-.ivf
-LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-09-aq2.webm.ivf.s3984_r01-05_b6-.ivf.res
-LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-09-subpixel-00.ivf.s19552_r01-05_b6-.ivf
-LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-09-subpixel-00.ivf.s19552_r01-05_b6-.ivf.res
-LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-09-subpixel-00.ivf.s20492_r01-05_b6-.ivf
-LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-09-subpixel-00.ivf.s20492_r01-05_b6-.ivf.res
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-09-aq2.webm.ivf.s3984_r01-05_b6-.v2.ivf
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-09-aq2.webm.ivf.s3984_r01-05_b6-.v2.ivf.res
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-09-subpixel-00.ivf.s19552_r01-05_b6-.v2.ivf
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-09-subpixel-00.ivf.s19552_r01-05_b6-.v2.ivf.res
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-09-subpixel-00.ivf.s20492_r01-05_b6-.v2.ivf
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-09-subpixel-00.ivf.s20492_r01-05_b6-.v2.ivf.res
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-12-droppable_1.ivf.s3676_r01-05_b6-.ivf
 LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-12-droppable_1.ivf.s3676_r01-05_b6-.ivf.res
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-12-droppable_1.ivf.s73804_r01-05_b6-.ivf
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp90-2-12-droppable_1.ivf.s73804_r01-05_b6-.ivf.res
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp91-2-mixedrefcsp-444to420.ivf
+LIBVPX_TEST_DATA-$(CONFIG_VP9_DECODER) += invalid-vp91-2-mixedrefcsp-444to420.ivf.res
 
 ifeq ($(CONFIG_DECODE_PERF_TESTS),yes)
 # BBB VP9 streams

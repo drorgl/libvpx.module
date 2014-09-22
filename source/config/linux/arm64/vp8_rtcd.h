@@ -7,10 +7,6 @@
 #define RTCD_EXTERN extern
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /*
  * VP8
  */
@@ -25,6 +21,10 @@ struct macroblock;
 struct variance_vtable;
 union int_mv;
 struct yv12_buffer_config;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void vp8_bilinear_predict16x16_c(unsigned char *src, int src_pitch, int xofst, int yofst, unsigned char *dst, int dst_pitch);
 void vp8_bilinear_predict16x16_neon(unsigned char *src, int src_pitch, int xofst, int yofst, unsigned char *dst, int dst_pitch);
@@ -127,7 +127,8 @@ int vp8_full_search_sad_c(struct macroblock *x, struct block *b, struct blockd *
 #define vp8_full_search_sad vp8_full_search_sad_c
 
 unsigned int vp8_get4x4sse_cs_c(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride);
-#define vp8_get4x4sse_cs vp8_get4x4sse_cs_c
+unsigned int vp8_get4x4sse_cs_neon(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride);
+#define vp8_get4x4sse_cs vp8_get4x4sse_cs_neon
 
 unsigned int vp8_get_mb_ss_c(const short *);
 #define vp8_get_mb_ss vp8_get_mb_ss_c
@@ -180,7 +181,8 @@ int vp8_mbuverror_c(struct macroblock *mb);
 #define vp8_mbuverror vp8_mbuverror_c
 
 unsigned int vp8_mse16x16_c(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);
-#define vp8_mse16x16 vp8_mse16x16_c
+unsigned int vp8_mse16x16_neon(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);
+#define vp8_mse16x16 vp8_mse16x16_neon
 
 void vp8_plane_add_noise_c(unsigned char *s, char *noise, char blackclamp[16], char whiteclamp[16], char bothclamp[16], unsigned int w, unsigned int h, int pitch);
 #define vp8_plane_add_noise vp8_plane_add_noise_c
@@ -362,13 +364,16 @@ unsigned int vp8_variance8x8_neon(const unsigned char *src_ptr, int source_strid
 #define vp8_variance8x8 vp8_variance8x8_neon
 
 unsigned int vp8_variance_halfpixvar16x16_h_c(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);
-#define vp8_variance_halfpixvar16x16_h vp8_variance_halfpixvar16x16_h_c
+unsigned int vp8_variance_halfpixvar16x16_h_neon(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);
+#define vp8_variance_halfpixvar16x16_h vp8_variance_halfpixvar16x16_h_neon
 
 unsigned int vp8_variance_halfpixvar16x16_hv_c(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);
-#define vp8_variance_halfpixvar16x16_hv vp8_variance_halfpixvar16x16_hv_c
+unsigned int vp8_variance_halfpixvar16x16_hv_neon(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);
+#define vp8_variance_halfpixvar16x16_hv vp8_variance_halfpixvar16x16_hv_neon
 
 unsigned int vp8_variance_halfpixvar16x16_v_c(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);
-#define vp8_variance_halfpixvar16x16_v vp8_variance_halfpixvar16x16_v_c
+unsigned int vp8_variance_halfpixvar16x16_v_neon(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);
+#define vp8_variance_halfpixvar16x16_v vp8_variance_halfpixvar16x16_v_neon
 
 void vp8_rtcd(void);
 

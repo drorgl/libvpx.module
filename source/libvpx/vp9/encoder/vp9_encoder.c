@@ -330,7 +330,8 @@ static void configure_static_seg_features(VP9_COMP *cpi) {
       seg->update_map = 1;
       seg->update_data = 1;
 
-      qi_delta = vp9_compute_qdelta(rc, rc->avg_q, rc->avg_q * 0.875);
+      qi_delta = vp9_compute_qdelta(rc, rc->avg_q, rc->avg_q * 0.875,
+                                    cm->bit_depth);
       vp9_set_segdata(seg, 1, SEG_LVL_ALT_Q, qi_delta - 2);
       vp9_set_segdata(seg, 1, SEG_LVL_ALT_LF, -2);
 
@@ -351,7 +352,8 @@ static void configure_static_seg_features(VP9_COMP *cpi) {
         seg->update_data = 1;
         seg->abs_delta = SEGMENT_DELTADATA;
 
-        qi_delta = vp9_compute_qdelta(rc, rc->avg_q, rc->avg_q * 1.125);
+        qi_delta = vp9_compute_qdelta(rc, rc->avg_q, rc->avg_q * 1.125,
+                                      cm->bit_depth);
         vp9_set_segdata(seg, 1, SEG_LVL_ALT_Q, qi_delta + 2);
         vp9_enable_segfeature(seg, 1, SEG_LVL_ALT_Q);
 
@@ -411,15 +413,15 @@ static void configure_static_seg_features(VP9_COMP *cpi) {
 
 static void update_reference_segmentation_map(VP9_COMP *cpi) {
   VP9_COMMON *const cm = &cpi->common;
-  MODE_INFO **mi_8x8_ptr = cm->mi_grid_visible;
+  MODE_INFO *mi_8x8_ptr = cm->mi;
   uint8_t *cache_ptr = cm->last_frame_seg_map;
   int row, col;
 
   for (row = 0; row < cm->mi_rows; row++) {
-    MODE_INFO **mi_8x8 = mi_8x8_ptr;
+    MODE_INFO *mi_8x8 = mi_8x8_ptr;
     uint8_t *cache = cache_ptr;
     for (col = 0; col < cm->mi_cols; col++, mi_8x8++, cache++)
-      cache[0] = mi_8x8[0]->mbmi.segment_id;
+      cache[0] = mi_8x8[0].src_mi->mbmi.segment_id;
     mi_8x8_ptr += cm->mi_stride;
     cache_ptr += cm->mi_cols;
   }
@@ -556,6 +558,9 @@ static void init_config(struct VP9_COMP *cpi, VP9EncoderConfig *oxcf) {
 
   cm->profile = oxcf->profile;
   cm->bit_depth = oxcf->bit_depth;
+#if CONFIG_VP9_HIGHBITDEPTH
+  cm->use_highbitdepth = oxcf->use_highbitdepth;
+#endif
   cm->color_space = UNKNOWN;
 
   cm->width = oxcf->width;
@@ -613,6 +618,11 @@ void vp9_change_config(struct VP9_COMP *cpi, const VP9EncoderConfig *oxcf) {
     assert(cm->bit_depth > VPX_BITS_8);
 
   cpi->oxcf = *oxcf;
+#if CONFIG_VP9_HIGHBITDEPTH
+  if (cpi->oxcf.use_highbitdepth) {
+    cpi->mb.e_mbd.bd = (int)cm->bit_depth;
+  }
+#endif
 
   rc->baseline_gf_interval = DEFAULT_GF_INTERVAL;
 
@@ -981,8 +991,10 @@ VP9_COMP *vp9_create_compressor(VP9EncoderConfig *oxcf) {
 
   // Default rd threshold factors for mode selection
   for (i = 0; i < BLOCK_SIZES; ++i) {
-    for (j = 0; j < MAX_MODES; ++j)
+    for (j = 0; j < MAX_MODES; ++j) {
       cpi->rd.thresh_freq_fact[i][j] = 32;
+      cpi->rd.mode_map[i][j] = j;
+    }
   }
 
 #define BFP(BT, SDF, SDAF, VF, SVF, SVAF, SDX3F, SDX8F, SDX4DF)\
@@ -1272,7 +1284,10 @@ static void generate_psnr_packet(VP9_COMP *cpi) {
     pkt.data.psnr.psnr[i] = psnr.psnr[i];
   }
   pkt.kind = VPX_CODEC_PSNR_PKT;
-  vpx_codec_pkt_list_add(cpi->output_pkt_list, &pkt);
+  if (is_two_pass_svc(cpi))
+    cpi->svc.layer_context[cpi->svc.spatial_layer_id].psnr_pkt = pkt.data.psnr;
+  else
+    vpx_codec_pkt_list_add(cpi->output_pkt_list, &pkt);
 }
 
 int vp9_use_as_reference(VP9_COMP *cpi, int ref_frame_flags) {
@@ -2233,9 +2248,11 @@ static void encode_frame_to_data_rate(VP9_COMP *cpi,
 #endif
 
 #if CONFIG_INTERNAL_STATS
-  int i;
-  for (i = 0; i < MAX_MODES; ++i)
-    cpi->mode_chosen_counts[i] = 0;
+  {
+    int i;
+    for (i = 0; i < MAX_MODES; ++i)
+      cpi->mode_chosen_counts[i] = 0;
+  }
 #endif
 
   vp9_set_speed_features(cpi);
@@ -2384,10 +2401,7 @@ static void Pass0Encode(VP9_COMP *cpi, size_t *size, uint8_t *dest,
 static void Pass2Encode(VP9_COMP *cpi, size_t *size,
                         uint8_t *dest, unsigned int *frame_flags) {
   cpi->allow_encode_breakout = ENCODE_BREAKOUT_ENABLED;
-
-  vp9_rc_get_second_pass_params(cpi);
   encode_frame_to_data_rate(cpi, size, dest, frame_flags);
-
   vp9_twopass_postencode_update(cpi);
 }
 
@@ -2434,15 +2448,7 @@ int vp9_receive_raw_frame(VP9_COMP *cpi, unsigned int frame_flags,
 
   vpx_usec_timer_start(&timer);
 
-#if CONFIG_SPATIAL_SVC
-  if (is_two_pass_svc(cpi))
-    res = vp9_svc_lookahead_push(cpi, cpi->lookahead, sd, time_stamp, end_time,
-                                 frame_flags);
-  else
-#endif
-    res = vp9_lookahead_push(cpi->lookahead,
-                             sd, time_stamp, end_time, frame_flags);
-  if (res)
+  if (vp9_lookahead_push(cpi->lookahead, sd, time_stamp, end_time, frame_flags))
     res = -1;
   vpx_usec_timer_mark(&timer);
   cpi->time_receive_data += vpx_usec_timer_elapsed(&timer);
@@ -2571,11 +2577,12 @@ int vp9_get_compressed_data(VP9_COMP *cpi, unsigned int *frame_flags,
   MV_REFERENCE_FRAME ref_frame;
   int arf_src_index;
 
-  if (is_two_pass_svc(cpi) && oxcf->pass == 2) {
+  if (is_two_pass_svc(cpi)) {
 #if CONFIG_SPATIAL_SVC
-    vp9_svc_lookahead_peek(cpi, cpi->lookahead, 0, 1);
+    vp9_svc_start_frame(cpi);
 #endif
-    vp9_restore_layer_context(cpi);
+    if (oxcf->pass == 2)
+      vp9_restore_layer_context(cpi);
   }
 
   vpx_usec_timer_start(&cmptimer);
@@ -2594,13 +2601,7 @@ int vp9_get_compressed_data(VP9_COMP *cpi, unsigned int *frame_flags,
   if (arf_src_index) {
     assert(arf_src_index <= rc->frames_to_key);
 
-#if CONFIG_SPATIAL_SVC
-    if (is_two_pass_svc(cpi))
-      source = vp9_svc_lookahead_peek(cpi, cpi->lookahead, arf_src_index, 0);
-    else
-#endif
-      source = vp9_lookahead_peek(cpi->lookahead, arf_src_index);
-    if (source != NULL) {
+    if ((source = vp9_lookahead_peek(cpi->lookahead, arf_src_index)) != NULL) {
       cpi->alt_ref_source = source;
 
 #if CONFIG_SPATIAL_SVC
@@ -2638,13 +2639,7 @@ int vp9_get_compressed_data(VP9_COMP *cpi, unsigned int *frame_flags,
   if (!source) {
     // Get last frame source.
     if (cm->current_video_frame > 0) {
-#if CONFIG_SPATIAL_SVC
-      if (is_two_pass_svc(cpi))
-        last_source = vp9_svc_lookahead_peek(cpi, cpi->lookahead, -1, 0);
-      else
-#endif
-        last_source = vp9_lookahead_peek(cpi->lookahead, -1);
-      if (last_source == NULL)
+      if ((last_source = vp9_lookahead_peek(cpi->lookahead, -1)) == NULL)
         return -1;
     }
 
@@ -2711,6 +2706,12 @@ int vp9_get_compressed_data(VP9_COMP *cpi, unsigned int *frame_flags,
   cm->frame_bufs[cm->new_fb_idx].ref_count--;
   cm->new_fb_idx = get_free_fb(cm);
 
+  // For two pass encodes analyse the first pass stats and determine
+  // the bit allocation and other parameters for this frame / group of frames.
+  if ((oxcf->pass == 2) && (!cpi->use_svc || is_two_pass_svc(cpi))) {
+    vp9_rc_get_second_pass_params(cpi);
+  }
+
   if (!cpi->use_svc && cpi->multi_arf_allowed) {
     if (cm->frame_type == KEY_FRAME) {
       init_buffer_indices(cpi);
@@ -2749,10 +2750,17 @@ int vp9_get_compressed_data(VP9_COMP *cpi, unsigned int *frame_flags,
     RefBuffer *const ref_buf = &cm->frame_refs[ref_frame - 1];
     ref_buf->buf = buf;
     ref_buf->idx = idx;
+#if CONFIG_VP9_HIGHBITDEPTH
+    vp9_setup_scale_factors_for_frame(&ref_buf->sf,
+                                      buf->y_crop_width, buf->y_crop_height,
+                                      cm->width, cm->height,
+                                      (buf->flags & YV12_FLAG_HIGHBITDEPTH) ?
+                                          1 : 0);
+#else
     vp9_setup_scale_factors_for_frame(&ref_buf->sf,
                                       buf->y_crop_width, buf->y_crop_height,
                                       cm->width, cm->height);
-
+#endif
     if (vp9_is_scaled(&ref_buf->sf))
       vp9_extend_frame_borders(buf);
   }
@@ -2766,7 +2774,16 @@ int vp9_get_compressed_data(VP9_COMP *cpi, unsigned int *frame_flags,
   if (oxcf->pass == 1 &&
       (!cpi->use_svc || is_two_pass_svc(cpi))) {
     const int lossless = is_lossless_requested(oxcf);
+#if CONFIG_VP9_HIGHBITDEPTH
+    if (cpi->oxcf.use_highbitdepth)
+      cpi->mb.fwd_txm4x4 = lossless ? vp9_high_fwht4x4 : vp9_high_fdct4x4;
+    else
+      cpi->mb.fwd_txm4x4 = lossless ? vp9_fwht4x4 : vp9_fdct4x4;
+    cpi->mb.high_itxm_add = lossless ? vp9_high_iwht4x4_add :
+                                       vp9_high_idct4x4_add;
+#else
     cpi->mb.fwd_txm4x4 = lossless ? vp9_fwht4x4 : vp9_fdct4x4;
+#endif
     cpi->mb.itxm_add = lossless ? vp9_iwht4x4_add : vp9_idct4x4_add;
     vp9_first_pass(cpi, source);
   } else if (oxcf->pass == 2 &&
@@ -2882,6 +2899,12 @@ int vp9_get_compressed_data(VP9_COMP *cpi, unsigned int *frame_flags,
   }
 
 #endif
+
+  if (is_two_pass_svc(cpi) && cm->show_frame) {
+    ++cpi->svc.spatial_layer_to_encode;
+    if (cpi->svc.spatial_layer_to_encode >= cpi->svc.number_spatial_layers)
+      cpi->svc.spatial_layer_to_encode = 0;
+  }
   return 0;
 }
 

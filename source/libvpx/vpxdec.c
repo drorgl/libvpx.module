@@ -24,7 +24,6 @@
 #include "./args.h"
 #include "./ivfdec.h"
 
-#define VPX_CODEC_DISABLE_COMPAT 1
 #include "vpx/vpx_decoder.h"
 #include "vpx_ports/mem_ops.h"
 #include "vpx_ports/vpx_timer.h"
@@ -385,7 +384,7 @@ int get_vp9_frame_buffer(void *cb_priv, size_t min_size,
 
   if (ext_fb_list->ext_fb[i].size < min_size) {
     free(ext_fb_list->ext_fb[i].data);
-    ext_fb_list->ext_fb[i].data = (uint8_t *)malloc(min_size);
+    ext_fb_list->ext_fb[i].data = (uint8_t *)calloc(min_size, sizeof(uint8_t));
     if (!ext_fb_list->ext_fb[i].data)
       return -1;
 

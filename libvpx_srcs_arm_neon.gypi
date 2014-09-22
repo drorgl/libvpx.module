@@ -133,7 +133,7 @@
     '<(libvpx_source)/vp8/encoder/arm/neon/fastquantizeb_neon.asm',
     '<(libvpx_source)/vp8/encoder/arm/neon/shortfdct_neon.c',
     '<(libvpx_source)/vp8/encoder/arm/neon/subtract_neon.c',
-    '<(libvpx_source)/vp8/encoder/arm/neon/vp8_mse16x16_neon.asm',
+    '<(libvpx_source)/vp8/encoder/arm/neon/vp8_mse16x16_neon.c',
     '<(libvpx_source)/vp8/encoder/arm/neon/vp8_shortwalsh4x4_neon.c',
     '<(libvpx_source)/vp8/encoder/arm/quantize_arm.c',
     '<(libvpx_source)/vp8/encoder/bitstream.c',

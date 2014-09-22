@@ -44,7 +44,7 @@ static void temporal_filter_predictors_mb_c(MACROBLOCKD *xd,
   const int which_mv = 0;
   const MV mv = { mv_row, mv_col };
   const InterpKernel *const kernel =
-    vp9_get_interp_kernel(xd->mi[0]->mbmi.interp_filter);
+    vp9_get_interp_kernel(xd->mi[0].src_mi->mbmi.interp_filter);
 
   enum mv_precision mv_precision_uv;
   int uv_stride;
@@ -149,7 +149,7 @@ static int temporal_filter_find_matching_mb_c(VP9_COMP *cpi,
 
   MV best_ref_mv1 = {0, 0};
   MV best_ref_mv1_full; /* full-pixel value of best_ref_mv1 */
-  MV *ref_mv = &x->e_mbd.mi[0]->bmi[0].as_mv[0].as_mv;
+  MV *ref_mv = &x->e_mbd.mi[0].src_mi->bmi[0].as_mv[0].as_mv;
 
   // Save input state
   struct buf_2d src = x->plane[0].src;
@@ -200,8 +200,8 @@ static void temporal_filter_iterate_c(VP9_COMP *cpi,
   int frame;
   int mb_col, mb_row;
   unsigned int filter_weight;
-  int mb_cols = cpi->common.mb_cols;
-  int mb_rows = cpi->common.mb_rows;
+  int mb_cols = (frames[alt_ref_index]->y_crop_width + 15) >> 4;
+  int mb_rows = (frames[alt_ref_index]->y_crop_height + 15) >> 4;
   int mb_y_offset = 0;
   int mb_uv_offset = 0;
   DECLARE_ALIGNED_ARRAY(16, unsigned int, accumulator, 16 * 16 * 3);
@@ -233,7 +233,7 @@ static void temporal_filter_iterate_c(VP9_COMP *cpi,
     // To keep the mv in play for both Y and UV planes the max that it
     //  can be on a border is therefore 16 - (2*VP9_INTERP_EXTEND+1).
     cpi->mb.mv_row_min = -((mb_row * 16) + (17 - 2 * VP9_INTERP_EXTEND));
-    cpi->mb.mv_row_max = ((cpi->common.mb_rows - 1 - mb_row) * 16)
+    cpi->mb.mv_row_max = ((mb_rows - 1 - mb_row) * 16)
                          + (17 - 2 * VP9_INTERP_EXTEND);
 
     for (mb_col = 0; mb_col < mb_cols; mb_col++) {
@@ -244,7 +244,7 @@ static void temporal_filter_iterate_c(VP9_COMP *cpi,
       vpx_memset(count, 0, 16 * 16 * 3 * sizeof(count[0]));
 
       cpi->mb.mv_col_min = -((mb_col * 16) + (17 - 2 * VP9_INTERP_EXTEND));
-      cpi->mb.mv_col_max = ((cpi->common.mb_cols - 1 - mb_col) * 16)
+      cpi->mb.mv_col_max = ((mb_cols - 1 - mb_col) * 16)
                            + (17 - 2 * VP9_INTERP_EXTEND);
 
       for (frame = 0; frame < frame_count; frame++) {
@@ -254,8 +254,8 @@ static void temporal_filter_iterate_c(VP9_COMP *cpi,
         if (frames[frame] == NULL)
           continue;
 
-        mbd->mi[0]->bmi[0].as_mv[0].as_mv.row = 0;
-        mbd->mi[0]->bmi[0].as_mv[0].as_mv.col = 0;
+        mbd->mi[0].src_mi->bmi[0].as_mv[0].as_mv.row = 0;
+        mbd->mi[0].src_mi->bmi[0].as_mv[0].as_mv.col = 0;
 
         if (frame == alt_ref_index) {
           filter_weight = 2;
@@ -281,8 +281,8 @@ static void temporal_filter_iterate_c(VP9_COMP *cpi,
               frames[frame]->v_buffer + mb_uv_offset,
               frames[frame]->y_stride,
               mb_uv_width, mb_uv_height,
-              mbd->mi[0]->bmi[0].as_mv[0].as_mv.row,
-              mbd->mi[0]->bmi[0].as_mv[0].as_mv.col,
+              mbd->mi[0].src_mi->bmi[0].as_mv[0].as_mv.row,
+              mbd->mi[0].src_mi->bmi[0].as_mv[0].as_mv.col,
               predictor, scale,
               mb_col * 16, mb_row * 16);
 
@@ -389,10 +389,10 @@ static void adjust_arnr_filter(VP9_COMP *cpi,
   // Adjust the strength based on active max q.
   if (cpi->common.current_video_frame > 1)
     q = ((int)vp9_convert_qindex_to_q(
-        cpi->rc.avg_frame_qindex[INTER_FRAME]));
+        cpi->rc.avg_frame_qindex[INTER_FRAME], cpi->common.bit_depth));
   else
     q = ((int)vp9_convert_qindex_to_q(
-        cpi->rc.avg_frame_qindex[KEY_FRAME]));
+        cpi->rc.avg_frame_qindex[KEY_FRAME], cpi->common.bit_depth));
   if (q > 16) {
     strength = oxcf->arnr_strength;
   } else {
@@ -454,12 +454,20 @@ void vp9_temporal_filter(VP9_COMP *cpi, int distance) {
     // In spatial svc the scaling factors might be less then 1/2. So we will use
     // non-normative scaling.
     int frame_used = 0;
+#if CONFIG_VP9_HIGHBITDEPTH
+    vp9_setup_scale_factors_for_frame(&sf,
+                                      get_frame_new_buffer(cm)->y_crop_width,
+                                      get_frame_new_buffer(cm)->y_crop_height,
+                                      get_frame_new_buffer(cm)->y_crop_width,
+                                      get_frame_new_buffer(cm)->y_crop_height,
+                                      cm->use_highbitdepth);
+#else
     vp9_setup_scale_factors_for_frame(&sf,
                                       get_frame_new_buffer(cm)->y_crop_width,
                                       get_frame_new_buffer(cm)->y_crop_height,
                                       get_frame_new_buffer(cm)->y_crop_width,
                                       get_frame_new_buffer(cm)->y_crop_height);
-
+#endif
     for (frame = 0; frame < frames_to_blur; ++frame) {
       if (cm->mi_cols * MI_SIZE != frames[frame]->y_width ||
           cm->mi_rows * MI_SIZE != frames[frame]->y_height) {
@@ -480,10 +488,21 @@ void vp9_temporal_filter(VP9_COMP *cpi, int distance) {
       }
     }
   } else {
+    // ARF is produced at the native frame size and resized when coded.
+#if CONFIG_VP9_HIGHBITDEPTH
     vp9_setup_scale_factors_for_frame(&sf,
-                                      get_frame_new_buffer(cm)->y_crop_width,
-                                      get_frame_new_buffer(cm)->y_crop_height,
-                                      cm->width, cm->height);
+                                      frames[0]->y_crop_width,
+                                      frames[0]->y_crop_height,
+                                      frames[0]->y_crop_width,
+                                      frames[0]->y_crop_height,
+                                      cm->use_highbitdepth);
+#else
+    vp9_setup_scale_factors_for_frame(&sf,
+                                      frames[0]->y_crop_width,
+                                      frames[0]->y_crop_height,
+                                      frames[0]->y_crop_width,
+                                      frames[0]->y_crop_height);
+#endif
   }
 
   temporal_filter_iterate_c(cpi, frames, frames_to_blur,

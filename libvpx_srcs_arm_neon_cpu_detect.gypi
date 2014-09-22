@@ -111,7 +111,6 @@
     '<(libvpx_source)/vp8/encoder/arm/armv6/walsh_v6.asm',
     '<(libvpx_source)/vp8/encoder/arm/dct_arm.c',
     '<(libvpx_source)/vp8/encoder/arm/neon/fastquantizeb_neon.asm',
-    '<(libvpx_source)/vp8/encoder/arm/neon/vp8_mse16x16_neon.asm',
     '<(libvpx_source)/vp8/encoder/arm/quantize_arm.c',
     '<(libvpx_source)/vp8/encoder/bitstream.c',
     '<(libvpx_source)/vp8/encoder/bitstream.h',
