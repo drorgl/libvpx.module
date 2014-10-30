@@ -277,17 +277,17 @@ case_tm_pred_loop
     vqadd.s16       q14, q3, q4
     vqadd.s16       q15, q3, q5
 
-    vqshrun.s16     d0, q8, #0
-    vqshrun.s16     d1, q9, #0
+    vqmovun.s16     d0, q8
+    vqmovun.s16     d1, q9
 
-    vqshrun.s16     d2, q10, #0
-    vqshrun.s16     d3, q11, #0
+    vqmovun.s16     d2, q10
+    vqmovun.s16     d3, q11
 
-    vqshrun.s16     d4, q12, #0
-    vqshrun.s16     d5, q13, #0
+    vqmovun.s16     d4, q12
+    vqmovun.s16     d5, q13
 
-    vqshrun.s16     d6, q14, #0
-    vqshrun.s16     d7, q15, #0
+    vqmovun.s16     d6, q14
+    vqmovun.s16     d7, q15
 
     vst1.u8         {q0}, [r1]!
     vst1.u8         {q1}, [r1]!
@@ -566,17 +566,17 @@ case_tm_pred_loop_s
     vqadd.s16       q14, q3, q4
     vqadd.s16       q15, q3, q5
 
-    vqshrun.s16     d0, q8, #0
-    vqshrun.s16     d1, q9, #0
+    vqmovun.s16     d0, q8
+    vqmovun.s16     d1, q9
 
-    vqshrun.s16     d2, q10, #0
-    vqshrun.s16     d3, q11, #0
+    vqmovun.s16     d2, q10
+    vqmovun.s16     d3, q11
 
-    vqshrun.s16     d4, q12, #0
-    vqshrun.s16     d5, q13, #0
+    vqmovun.s16     d4, q12
+    vqmovun.s16     d5, q13
 
-    vqshrun.s16     d6, q14, #0
-    vqshrun.s16     d7, q15, #0
+    vqmovun.s16     d6, q14
+    vqmovun.s16     d7, q15
 
     vst1.u8         {q0}, [r1], r2
     vst1.u8         {q1}, [r1], r2
