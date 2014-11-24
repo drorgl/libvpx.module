@@ -99,7 +99,14 @@ typedef struct {
   int64_t starting_buffer_level;
   int64_t optimal_buffer_level;
   int64_t maximum_buffer_size;
-  // int active_best_quality;
+  // rate control history for last frame(1) and the frame before(2).
+  // -1: undershot
+  //  1: overshoot
+  //  0: not initialized.
+  int rc_1_frame;
+  int rc_2_frame;
+  int q_1_frame;
+  int q_2_frame;
 } RATE_CONTROL;
 
 struct VP9_COMP;
@@ -197,6 +204,8 @@ void vp9_rc_update_framerate(struct VP9_COMP *cpi);
 
 void vp9_rc_set_gf_max_interval(const struct VP9_COMP *const cpi,
                                 RATE_CONTROL *const rc);
+
+void vp9_set_target_rate(struct VP9_COMP *cpi);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -1083,12 +1083,10 @@ void vp8_set_speed_features(VP8_COMP *cpi)
     if (cpi->sf.improved_quant)
     {
         cpi->mb.quantize_b      = vp8_regular_quantize_b;
-        cpi->mb.quantize_b_pair = vp8_regular_quantize_b_pair;
     }
     else
     {
         cpi->mb.quantize_b      = vp8_fast_quantize_b;
-        cpi->mb.quantize_b_pair = vp8_fast_quantize_b_pair;
     }
     if (cpi->sf.improved_quant != last_improved_quant)
         vp8cx_init_quantizer(cpi);
@@ -1363,15 +1361,20 @@ static void init_config(VP8_COMP *cpi, VP8_CONFIG *oxcf)
     cm->version = oxcf->Version;
     vp8_setup_version(cm);
 
-    /* frame rate is not available on the first frame, as it's derived from
+    /* Frame rate is not available on the first frame, as it's derived from
      * the observed timestamps. The actual value used here doesn't matter
-     * too much, as it will adapt quickly. If the reciprocal of the timebase
-     * seems like a reasonable framerate, then use that as a guess, otherwise
-     * use 30.
+     * too much, as it will adapt quickly.
      */
-    cpi->framerate = (double)(oxcf->timebase.den) /
-                     (double)(oxcf->timebase.num);
+    if (oxcf->timebase.num > 0) {
+      cpi->framerate = (double)(oxcf->timebase.den) /
+                       (double)(oxcf->timebase.num);
+    } else {
+      cpi->framerate = 30;
+    }
 
+    /* If the reciprocal of the timebase seems like a reasonable framerate,
+     * then use that as a guess, otherwise use 30.
+     */
     if (cpi->framerate > 180)
         cpi->framerate = 30;
 
@@ -3305,12 +3308,12 @@ static void process_denoiser_mode_change(VP8_COMP *cpi) {
   // Only select blocks for computing nmse that have been encoded
   // as ZERO LAST min_consec_zero_last frames in a row.
   // Scale with number of temporal layers.
-  int min_consec_zero_last = 8 / cpi->oxcf.number_of_layers;
+  int min_consec_zero_last = 12 / cpi->oxcf.number_of_layers;
   // Decision is tested for changing the denoising mode every
   // num_mode_change times this function is called. Note that this
   // function called every 8 frames, so (8 * num_mode_change) is number
   // of frames where denoising mode change is tested for switch.
-  int num_mode_change = 15;
+  int num_mode_change = 20;
   // Framerate factor, to compensate for larger mse at lower framerates.
   // Use ref_framerate, which is full source framerate for temporal layers.
   // TODO(marpan): Adjust this factor.
@@ -3322,7 +3325,12 @@ static void process_denoiser_mode_change(VP8_COMP *cpi) {
   static const unsigned char const_source[16] = {
       128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
       128, 128, 128};
-
+  int bandwidth = (int)(cpi->target_bandwidth);
+  // For temporal layers, use full bandwidth (top layer).
+  if (cpi->oxcf.number_of_layers > 1) {
+    LAYER_CONTEXT *lc = &cpi->layer_context[cpi->oxcf.number_of_layers - 1];
+    bandwidth = (int)(lc->target_bandwidth);
+  }
   // Loop through the Y plane, every skip blocks along rows and columns,
   // summing the normalized mean square error, only for blocks that have
   // been encoded as ZEROMV LAST at least min_consec_zero_last least frames in
@@ -3334,11 +3342,6 @@ static void process_denoiser_mode_change(VP8_COMP *cpi) {
       int index = block_index_row + (j >> 4);
       if (cpi->consec_zero_last[index] >= min_consec_zero_last) {
         unsigned int sse;
-        const unsigned int mse = vp8_mse16x16(src + j,
-                                              ystride,
-                                              dst + j,
-                                              ystride,
-                                              &sse);
         const unsigned int var = vp8_variance16x16(src + j,
                                                    ystride,
                                                    dst + j,
@@ -3347,14 +3350,15 @@ static void process_denoiser_mode_change(VP8_COMP *cpi) {
         // Only consider this block as valid for noise measurement
         // if the sum_diff average of the current and previous frame
         // is small (to avoid effects from lighting change).
-        if ((mse - var) < 256) {
+        if ((sse - var) < 256) {
+          unsigned int sse2;
           const unsigned int act = vp8_variance16x16(src + j,
                                                      ystride,
                                                      const_source,
                                                      0,
-                                                     &sse);
+                                                     &sse2);
           if (act > 0)
-            total += mse / act;
+            total += sse / act;
           num_blocks++;
         }
       }
@@ -3370,16 +3374,17 @@ static void process_denoiser_mode_change(VP8_COMP *cpi) {
   if (total > 0 &&
       (num_blocks > (tot_num_blocks >> 4))) {
     // Update the recursive mean square source_diff.
+    total = (total << 8) / num_blocks;
     if (cpi->denoiser.nmse_source_diff_count == 0) {
       // First sample in new interval.
       cpi->denoiser.nmse_source_diff = total;
       cpi->denoiser.qp_avg = cm->base_qindex;
     } else {
       // For subsequent samples, use average with weight ~1/4 for new sample.
-      cpi->denoiser.nmse_source_diff = (int)((total >> 2) +
-          3 * (cpi->denoiser.nmse_source_diff >> 2));
-      cpi->denoiser.qp_avg = (int)((cm->base_qindex >> 2) +
-          3 * (cpi->denoiser.qp_avg >> 2));
+      cpi->denoiser.nmse_source_diff = (int)((total +
+          3 * cpi->denoiser.nmse_source_diff) >> 2);
+      cpi->denoiser.qp_avg = (int)((cm->base_qindex +
+          3 * cpi->denoiser.qp_avg) >> 2);
     }
     cpi->denoiser.nmse_source_diff_count++;
   }
@@ -3391,7 +3396,7 @@ static void process_denoiser_mode_change(VP8_COMP *cpi) {
         (cpi->denoiser.nmse_source_diff >
         cpi->denoiser.threshold_aggressive_mode) &&
         (cpi->denoiser.qp_avg < cpi->denoiser.qp_threshold_up &&
-         cpi->target_bandwidth > cpi->denoiser.bitrate_threshold)) {
+         bandwidth > cpi->denoiser.bitrate_threshold)) {
       vp8_denoiser_set_parameters(&cpi->denoiser, kDenoiserOnYUVAggressive);
     } else {
       // Check for going down: from aggressive to normal mode.
@@ -3400,7 +3405,7 @@ static void process_denoiser_mode_change(VP8_COMP *cpi) {
           cpi->denoiser.threshold_aggressive_mode)) ||
           ((cpi->denoiser.denoiser_mode == kDenoiserOnYUVAggressive) &&
           (cpi->denoiser.qp_avg > cpi->denoiser.qp_threshold_down ||
-           cpi->target_bandwidth < cpi->denoiser.bitrate_threshold))) {
+           bandwidth < cpi->denoiser.bitrate_threshold))) {
         vp8_denoiser_set_parameters(&cpi->denoiser, kDenoiserOnYUV);
       }
     }

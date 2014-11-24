@@ -261,7 +261,7 @@ THREAD_FUNCTION thread_encoding_proc(void *p_data)
                     /* pack tokens for this MB */
                     {
                         int tok_count = tp - tp_start;
-                        pack_tokens(w, tp_start, tok_count);
+                        vp8_pack_tokens(w, tp_start, tok_count);
                     }
 #else
                     cpi->tplist[mb_row].stop = tp;
@@ -346,7 +346,6 @@ static void setup_mbby_copy(MACROBLOCK *mbdst, MACROBLOCK *mbsrc)
     z->short_fdct8x4     = x->short_fdct8x4;
     z->short_walsh4x4    = x->short_walsh4x4;
     z->quantize_b        = x->quantize_b;
-    z->quantize_b_pair   = x->quantize_b_pair;
     z->optimize          = x->optimize;
 
     /*

@@ -38,9 +38,6 @@ struct CYCLIC_REFRESH {
   int rdmult;
   // Cyclic refresh map.
   signed char *map;
-  // Projected rate and distortion for the current superblock.
-  int64_t projected_rate_sb;
-  int64_t projected_dist_sb;
   // Thresholds applied to projected rate/distortion of the superblock.
   int64_t thresh_rate_sb;
   int64_t thresh_dist_sb;
@@ -92,21 +89,20 @@ static int apply_cyclic_refresh_bitrate(const VP9_COMMON *cm,
 // mode, and rate/distortion.
 static int candidate_refresh_aq(const CYCLIC_REFRESH *cr,
                                 const MB_MODE_INFO *mbmi,
-                                BLOCK_SIZE bsize, int use_rd) {
+                                BLOCK_SIZE bsize, int use_rd,
+                                int64_t rate_sb) {
   if (use_rd) {
+    MV mv = mbmi->mv[0].as_mv;
     // If projected rate is below the thresh_rate (well below target,
     // so undershoot expected), accept it for lower-qp coding.
-    if (cr->projected_rate_sb < cr->thresh_rate_sb)
+    if (rate_sb < cr->thresh_rate_sb)
       return 1;
     // Otherwise, reject the block for lower-qp coding if any of the following:
-    // 1) prediction block size is below min_block_size
-    // 2) mode is non-zero mv and projected distortion is above thresh_dist
-    // 3) mode is an intra-mode (we may want to allow some of this under
+    // 1) mode uses large mv
+    // 2) mode is an intra-mode (we may want to allow some of this under
     // another thresh_dist)
-    else if (bsize < cr->min_block_size ||
-             (mbmi->mv[0].as_int != 0 &&
-              cr->projected_dist_sb > cr->thresh_dist_sb) ||
-             !is_inter_block(mbmi))
+    else if (mv.row > 32 || mv.row < -32 ||
+             mv.col > 32 || mv.col < -32 || !is_inter_block(mbmi))
       return 0;
     else
       return 1;
@@ -127,7 +123,8 @@ static int candidate_refresh_aq(const CYCLIC_REFRESH *cr,
 void vp9_cyclic_refresh_update_segment(VP9_COMP *const cpi,
                                        MB_MODE_INFO *const mbmi,
                                        int mi_row, int mi_col,
-                                       BLOCK_SIZE bsize, int use_rd) {
+                                       BLOCK_SIZE bsize, int use_rd,
+                                       int64_t rate_sb) {
   const VP9_COMMON *const cm = &cpi->common;
   CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
   const int bw = num_8x8_blocks_wide_lookup[bsize];
@@ -135,8 +132,8 @@ void vp9_cyclic_refresh_update_segment(VP9_COMP *const cpi,
   const int xmis = MIN(cm->mi_cols - mi_col, bw);
   const int ymis = MIN(cm->mi_rows - mi_row, bh);
   const int block_index = mi_row * cm->mi_cols + mi_col;
-  const int refresh_this_block = cpi->mb.in_static_area ||
-                                 candidate_refresh_aq(cr, mbmi, bsize, use_rd);
+  const int refresh_this_block = candidate_refresh_aq(cr, mbmi, bsize, use_rd,
+                                                      rate_sb);
   // Default is to not update the refresh map.
   int new_map_value = cr->map[block_index];
   int x = 0; int y = 0;
@@ -161,6 +158,7 @@ void vp9_cyclic_refresh_update_segment(VP9_COMP *const cpi,
     // Leave it marked as block that is not candidate for refresh.
     new_map_value = 1;
   }
+
   // Update entries in the cyclic refresh map with new_map_value, and
   // copy mbmi->segment_id into global segmentation map.
   for (y = 0; y < ymis; y++)
@@ -186,7 +184,8 @@ void vp9_cyclic_refresh_setup(VP9_COMP *const cpi) {
   // Don't apply refresh on key frame or enhancement layer frames.
   if (!apply_cyclic_refresh ||
       (cm->frame_type == KEY_FRAME) ||
-      (cpi->svc.temporal_layer_id > 0)) {
+      (cpi->svc.temporal_layer_id > 0) ||
+      (cpi->svc.spatial_layer_id > 0)) {
     // Set segmentation map to 0 and disable.
     vpx_memset(seg_map, 0, cm->mi_rows * cm->mi_cols);
     vp9_disable_segmentation(&cm->seg);
@@ -214,8 +213,8 @@ void vp9_cyclic_refresh_setup(VP9_COMP *const cpi) {
     if (cpi->sf.use_nonrd_pick_mode) {
       // May want to be more conservative with thresholds in non-rd mode for now
       // as rate/distortion are derived from model based on prediction residual.
-      cr->thresh_rate_sb = (rc->sb64_target_rate * 256) >> 3;
-      cr->thresh_dist_sb = 4 * (int)(q * q);
+      cr->thresh_rate_sb = (rc->sb64_target_rate * 256);
+      cr->thresh_dist_sb = 16 * (int)(q * q);
     }
 
     cr->num_seg_blocks = 0;
@@ -311,12 +310,6 @@ void vp9_cyclic_refresh_setup(VP9_COMP *const cpi) {
     } while (block_count && i != cr->sb_index);
     cr->sb_index = i;
   }
-}
-
-void vp9_cyclic_refresh_set_rate_and_dist_sb(CYCLIC_REFRESH *cr,
-                                             int64_t rate_sb, int64_t dist_sb) {
-  cr->projected_rate_sb = rate_sb;
-  cr->projected_dist_sb = dist_sb;
 }
 
 int vp9_cyclic_refresh_get_rdmult(const CYCLIC_REFRESH *cr) {

@@ -34,6 +34,7 @@ typedef struct {
   int is_coded;
   int num_4x4_blk;
   int skip;
+  int pred_pixel_ready;
   // For current partition, only if all Y, U, and V transform blocks'
   // coefficients are quantized to 0, skippable is set to 0.
   int skippable;
@@ -44,6 +45,11 @@ typedef struct {
   int single_pred_diff;
   int64_t tx_rd_diff[TX_MODES];
   int64_t best_filter_diff[SWITCHABLE_FILTER_CONTEXTS];
+
+  // TODO(jingning) Use RD_COST struct here instead. This involves a boarder
+  // scope of refactoring.
+  int rate;
+  int64_t dist;
 
 #if CONFIG_VP9_TEMPORAL_DENOISING
   unsigned int newmv_sse;

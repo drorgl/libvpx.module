@@ -37,12 +37,12 @@ static void fdct4(const tran_low_t *input, tran_low_t *output) {
 
   temp1 = (step[0] + step[1]) * cospi_16_64;
   temp2 = (step[0] - step[1]) * cospi_16_64;
-  output[0] = fdct_round_shift(temp1);
-  output[2] = fdct_round_shift(temp2);
+  output[0] = (tran_low_t)fdct_round_shift(temp1);
+  output[2] = (tran_low_t)fdct_round_shift(temp2);
   temp1 = step[2] * cospi_24_64 + step[3] * cospi_8_64;
   temp2 = -step[2] * cospi_8_64 + step[3] * cospi_24_64;
-  output[1] = fdct_round_shift(temp1);
-  output[3] = fdct_round_shift(temp2);
+  output[1] = (tran_low_t)fdct_round_shift(temp1);
+  output[3] = (tran_low_t)fdct_round_shift(temp2);
 }
 
 void vp9_fdct4x4_1_c(const int16_t *input, tran_low_t *output, int stride) {
@@ -98,12 +98,12 @@ void vp9_fdct4x4_c(const int16_t *input, tran_low_t *output, int stride) {
       step[3] = input[0] - input[3];
       temp1 = (step[0] + step[1]) * cospi_16_64;
       temp2 = (step[0] - step[1]) * cospi_16_64;
-      out[0] = fdct_round_shift(temp1);
-      out[2] = fdct_round_shift(temp2);
+      out[0] = (tran_low_t)fdct_round_shift(temp1);
+      out[2] = (tran_low_t)fdct_round_shift(temp2);
       temp1 = step[2] * cospi_24_64 + step[3] * cospi_8_64;
       temp2 = -step[2] * cospi_8_64 + step[3] * cospi_24_64;
-      out[1] = fdct_round_shift(temp1);
-      out[3] = fdct_round_shift(temp2);
+      out[1] = (tran_low_t)fdct_round_shift(temp1);
+      out[3] = (tran_low_t)fdct_round_shift(temp2);
       // Do next column (which is a transposed row in second/horizontal pass)
       in_pass0++;
       in++;
@@ -157,10 +157,10 @@ static void fadst4(const tran_low_t *input, tran_low_t *output) {
   s3 = x2 - x0 + x3;
 
   // 1-D transform scaling factor is sqrt(2).
-  output[0] = fdct_round_shift(s0);
-  output[1] = fdct_round_shift(s1);
-  output[2] = fdct_round_shift(s2);
-  output[3] = fdct_round_shift(s3);
+  output[0] = (tran_low_t)fdct_round_shift(s0);
+  output[1] = (tran_low_t)fdct_round_shift(s1);
+  output[2] = (tran_low_t)fdct_round_shift(s2);
+  output[3] = (tran_low_t)fdct_round_shift(s3);
 }
 
 static const transform_2d FHT_4[] = {
@@ -227,16 +227,16 @@ static void fdct8(const tran_low_t *input, tran_low_t *output) {
   t1 = (x0 - x1) * cospi_16_64;
   t2 =  x2 * cospi_24_64 + x3 *  cospi_8_64;
   t3 = -x2 * cospi_8_64  + x3 * cospi_24_64;
-  output[0] = fdct_round_shift(t0);
-  output[2] = fdct_round_shift(t2);
-  output[4] = fdct_round_shift(t1);
-  output[6] = fdct_round_shift(t3);
+  output[0] = (tran_low_t)fdct_round_shift(t0);
+  output[2] = (tran_low_t)fdct_round_shift(t2);
+  output[4] = (tran_low_t)fdct_round_shift(t1);
+  output[6] = (tran_low_t)fdct_round_shift(t3);
 
   // Stage 2
   t0 = (s6 - s5) * cospi_16_64;
   t1 = (s6 + s5) * cospi_16_64;
-  t2 = fdct_round_shift(t0);
-  t3 = fdct_round_shift(t1);
+  t2 = (tran_low_t)fdct_round_shift(t0);
+  t3 = (tran_low_t)fdct_round_shift(t1);
 
   // Stage 3
   x0 = s4 + t2;
@@ -249,10 +249,10 @@ static void fdct8(const tran_low_t *input, tran_low_t *output) {
   t1 = x1 * cospi_12_64 + x2 *  cospi_20_64;
   t2 = x2 * cospi_12_64 + x1 * -cospi_20_64;
   t3 = x3 * cospi_28_64 + x0 *  -cospi_4_64;
-  output[1] = fdct_round_shift(t0);
-  output[3] = fdct_round_shift(t2);
-  output[5] = fdct_round_shift(t1);
-  output[7] = fdct_round_shift(t3);
+  output[1] = (tran_low_t)fdct_round_shift(t0);
+  output[3] = (tran_low_t)fdct_round_shift(t2);
+  output[5] = (tran_low_t)fdct_round_shift(t1);
+  output[7] = (tran_low_t)fdct_round_shift(t3);
 }
 
 void vp9_fdct8x8_1_c(const int16_t *input, tran_low_t *output, int stride) {
@@ -298,10 +298,10 @@ void vp9_fdct8x8_c(const int16_t *input, tran_low_t *final_output, int stride) {
       t1 = (x0 - x1) * cospi_16_64;
       t2 =  x2 * cospi_24_64 + x3 *  cospi_8_64;
       t3 = -x2 * cospi_8_64  + x3 * cospi_24_64;
-      output[0 * 8] = fdct_round_shift(t0);
-      output[2 * 8] = fdct_round_shift(t2);
-      output[4 * 8] = fdct_round_shift(t1);
-      output[6 * 8] = fdct_round_shift(t3);
+      output[0 * 8] = (tran_low_t)fdct_round_shift(t0);
+      output[2 * 8] = (tran_low_t)fdct_round_shift(t2);
+      output[4 * 8] = (tran_low_t)fdct_round_shift(t1);
+      output[6 * 8] = (tran_low_t)fdct_round_shift(t3);
 
       // Stage 2
       t0 = (s6 - s5) * cospi_16_64;
@@ -320,10 +320,10 @@ void vp9_fdct8x8_c(const int16_t *input, tran_low_t *final_output, int stride) {
       t1 = x1 * cospi_12_64 + x2 *  cospi_20_64;
       t2 = x2 * cospi_12_64 + x1 * -cospi_20_64;
       t3 = x3 * cospi_28_64 + x0 *  -cospi_4_64;
-      output[1 * 8] = fdct_round_shift(t0);
-      output[3 * 8] = fdct_round_shift(t2);
-      output[5 * 8] = fdct_round_shift(t1);
-      output[7 * 8] = fdct_round_shift(t3);
+      output[1 * 8] = (tran_low_t)fdct_round_shift(t0);
+      output[3 * 8] = (tran_low_t)fdct_round_shift(t2);
+      output[5 * 8] = (tran_low_t)fdct_round_shift(t1);
+      output[7 * 8] = (tran_low_t)fdct_round_shift(t3);
       input++;
       output++;
     }
@@ -335,6 +335,119 @@ void vp9_fdct8x8_c(const int16_t *input, tran_low_t *final_output, int stride) {
     for (j = 0; j < 8; ++j)
       final_output[j + i * 8] /= 2;
   }
+}
+
+void vp9_fdct8x8_quant_c(const int16_t *input, int stride,
+                         tran_low_t *coeff_ptr, intptr_t n_coeffs,
+                         int skip_block,
+                         const int16_t *zbin_ptr, const int16_t *round_ptr,
+                         const int16_t *quant_ptr,
+                         const int16_t *quant_shift_ptr,
+                         tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
+                         const int16_t *dequant_ptr,
+                         int zbin_oq_value, uint16_t *eob_ptr,
+                         const int16_t *scan, const int16_t *iscan) {
+  int eob = -1;
+
+  int i, j;
+  tran_low_t intermediate[64];
+
+  // Transform columns
+  {
+    tran_low_t *output = intermediate;
+    tran_high_t s0, s1, s2, s3, s4, s5, s6, s7;  // canbe16
+    tran_high_t t0, t1, t2, t3;                  // needs32
+    tran_high_t x0, x1, x2, x3;                  // canbe16
+
+    int i;
+    for (i = 0; i < 8; i++) {
+      // stage 1
+      s0 = (input[0 * stride] + input[7 * stride]) * 4;
+      s1 = (input[1 * stride] + input[6 * stride]) * 4;
+      s2 = (input[2 * stride] + input[5 * stride]) * 4;
+      s3 = (input[3 * stride] + input[4 * stride]) * 4;
+      s4 = (input[3 * stride] - input[4 * stride]) * 4;
+      s5 = (input[2 * stride] - input[5 * stride]) * 4;
+      s6 = (input[1 * stride] - input[6 * stride]) * 4;
+      s7 = (input[0 * stride] - input[7 * stride]) * 4;
+
+      // fdct4(step, step);
+      x0 = s0 + s3;
+      x1 = s1 + s2;
+      x2 = s1 - s2;
+      x3 = s0 - s3;
+      t0 = (x0 + x1) * cospi_16_64;
+      t1 = (x0 - x1) * cospi_16_64;
+      t2 =  x2 * cospi_24_64 + x3 *  cospi_8_64;
+      t3 = -x2 * cospi_8_64  + x3 * cospi_24_64;
+      output[0 * 8] = (tran_low_t)fdct_round_shift(t0);
+      output[2 * 8] = (tran_low_t)fdct_round_shift(t2);
+      output[4 * 8] = (tran_low_t)fdct_round_shift(t1);
+      output[6 * 8] = (tran_low_t)fdct_round_shift(t3);
+
+      // Stage 2
+      t0 = (s6 - s5) * cospi_16_64;
+      t1 = (s6 + s5) * cospi_16_64;
+      t2 = fdct_round_shift(t0);
+      t3 = fdct_round_shift(t1);
+
+      // Stage 3
+      x0 = s4 + t2;
+      x1 = s4 - t2;
+      x2 = s7 - t3;
+      x3 = s7 + t3;
+
+      // Stage 4
+      t0 = x0 * cospi_28_64 + x3 *   cospi_4_64;
+      t1 = x1 * cospi_12_64 + x2 *  cospi_20_64;
+      t2 = x2 * cospi_12_64 + x1 * -cospi_20_64;
+      t3 = x3 * cospi_28_64 + x0 *  -cospi_4_64;
+      output[1 * 8] = (tran_low_t)fdct_round_shift(t0);
+      output[3 * 8] = (tran_low_t)fdct_round_shift(t2);
+      output[5 * 8] = (tran_low_t)fdct_round_shift(t1);
+      output[7 * 8] = (tran_low_t)fdct_round_shift(t3);
+      input++;
+      output++;
+    }
+  }
+
+  // Rows
+  for (i = 0; i < 8; ++i) {
+    fdct8(&intermediate[i * 8], &coeff_ptr[i * 8]);
+    for (j = 0; j < 8; ++j)
+      coeff_ptr[j + i * 8] /= 2;
+  }
+
+  // TODO(jingning) Decide the need of these arguments after the
+  // quantization process is completed.
+  (void)zbin_ptr;
+  (void)quant_shift_ptr;
+  (void)zbin_oq_value;
+  (void)iscan;
+
+  vpx_memset(qcoeff_ptr, 0, n_coeffs * sizeof(*qcoeff_ptr));
+  vpx_memset(dqcoeff_ptr, 0, n_coeffs * sizeof(*dqcoeff_ptr));
+
+  if (!skip_block) {
+    // Quantization pass: All coefficients with index >= zero_flag are
+    // skippable. Note: zero_flag can be zero.
+    for (i = 0; i < n_coeffs; i++) {
+      const int rc = scan[i];
+      const int coeff = coeff_ptr[rc];
+      const int coeff_sign = (coeff >> 31);
+      const int abs_coeff = (coeff ^ coeff_sign) - coeff_sign;
+
+      int tmp = clamp(abs_coeff + round_ptr[rc != 0], INT16_MIN, INT16_MAX);
+      tmp = (tmp * quant_ptr[rc != 0]) >> 16;
+
+      qcoeff_ptr[rc] = (tmp ^ coeff_sign) - coeff_sign;
+      dqcoeff_ptr[rc] = qcoeff_ptr[rc] * dequant_ptr[rc != 0];
+
+      if (tmp)
+        eob = i;
+    }
+  }
+  *eob_ptr = eob + 1;
 }
 
 void vp9_fdct16x16_1_c(const int16_t *input, tran_low_t *output, int stride) {
@@ -434,10 +547,10 @@ void vp9_fdct16x16_c(const int16_t *input, tran_low_t *output, int stride) {
         t1 = (x0 - x1) * cospi_16_64;
         t2 = x3 * cospi_8_64  + x2 * cospi_24_64;
         t3 = x3 * cospi_24_64 - x2 * cospi_8_64;
-        out[0] = fdct_round_shift(t0);
-        out[4] = fdct_round_shift(t2);
-        out[8] = fdct_round_shift(t1);
-        out[12] = fdct_round_shift(t3);
+        out[0] = (tran_low_t)fdct_round_shift(t0);
+        out[4] = (tran_low_t)fdct_round_shift(t2);
+        out[8] = (tran_low_t)fdct_round_shift(t1);
+        out[12] = (tran_low_t)fdct_round_shift(t3);
 
         // Stage 2
         t0 = (s6 - s5) * cospi_16_64;
@@ -456,10 +569,10 @@ void vp9_fdct16x16_c(const int16_t *input, tran_low_t *output, int stride) {
         t1 = x1 * cospi_12_64 + x2 *  cospi_20_64;
         t2 = x2 * cospi_12_64 + x1 * -cospi_20_64;
         t3 = x3 * cospi_28_64 + x0 *  -cospi_4_64;
-        out[2] = fdct_round_shift(t0);
-        out[6] = fdct_round_shift(t2);
-        out[10] = fdct_round_shift(t1);
-        out[14] = fdct_round_shift(t3);
+        out[2] = (tran_low_t)fdct_round_shift(t0);
+        out[6] = (tran_low_t)fdct_round_shift(t2);
+        out[10] = (tran_low_t)fdct_round_shift(t1);
+        out[14] = (tran_low_t)fdct_round_shift(t3);
       }
       // Work on the next eight values; step1 -> odd_results
       {
@@ -502,20 +615,20 @@ void vp9_fdct16x16_c(const int16_t *input, tran_low_t *output, int stride) {
         // step 6
         temp1 = step1[0] * cospi_30_64 + step1[7] *  cospi_2_64;
         temp2 = step1[1] * cospi_14_64 + step1[6] * cospi_18_64;
-        out[1] = fdct_round_shift(temp1);
-        out[9] = fdct_round_shift(temp2);
+        out[1] = (tran_low_t)fdct_round_shift(temp1);
+        out[9] = (tran_low_t)fdct_round_shift(temp2);
         temp1 = step1[2] * cospi_22_64 + step1[5] * cospi_10_64;
         temp2 = step1[3] *  cospi_6_64 + step1[4] * cospi_26_64;
-        out[5] = fdct_round_shift(temp1);
-        out[13] = fdct_round_shift(temp2);
+        out[5] = (tran_low_t)fdct_round_shift(temp1);
+        out[13] = (tran_low_t)fdct_round_shift(temp2);
         temp1 = step1[3] * -cospi_26_64 + step1[4] *  cospi_6_64;
         temp2 = step1[2] * -cospi_10_64 + step1[5] * cospi_22_64;
-        out[3] = fdct_round_shift(temp1);
-        out[11] = fdct_round_shift(temp2);
+        out[3] = (tran_low_t)fdct_round_shift(temp1);
+        out[11] = (tran_low_t)fdct_round_shift(temp2);
         temp1 = step1[1] * -cospi_18_64 + step1[6] * cospi_14_64;
         temp2 = step1[0] *  -cospi_2_64 + step1[7] * cospi_30_64;
-        out[7] = fdct_round_shift(temp1);
-        out[15] = fdct_round_shift(temp2);
+        out[7] = (tran_low_t)fdct_round_shift(temp1);
+        out[15] = (tran_low_t)fdct_round_shift(temp2);
       }
       // Do next column (which is a transposed row in second/horizontal pass)
       in++;
@@ -589,14 +702,14 @@ static void fadst8(const tran_low_t *input, tran_low_t *output) {
   x6 = fdct_round_shift(s6);
   x7 = fdct_round_shift(s7);
 
-  output[0] =   x0;
-  output[1] = - x4;
-  output[2] =   x6;
-  output[3] = - x2;
-  output[4] =   x3;
-  output[5] = - x7;
-  output[6] =   x5;
-  output[7] = - x1;
+  output[0] = (tran_low_t)x0;
+  output[1] = (tran_low_t)-x4;
+  output[2] = (tran_low_t)x6;
+  output[3] = (tran_low_t)-x2;
+  output[4] = (tran_low_t)x3;
+  output[5] = (tran_low_t)-x7;
+  output[6] = (tran_low_t)x5;
+  output[7] = (tran_low_t)-x1;
 }
 
 static const transform_2d FHT_8[] = {
@@ -659,10 +772,10 @@ void vp9_fwht4x4_c(const int16_t *input, tran_low_t *output, int stride) {
     c1 = e1 - c1;
     a1 -= c1;
     d1 += b1;
-    op[0] = a1;
-    op[4] = c1;
-    op[8] = d1;
-    op[12] = b1;
+    op[0] = (tran_low_t)a1;
+    op[4] = (tran_low_t)c1;
+    op[8] = (tran_low_t)d1;
+    op[12] = (tran_low_t)b1;
 
     ip_pass0++;
     op++;
@@ -683,10 +796,10 @@ void vp9_fwht4x4_c(const int16_t *input, tran_low_t *output, int stride) {
     c1 = e1 - c1;
     a1 -= c1;
     d1 += b1;
-    op[0] = a1 * UNIT_QUANT_FACTOR;
-    op[1] = c1 * UNIT_QUANT_FACTOR;
-    op[2] = d1 * UNIT_QUANT_FACTOR;
-    op[3] = b1 * UNIT_QUANT_FACTOR;
+    op[0] = (tran_low_t)(a1 * UNIT_QUANT_FACTOR);
+    op[1] = (tran_low_t)(c1 * UNIT_QUANT_FACTOR);
+    op[2] = (tran_low_t)(d1 * UNIT_QUANT_FACTOR);
+    op[3] = (tran_low_t)(b1 * UNIT_QUANT_FACTOR);
 
     ip += 4;
     op += 4;
@@ -745,10 +858,10 @@ static void fdct16(const tran_low_t in[16], tran_low_t out[16]) {
     t1 = (x0 - x1) * cospi_16_64;
     t2 = x3 * cospi_8_64  + x2 * cospi_24_64;
     t3 = x3 * cospi_24_64 - x2 * cospi_8_64;
-    out[0] = fdct_round_shift(t0);
-    out[4] = fdct_round_shift(t2);
-    out[8] = fdct_round_shift(t1);
-    out[12] = fdct_round_shift(t3);
+    out[0] = (tran_low_t)fdct_round_shift(t0);
+    out[4] = (tran_low_t)fdct_round_shift(t2);
+    out[8] = (tran_low_t)fdct_round_shift(t1);
+    out[12] = (tran_low_t)fdct_round_shift(t3);
 
     // Stage 2
     t0 = (s6 - s5) * cospi_16_64;
@@ -767,10 +880,10 @@ static void fdct16(const tran_low_t in[16], tran_low_t out[16]) {
     t1 = x1 * cospi_12_64 + x2 *  cospi_20_64;
     t2 = x2 * cospi_12_64 + x1 * -cospi_20_64;
     t3 = x3 * cospi_28_64 + x0 *  -cospi_4_64;
-    out[2] = fdct_round_shift(t0);
-    out[6] = fdct_round_shift(t2);
-    out[10] = fdct_round_shift(t1);
-    out[14] = fdct_round_shift(t3);
+    out[2] = (tran_low_t)fdct_round_shift(t0);
+    out[6] = (tran_low_t)fdct_round_shift(t2);
+    out[10] = (tran_low_t)fdct_round_shift(t1);
+    out[14] = (tran_low_t)fdct_round_shift(t3);
   }
 
   // step 2
@@ -816,23 +929,23 @@ static void fdct16(const tran_low_t in[16], tran_low_t out[16]) {
   // step 6
   temp1 = step1[0] * cospi_30_64 + step1[7] *  cospi_2_64;
   temp2 = step1[1] * cospi_14_64 + step1[6] * cospi_18_64;
-  out[1] = fdct_round_shift(temp1);
-  out[9] = fdct_round_shift(temp2);
+  out[1] = (tran_low_t)fdct_round_shift(temp1);
+  out[9] = (tran_low_t)fdct_round_shift(temp2);
 
   temp1 = step1[2] * cospi_22_64 + step1[5] * cospi_10_64;
   temp2 = step1[3] *  cospi_6_64 + step1[4] * cospi_26_64;
-  out[5] = fdct_round_shift(temp1);
-  out[13] = fdct_round_shift(temp2);
+  out[5] = (tran_low_t)fdct_round_shift(temp1);
+  out[13] = (tran_low_t)fdct_round_shift(temp2);
 
   temp1 = step1[3] * -cospi_26_64 + step1[4] *  cospi_6_64;
   temp2 = step1[2] * -cospi_10_64 + step1[5] * cospi_22_64;
-  out[3] = fdct_round_shift(temp1);
-  out[11] = fdct_round_shift(temp2);
+  out[3] = (tran_low_t)fdct_round_shift(temp1);
+  out[11] = (tran_low_t)fdct_round_shift(temp2);
 
   temp1 = step1[1] * -cospi_18_64 + step1[6] * cospi_14_64;
   temp2 = step1[0] *  -cospi_2_64 + step1[7] * cospi_30_64;
-  out[7] = fdct_round_shift(temp1);
-  out[15] = fdct_round_shift(temp2);
+  out[7] = (tran_low_t)fdct_round_shift(temp1);
+  out[15] = (tran_low_t)fdct_round_shift(temp2);
 }
 
 static void fadst16(const tran_low_t *input, tran_low_t *output) {
@@ -980,22 +1093,22 @@ static void fadst16(const tran_low_t *input, tran_low_t *output) {
   x14 = fdct_round_shift(s14);
   x15 = fdct_round_shift(s15);
 
-  output[0] = x0;
-  output[1] = - x8;
-  output[2] = x12;
-  output[3] = - x4;
-  output[4] = x6;
-  output[5] = x14;
-  output[6] = x10;
-  output[7] = x2;
-  output[8] = x3;
-  output[9] =  x11;
-  output[10] = x15;
-  output[11] = x7;
-  output[12] = x5;
-  output[13] = - x13;
-  output[14] = x9;
-  output[15] = - x1;
+  output[0] = (tran_low_t)x0;
+  output[1] = (tran_low_t)-x8;
+  output[2] = (tran_low_t)x12;
+  output[3] = (tran_low_t)-x4;
+  output[4] = (tran_low_t)x6;
+  output[5] = (tran_low_t)x14;
+  output[6] = (tran_low_t)x10;
+  output[7] = (tran_low_t)x2;
+  output[8] = (tran_low_t)x3;
+  output[9] = (tran_low_t)x11;
+  output[10] = (tran_low_t)x15;
+  output[11] = (tran_low_t)x7;
+  output[12] = (tran_low_t)x5;
+  output[13] = (tran_low_t)-x13;
+  output[14] = (tran_low_t)x9;
+  output[15] = (tran_low_t)-x1;
 }
 
 static const transform_2d FHT_16[] = {
@@ -1404,7 +1517,8 @@ void vp9_fdct32x32_c(const int16_t *input, tran_low_t *out, int stride) {
       temp_in[j] = output[j + i * 32];
     fdct32(temp_in, temp_out, 0);
     for (j = 0; j < 32; ++j)
-      out[j + i * 32] = (temp_out[j] + 1 + (temp_out[j] < 0)) >> 2;
+      out[j + i * 32] =
+          (tran_low_t)((temp_out[j] + 1 + (temp_out[j] < 0)) >> 2);
   }
 }
 
@@ -1435,7 +1549,7 @@ void vp9_fdct32x32_rd_c(const int16_t *input, tran_low_t *out, int stride) {
       temp_in[j] = output[j + i * 32];
     fdct32(temp_in, temp_out, 1);
     for (j = 0; j < 32; ++j)
-      out[j + i * 32] = temp_out[j];
+      out[j + i * 32] = (tran_low_t)temp_out[j];
   }
 }
 

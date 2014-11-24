@@ -18,10 +18,8 @@ extern "C" {
 #endif
 
 void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
-                         const struct TileInfo *const tile,
-                         int mi_row, int mi_col,
-                         int *returnrate,
-                         int64_t *returndistortion,
+                         TileDataEnc *tile_data,
+                         int mi_row, int mi_col, RD_COST *rd_cost,
                          BLOCK_SIZE bsize,
                          PICK_MODE_CONTEXT *ctx);
 

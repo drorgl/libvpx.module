@@ -574,7 +574,7 @@ void encode_mb_row(VP8_COMP *cpi,
         /* pack tokens for this MB */
         {
             int tok_count = *tp - tp_start;
-            pack_tokens(w, tp_start, tok_count);
+            vp8_pack_tokens(w, tp_start, tok_count);
         }
 #endif
         /* Increment pointer into gf usage flags structure. */
@@ -1252,7 +1252,6 @@ int vp8cx_encode_inter_macroblock
         if(cpi->sf.use_fastquant_for_pick)
         {
             x->quantize_b      = vp8_fast_quantize_b;
-            x->quantize_b_pair = vp8_fast_quantize_b_pair;
 
             /* the fast quantizer does not use zbin_extra, so
              * do not recalculate */
@@ -1265,7 +1264,6 @@ int vp8cx_encode_inter_macroblock
         if (cpi->sf.improved_quant)
         {
             x->quantize_b      = vp8_regular_quantize_b;
-            x->quantize_b_pair = vp8_regular_quantize_b_pair;
         }
 
         /* restore cpi->zbin_mode_boost_enabled */

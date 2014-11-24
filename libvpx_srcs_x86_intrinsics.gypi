@@ -57,6 +57,7 @@
         '<(libvpx_source)/vp8/encoder/x86/quantize_ssse3.c',
         '<(libvpx_source)/vp9/common/x86/vp9_idct_intrin_ssse3.c',
         '<(libvpx_source)/vp9/common/x86/vp9_subpixel_8t_intrin_ssse3.c',
+        '<(libvpx_source)/vp9/encoder/x86/vp9_dct_ssse3.c',
       ],
       'cflags': [ '-mssse3', ],
       'xcode_settings': { 'OTHER_CFLAGS': [ '-mssse3' ] },
