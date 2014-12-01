@@ -66,20 +66,6 @@ executable("libvpx_obj_int_extract") {
   }
 }
 
-# A library whose object files contain integers to be extracted.
-static_library("libvpx_asm_offsets") {
-  sources = [
-    "//third_party/libvpx/source/libvpx/vp8/encoder/vp8_asm_enc_offsets.c",
-    "//third_party/libvpx/source/libvpx/vpx_scale/vpx_scale_asm_offsets.c"
-  ]
-  configs += [ ":libvpx_config" ]
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  if (is_clang) {
-    cflags = [ "-Wno-unused-function" ]
-  }
-}
-
 # This works only on POSIX to extract integer values from an object file.
 template("obj_int_extract") {
   action(target_name) {
@@ -121,16 +107,6 @@ template("obj_int_extract") {
   }
 }
 
-obj_int_extract("gen_asm_offsets_vp8") {
-  src_dir = "source/libvpx/vp8/encoder"
-  obj_file_root = "vp8_asm_enc_offsets"
-}
-
-obj_int_extract("gen_asm_offsets_scale") {
-  src_dir = "source/libvpx/vpx_scale"
-  obj_file_root = "vpx_scale_asm_offsets"
-}
-
 if (cpu_arch == "x86" || cpu_arch == "x64") {
   yasm_assemble("libvpx_yasm") {
     if (cpu_arch == "x86") {
@@ -145,10 +121,6 @@ if (cpu_arch == "x86" || cpu_arch == "x64") {
       "//third_party/libvpx/source/config",
      "//third_party/libvpx/source/libvpx",
       target_gen_dir
-    ]
-    deps = [
-      ":gen_asm_offsets_vp8",
-      ":gen_asm_offsets_scale",
     ]
   }
 }
@@ -249,8 +221,6 @@ if (cpu_arch == "arm") {
     }
     deps = [
       ":convert_arm_assembly",
-      ":gen_asm_offsets_vp8",
-      ":gen_asm_offsets_scale",
     ]
   }
 }
