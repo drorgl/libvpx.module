@@ -60,6 +60,12 @@
           'optimize' :'speed',
         }],
       ],
+      'clang_warning_flags': [
+        # libvpx heavily relies on implicit enum casting.
+        '-Wno-conversion',
+        # libvpx does `if ((a == b))` in some places.
+        '-Wno-parentheses-equality',
+      ],
     },
   },
   'conditions': [
@@ -101,12 +107,6 @@
                   '-D', '__ANDROID__',
                 ],
               }],
-            ],
-            'clang_warning_flags': [
-              # libvpx heavily relies on implicit enum casting.
-              '-Wno-conversion',
-              # libvpx does `if ((a == b))` in some places.
-              '-Wno-parentheses-equality',
             ],
           },
           'includes': [
