@@ -163,12 +163,9 @@ typedef enum {
   // before the final run.
   TWO_LOOP = 0,
 
-  // No dry run conducted.
-  ONE_LOOP = 1,
-
   // No dry run, also only half the coef contexts and bands are updated.
   // The rest are not updated at all.
-  ONE_LOOP_REDUCED = 2
+  ONE_LOOP_REDUCED = 1
 } FAST_COEFF_UPDATE;
 
 typedef struct MV_SPEED_FEATURES {
@@ -235,6 +232,9 @@ typedef struct SPEED_FEATURES {
   // Speed feature to allow or disallow skipping of recode at block
   // level within a frame.
   int allow_skip_recode;
+
+  // Coefficient probability model approximation step size
+  int coeff_prob_appx_step;
 
   // The threshold is to determine how slow the motino is, it is used when
   // use_lastframe_partitioning is set to LAST_FRAME_PARTITION_LOW_MOTION

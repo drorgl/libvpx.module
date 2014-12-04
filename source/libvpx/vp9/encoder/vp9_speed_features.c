@@ -249,7 +249,6 @@ static void set_rt_speed_feature(VP9_COMP *cpi, SPEED_FEATURES *sf,
     sf->use_uv_intra_rd_estimate = 1;
     sf->skip_encode_sb = 1;
     sf->mv.subpel_iters_per_step = 1;
-    sf->use_fast_coef_updates = ONE_LOOP_REDUCED;
     sf->adaptive_rd_thresh = 4;
     sf->mode_skip_start = 6;
     sf->allow_skip_recode = 0;
@@ -294,7 +293,7 @@ static void set_rt_speed_feature(VP9_COMP *cpi, SPEED_FEATURES *sf,
         (frames_since_key % (sf->last_partitioning_redo_frequency << 1) == 1);
     sf->max_delta_qindex = is_keyframe ? 20 : 15;
     sf->partition_search_type = REFERENCE_PARTITION;
-    sf->use_nonrd_pick_mode = 1;
+    sf->use_nonrd_pick_mode = !is_keyframe;
     sf->allow_skip_recode = 0;
     sf->inter_mode_mask[BLOCK_32X32] = INTER_NEAREST_NEW_ZERO;
     sf->inter_mode_mask[BLOCK_32X64] = INTER_NEAREST_NEW_ZERO;
@@ -304,6 +303,9 @@ static void set_rt_speed_feature(VP9_COMP *cpi, SPEED_FEATURES *sf,
     // This feature is only enabled when partition search is disabled.
     sf->reuse_inter_pred_sby = 1;
     sf->partition_search_breakout_rate_thr = 200;
+    sf->coeff_prob_appx_step = 4;
+    sf->use_fast_coef_updates = is_keyframe ? TWO_LOOP : ONE_LOOP_REDUCED;
+
     if (!is_keyframe) {
       int i;
       if (content == VP9E_CONTENT_SCREEN) {
@@ -319,7 +321,9 @@ static void set_rt_speed_feature(VP9_COMP *cpi, SPEED_FEATURES *sf,
   if (speed >= 6) {
     // Adaptively switch between SOURCE_VAR_BASED_PARTITION and FIXED_PARTITION.
     sf->partition_search_type = VAR_BASED_PARTITION;
-    sf->search_type_check_frequency = 50;
+
+    // Turn on this to use non-RD key frame coding mode.
+    sf->use_nonrd_pick_mode = 1;
     sf->mv.search_method = NSTEP;
     sf->tx_size_search_method = is_keyframe ? USE_LARGESTALL : USE_TX_8X8;
     sf->mv.reduce_first_step_size = 1;
@@ -379,7 +383,7 @@ void vp9_set_speed_features_framesize_dependent(VP9_COMP *cpi) {
 void vp9_set_speed_features_framesize_independent(VP9_COMP *cpi) {
   SPEED_FEATURES *const sf = &cpi->sf;
   VP9_COMMON *const cm = &cpi->common;
-  MACROBLOCK *const x = &cpi->mb;
+  MACROBLOCK *const x = &cpi->td.mb;
   const VP9EncoderConfig *const oxcf = &cpi->oxcf;
   int i;
 
@@ -392,6 +396,7 @@ void vp9_set_speed_features_framesize_independent(VP9_COMP *cpi) {
   sf->mv.subpel_force_stop = 0;
   sf->optimize_coefficients = !is_lossless_requested(&cpi->oxcf);
   sf->mv.reduce_first_step_size = 0;
+  sf->coeff_prob_appx_step = 1;
   sf->mv.auto_mv_step_size = 0;
   sf->mv.fullpel_search_step_param = 6;
   sf->comp_inter_joint_search_thresh = BLOCK_4X4;

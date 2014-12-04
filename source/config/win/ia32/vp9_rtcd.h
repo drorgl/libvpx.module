@@ -29,6 +29,10 @@ struct yv12_buffer_config;
 extern "C" {
 #endif
 
+unsigned int vp9_avg_4x4_c(const uint8_t *, int p);
+unsigned int vp9_avg_4x4_sse2(const uint8_t *, int p);
+RTCD_EXTERN unsigned int (*vp9_avg_4x4)(const uint8_t *, int p);
+
 unsigned int vp9_avg_8x8_c(const uint8_t *, int p);
 unsigned int vp9_avg_8x8_sse2(const uint8_t *, int p);
 RTCD_EXTERN unsigned int (*vp9_avg_8x8)(const uint8_t *, int p);
@@ -890,6 +894,8 @@ static void setup_rtcd_internal(void)
 
     (void)flags;
 
+    vp9_avg_4x4 = vp9_avg_4x4_c;
+    if (flags & HAS_SSE2) vp9_avg_4x4 = vp9_avg_4x4_sse2;
     vp9_avg_8x8 = vp9_avg_8x8_c;
     if (flags & HAS_SSE2) vp9_avg_8x8 = vp9_avg_8x8_sse2;
     vp9_block_error = vp9_block_error_c;

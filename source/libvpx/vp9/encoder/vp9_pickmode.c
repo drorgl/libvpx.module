@@ -265,28 +265,22 @@ static void model_rd_for_sb_y(VP9_COMP *cpi, BLOCK_SIZE bsize,
 
 #if CONFIG_VP9_HIGHBITDEPTH
   if (xd->cur_buf->flags & YV12_FLAG_HIGHBITDEPTH) {
-    vp9_model_rd_from_var_lapndz(var,
-                                 1 << num_pels_log2_lookup[bsize],
-                                 ac_quant >> (xd->bd - 5),
-                                 &rate,
-                                 &dist);
+    vp9_model_rd_from_var_lapndz(var, 1 << num_pels_log2_lookup[bsize],
+                                 ac_quant >> (xd->bd - 5), &rate, &dist);
   } else {
-    vp9_model_rd_from_var_lapndz(var,
-                                 1 << num_pels_log2_lookup[bsize],
-                                 ac_quant >> 3,
-                                 &rate,
-                                 &dist);
+    vp9_model_rd_from_var_lapndz(var, 1 << num_pels_log2_lookup[bsize],
+                                 ac_quant >> 3, &rate, &dist);
   }
 #else
-  vp9_model_rd_from_var_lapndz(var,
-                               1 << num_pels_log2_lookup[bsize],
-                               ac_quant >> 3,
-                               &rate,
-                               &dist);
+  vp9_model_rd_from_var_lapndz(var, 1 << num_pels_log2_lookup[bsize],
+                               ac_quant >> 3, &rate, &dist);
 #endif  // CONFIG_VP9_HIGHBITDEPTH
 
   *out_rate_sum += rate;
   *out_dist_sum += dist << 4;
+
+  if (*out_rate_sum == 0)
+    x->skip_txfm[0] = 1;
 }
 
 static int get_pred_buffer(PRED_BUFFER *p, int len) {
@@ -464,6 +458,57 @@ static const PREDICTION_MODE intra_mode_list[] = {
   DC_PRED, V_PRED, H_PRED, TM_PRED
 };
 
+void vp9_pick_intra_mode(VP9_COMP *cpi, MACROBLOCK *x, RD_COST *rd_cost,
+                         BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx) {
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *const mbmi = &xd->mi[0].src_mi->mbmi;
+  RD_COST this_rdc, best_rdc;
+  PREDICTION_MODE this_mode;
+  struct estimate_block_intra_args args = { cpi, x, DC_PRED, 0, 0 };
+  const TX_SIZE intra_tx_size =
+      MIN(max_txsize_lookup[bsize],
+          tx_mode_to_biggest_tx_size[cpi->common.tx_mode]);
+  MODE_INFO *const mic = xd->mi[0].src_mi;
+  int *bmode_costs;
+  const MODE_INFO *above_mi = xd->mi[-xd->mi_stride].src_mi;
+  const MODE_INFO *left_mi = xd->left_available ? xd->mi[-1].src_mi : NULL;
+  const PREDICTION_MODE A = vp9_above_block_mode(mic, above_mi, 0);
+  const PREDICTION_MODE L = vp9_left_block_mode(mic, left_mi, 0);
+  bmode_costs = cpi->y_mode_costs[A][L];
+
+  (void) ctx;
+  vp9_rd_cost_reset(&best_rdc);
+  vp9_rd_cost_reset(&this_rdc);
+
+  mbmi->ref_frame[0] = INTRA_FRAME;
+  mbmi->mv[0].as_int = INVALID_MV;
+  mbmi->uv_mode = DC_PRED;
+  vpx_memset(x->skip_txfm, 0, sizeof(x->skip_txfm));
+
+  // Change the limit of this loop to add other intra prediction
+  // mode tests.
+  for (this_mode = DC_PRED; this_mode <= H_PRED; ++this_mode) {
+    args.mode = this_mode;
+    args.rate = 0;
+    args.dist = 0;
+    mbmi->tx_size = intra_tx_size;
+    vp9_foreach_transformed_block_in_plane(xd, bsize, 0,
+                                           estimate_block_intra, &args);
+    this_rdc.rate = args.rate;
+    this_rdc.dist = args.dist;
+    this_rdc.rate += bmode_costs[this_mode];
+    this_rdc.rdcost = RDCOST(x->rdmult, x->rddiv,
+                             this_rdc.rate, this_rdc.dist);
+
+    if (this_rdc.rdcost < best_rdc.rdcost) {
+      best_rdc = this_rdc;
+      mbmi->mode = this_mode;
+    }
+  }
+
+  *rd_cost = best_rdc;
+}
+
 // TODO(jingning) placeholder for inter-frame non-RD mode decision.
 // this needs various further optimizations. to be continued..
 void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
@@ -485,7 +530,7 @@ void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
   static const int flag_list[4] = { 0, VP9_LAST_FLAG, VP9_GOLD_FLAG,
                                     VP9_ALT_FLAG };
   RD_COST this_rdc, best_rdc;
-  uint8_t skip_txfm = 0;
+  uint8_t skip_txfm = 0, best_mode_skip_txfm = 0;
   // var_y and sse_y are saved to be used in skipping checking
   unsigned int var_y = UINT_MAX;
   unsigned int sse_y = UINT_MAX;
@@ -497,8 +542,6 @@ void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
       cm->base_qindex, cm->y_dc_delta_q, cm->bit_depth) / reduction_fac;
   const int64_t inter_mode_thresh = RDCOST(x->rdmult, x->rddiv,
                                            intra_cost_penalty, 0);
-  const int intra_mode_cost = 50;
-
   const int8_t segment_id = mbmi->segment_id;
   const int *const rd_threshes = cpi->rd.threshes[segment_id][bsize];
   const int *const rd_thresh_freq_fact = tile_data->thresh_freq_fact[bsize];
@@ -635,7 +678,8 @@ void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
       if (!(cpi->sf.inter_mode_mask[bsize] & (1 << this_mode)))
         continue;
 
-      mode_rd_thresh = rd_threshes[mode_index];
+      mode_rd_thresh = best_mode_skip_txfm ? rd_threshes[mode_index] << 1 :
+                                             rd_threshes[mode_index];
       if (rd_less_than_thresh(best_rdc.rdcost, mode_rd_thresh,
                               rd_thresh_freq_fact[mode_index]))
         continue;
@@ -693,7 +737,7 @@ void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
           model_rd_for_sb_y(cpi, bsize, x, xd, &pf_rate[filter],
                             &pf_dist[filter], &pf_var[filter], &pf_sse[filter]);
           cost = RDCOST(x->rdmult, x->rddiv,
-                        vp9_get_switchable_rate(cpi) + pf_rate[filter],
+                        vp9_get_switchable_rate(cpi, xd) + pf_rate[filter],
                         pf_dist[filter]);
           pf_tx_size[filter] = mbmi->tx_size;
           if (cost < best_cost) {
@@ -753,9 +797,8 @@ void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
       }
 
 #if CONFIG_VP9_TEMPORAL_DENOISING
-      if (cpi->oxcf.noise_sensitivity > 0) {
+      if (cpi->oxcf.noise_sensitivity > 0)
         vp9_denoiser_update_frame_stats(mbmi, sse_y, this_mode, ctx);
-      }
 #else
       (void)ctx;
 #endif
@@ -766,7 +809,7 @@ void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
         best_pred_filter = mbmi->interp_filter;
         best_tx_size = mbmi->tx_size;
         best_ref_frame = ref_frame;
-        skip_txfm = x->skip_txfm[0];
+        best_mode_skip_txfm = x->skip_txfm[0];
 
         if (reuse_inter_pred) {
           free_pred_buffer(best_pred);
@@ -794,7 +837,7 @@ void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
   mbmi->ref_frame[0]  = best_ref_frame;
   mbmi->mv[0].as_int  = frame_mv[best_mode][best_ref_frame].as_int;
   xd->mi[0].src_mi->bmi[0].as_mv[0].as_int = mbmi->mv[0].as_int;
-  x->skip_txfm[0] = skip_txfm;
+  x->skip_txfm[0] = best_mode_skip_txfm;
 
   // Perform intra prediction search, if the best SAD is above a certain
   // threshold.
@@ -836,7 +879,7 @@ void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
       this_rdc.rdcost = RDCOST(x->rdmult, x->rddiv,
                                this_rdc.rate, this_rdc.dist);
 
-      if (this_rdc.rdcost + intra_mode_cost < best_rdc.rdcost) {
+      if (this_rdc.rdcost < best_rdc.rdcost) {
         best_rdc = this_rdc;
         mbmi->mode = this_mode;
         mbmi->tx_size = intra_tx_size;
@@ -844,7 +887,7 @@ void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
         mbmi->uv_mode = this_mode;
         mbmi->mv[0].as_int = INVALID_MV;
       } else {
-        x->skip_txfm[0] = skip_txfm;
+        x->skip_txfm[0] = best_mode_skip_txfm;
         mbmi->tx_size = saved_tx_size;
       }
     }
