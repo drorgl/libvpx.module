@@ -344,28 +344,4 @@
       ],
     }],
   ],
-  'targets': [
-    {
-      # A tool that runs on host to extract integers from object file.
-      # All uses of this tool have been removed from libvpx. Keeping it around
-      # until webrtc audio processing remove it's dependency.
-      'target_name': 'libvpx_obj_int_extract',
-      'type': 'executable',
-      'toolsets': ['host'],
-      'include_dirs': [
-        'source/config/<(OS_CATEGORY)/<(target_arch_full)',
-        'source/config',
-        '<(libvpx_source)',
-      ],
-      'sources': [
-        '<(libvpx_source)/build/make/obj_int_extract.c',
-      ],
-      'conditions': [
-        ['android_webview_build==1', {
-          'defines': [ 'FORCE_PARSE_ELF' ],
-          'include_dirs': [ 'include' ],
-        }],
-      ],
-    },
-  ],
 }
