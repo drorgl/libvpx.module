@@ -66,6 +66,10 @@
         # libvpx does `if ((a == b))` in some places.
         '-Wno-parentheses-equality',
       ],
+      'clang_warning_flags_unset': [
+        # libvpx does assert(!"foo"); in some places.
+        '-Wstring-conversion',
+      ],
     },
   },
   'conditions': [
