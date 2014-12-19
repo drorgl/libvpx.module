@@ -263,6 +263,7 @@
 		DB3E459F798E308DDDA5F3F7 /* vp9_pred_common.c in Sources */ = {isa = PBXBuildFile; fileRef = EB256F178236A97844C4F8EE /* vp9_pred_common.c */; };
 		DD7BFEA6E96865AE83D7CE67 /* variance_c.c in Sources */ = {isa = PBXBuildFile; fileRef = 534D43B8A459963055F2A411 /* variance_c.c */; };
 		DFA3E12FFCE1585919F06958 /* debugmodes.c in Sources */ = {isa = PBXBuildFile; fileRef = 480E63AB736BCC4B994E1CF4 /* debugmodes.c */; };
+		E27528F61A16E2BF00369B65 /* loopfilter_block_sse2.o in Frameworks */ = {isa = PBXBuildFile; fileRef = E27528F51A16E2BF00369B65 /* loopfilter_block_sse2.o */; };
 		E8E1525500D07F948BC62439 /* recon_wrapper_sse2.c in Sources */ = {isa = PBXBuildFile; fileRef = D466E83DE59C15DAEEE904E4 /* recon_wrapper_sse2.c */; };
 		E9BF7BA7D6E1B4971DC2D166 /* loopfilter_sse2.o in Frameworks */ = {isa = PBXBuildFile; fileRef = D29B31AA1583076B5F3EBCA8 /* loopfilter_sse2.o */; };
 		E9F5FB5E139B0A796E84B7A9 /* dct.c in Sources */ = {isa = PBXBuildFile; fileRef = C675F92F79E4B66CEA4E79C5 /* dct.c */; };
@@ -873,6 +874,8 @@
 		E144D53D84BD7B87823ED3F8 /* reconintra4x4.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = reconintra4x4.c; sourceTree = "<group>"; };
 		E15ACC7BA26DDCD8ADACB35E /* libvpx_intrinsics_sse2.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libvpx_intrinsics_sse2.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		E1B6D3F7D849774E214AF88A /* dct_value_tokens.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = dct_value_tokens.h; sourceTree = "<group>"; };
+		E27528F41A16E12900369B65 /* loopfilter_block_sse2.asm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.asm.asm; path = loopfilter_block_sse2.asm; sourceTree = "<group>"; };
+		E27528F51A16E2BF00369B65 /* loopfilter_block_sse2.o */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.objfile"; path = loopfilter_block_sse2.o; sourceTree = "<group>"; };
 		E3A47BA0EDFEC84B6CCEE4CA /* vp9_treewriter.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = vp9_treewriter.c; sourceTree = "<group>"; };
 		E5D20F7F2C61A93B26D51C82 /* vp9_cx_iface.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = vp9_cx_iface.c; sourceTree = "<group>"; };
 		E65A522413482E4E8672E6A8 /* vp9_dsubexp.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vp9_dsubexp.h; sourceTree = "<group>"; };
@@ -1016,6 +1019,7 @@
 				EBD000C226F628AAB3DD7E08 /* vp9_sad_sse3.o in Frameworks */,
 				8B813A7114AC8C57F82C590D /* vp9_sad_sse4.o in Frameworks */,
 				8C8383FF81E4104C159FC51A /* vp9_sad_ssse3.o in Frameworks */,
+				E27528F61A16E2BF00369B65 /* loopfilter_block_sse2.o in Frameworks */,
 				10284BF2C6A3E9F24E122649 /* vp9_subpel_variance.o in Frameworks */,
 				7A480008456889DE6AB31751 /* vp9_subpel_variance_impl_sse2.o in Frameworks */,
 				B0CCC6DA5652D6B132AE8A97 /* vp9_subtract_sse2.o in Frameworks */,
@@ -1232,6 +1236,7 @@
 				4FE460F22B4B5B8C6593C34C /* iwalsh_sse2.asm */,
 				307107FE5536D455C4FF156F /* loopfilter_mmx.asm */,
 				182D880F1E551B733964513D /* loopfilter_sse2.asm */,
+				E27528F41A16E12900369B65 /* loopfilter_block_sse2.asm */,
 				16657FFA293580D9FA587D5E /* loopfilter_x86.c */,
 				B7CDD876638E2A43F465B397 /* mfqe_sse2.asm */,
 				F35ADC804CD1FC37B0BB935E /* postproc_mmx.asm */,
@@ -1572,6 +1577,7 @@
 				717ED8659919BCD2E68B9A2E /* idctllm_sse2.o */,
 				F7888661AE3C0208AB3CE8F4 /* iwalsh_mmx.o */,
 				C22BB940B0A2FC7F3F635AC8 /* iwalsh_sse2.o */,
+				E27528F51A16E2BF00369B65 /* loopfilter_block_sse2.o */,
 				94045E127C9D5620F89AEA5A /* loopfilter_mmx.o */,
 				D29B31AA1583076B5F3EBCA8 /* loopfilter_sse2.o */,
 				B69DAB9BF69543B520021B89 /* mfqe_sse2.o */,
@@ -2088,7 +2094,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "JOB_COUNT=\"$(/usr/sbin/sysctl -n hw.ncpu)\"\nif [ \"${JOB_COUNT}\" -gt 4 ]; then\n  JOB_COUNT=4\nfi\nexec xcrun make -f \"${PROJECT_FILE_PATH}/libvpx_assemble.make\" -j \"${JOB_COUNT}\"\nexit 1\n";
+			shellScript = "JOB_COUNT=\"$(/usr/sbin/sysctl -n hw.ncpu)\"\nif [ \"${JOB_COUNT}\" -gt 4 ]; then\n  JOB_COUNT=4\nfi\nif [ \"${CURRENT_ARCH}\" = \"i386\" ]; then\n  exec xcrun make -f \"${PROJECT_FILE_PATH}/libvpx_assemble_i386.make\" -j \"${JOB_COUNT}\"\nelse\n  exec xcrun make -f \"${PROJECT_FILE_PATH}/libvpx_assemble_x86_64.make\" -j \"${JOB_COUNT}\"\nfi\nexit 1\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
@@ -2454,8 +2460,14 @@
 				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
-				HEADER_SEARCH_PATHS = (
+				HEADER_SEARCH_PATHS = "";
+				"HEADER_SEARCH_PATHS[arch=i386]" = (
 					source/config/mac/ia32,
+					source/config,
+					source/libvpx,
+				);
+				"HEADER_SEARCH_PATHS[arch=x86_64]" = (
+					source/config/mac/x64,
 					source/config,
 					source/libvpx,
 				);
@@ -2542,8 +2554,13 @@
 				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
-				HEADER_SEARCH_PATHS = (
+				HEADER_SEARCH_PATHS = "";
+				"HEADER_SEARCH_PATHS[arch=i386]" = (
 					source/config/mac/ia32,
+					source/libvpx,
+				);
+				"HEADER_SEARCH_PATHS[arch=x86_64]" = (
+					source/config/mac/x64,
 					source/libvpx,
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
@@ -2633,8 +2650,14 @@
 				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
-				HEADER_SEARCH_PATHS = (
+				HEADER_SEARCH_PATHS = "";
+				"HEADER_SEARCH_PATHS[arch=i386]" = (
 					source/config/mac/ia32,
+					source/config,
+					source/libvpx,
+				);
+				"HEADER_SEARCH_PATHS[arch=x86_64]" = (
+					source/config/mac/x64,
 					source/config,
 					source/libvpx,
 				);
@@ -2726,8 +2749,18 @@
 				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
-				HEADER_SEARCH_PATHS = (
+				HEADER_SEARCH_PATHS = "";
+				"HEADER_SEARCH_PATHS[arch=i386]" = (
 					source/config/mac/ia32,
+					source/config,
+					source/libvpx,
+					source/libvpx/vp8/common,
+					source/libvpx/vp8/decoder,
+					source/libvpx/vp8/encoder,
+					"$(SHARED_INTERMEDIATE_DIR)/third_party/libvpx",
+				);
+				"HEADER_SEARCH_PATHS[arch=x86_64]" = (
+					source/config/mac/x64,
 					source/config,
 					source/libvpx,
 					source/libvpx/vp8/common,
@@ -2761,7 +2794,7 @@
 		4CD5D5541F926082A773868B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = i386;
+				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
 				INTERMEDIATE_DIR = "$(PROJECT_DERIVED_FILE_DIR)/$(CONFIGURATION)";
 				SDKROOT = macosx;
 				SHARED_INTERMEDIATE_DIR = "$(SYMROOT)/DerivedSources/$(CONFIGURATION)";
@@ -2831,8 +2864,13 @@
 				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
-				HEADER_SEARCH_PATHS = (
+				HEADER_SEARCH_PATHS = "";
+				"HEADER_SEARCH_PATHS[arch=i386]" = (
 					source/config/mac/ia32,
+					source/libvpx,
+				);
+				"HEADER_SEARCH_PATHS[arch=x86_64]" = (
+					source/config/mac/x64,
 					source/libvpx,
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
@@ -3010,8 +3048,14 @@
 				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
-				HEADER_SEARCH_PATHS = (
+				HEADER_SEARCH_PATHS = "";
+				"HEADER_SEARCH_PATHS[arch=i386]" = (
 					source/config/mac/ia32,
+					source/config,
+					source/libvpx,
+				);
+				"HEADER_SEARCH_PATHS[arch=x86_64]" = (
+					source/config/mac/x64,
 					source/config,
 					source/libvpx,
 				);
@@ -3102,8 +3146,18 @@
 				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
-				HEADER_SEARCH_PATHS = (
+				HEADER_SEARCH_PATHS = "";
+				"HEADER_SEARCH_PATHS[arch=i386]" = (
 					source/config/mac/ia32,
+					source/config,
+					source/libvpx,
+					source/libvpx/vp8/common,
+					source/libvpx/vp8/decoder,
+					source/libvpx/vp8/encoder,
+					"$(SHARED_INTERMEDIATE_DIR)/third_party/libvpx",
+				);
+				"HEADER_SEARCH_PATHS[arch=x86_64]" = (
+					source/config/mac/x64,
 					source/config,
 					source/libvpx,
 					source/libvpx/vp8/common,
@@ -3286,8 +3340,13 @@
 				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
-				HEADER_SEARCH_PATHS = (
+				HEADER_SEARCH_PATHS = "";
+				"HEADER_SEARCH_PATHS[arch=i386]" = (
 					source/config/mac/ia32,
+					source/libvpx,
+				);
+				"HEADER_SEARCH_PATHS[arch=x86_64]" = (
+					source/config/mac/x64,
 					source/libvpx,
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
@@ -3469,8 +3528,14 @@
 				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
-				HEADER_SEARCH_PATHS = (
+				HEADER_SEARCH_PATHS = "";
+				"HEADER_SEARCH_PATHS[arch=i386]" = (
 					source/config/mac/ia32,
+					source/config,
+					source/libvpx,
+				);
+				"HEADER_SEARCH_PATHS[arch=x86_64]" = (
+					source/config/mac/x64,
 					source/config,
 					source/libvpx,
 				);
@@ -3564,8 +3629,14 @@
 				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
-				HEADER_SEARCH_PATHS = (
+				HEADER_SEARCH_PATHS = "";
+				"HEADER_SEARCH_PATHS[arch=i386]" = (
 					source/config/mac/ia32,
+					source/config,
+					source/libvpx,
+				);
+				"HEADER_SEARCH_PATHS[arch=x86_64]" = (
+					source/config/mac/x64,
 					source/config,
 					source/libvpx,
 				);
@@ -3655,8 +3726,13 @@
 				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
-				HEADER_SEARCH_PATHS = (
+				HEADER_SEARCH_PATHS = "";
+				"HEADER_SEARCH_PATHS[arch=i386]" = (
 					source/config/mac/ia32,
+					source/libvpx,
+				);
+				"HEADER_SEARCH_PATHS[arch=x86_64]" = (
+					source/config/mac/x64,
 					source/libvpx,
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
@@ -3840,8 +3916,14 @@
 				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
-				HEADER_SEARCH_PATHS = (
+				HEADER_SEARCH_PATHS = "";
+				"HEADER_SEARCH_PATHS[arch=i386]" = (
 					source/config/mac/ia32,
+					source/config,
+					source/libvpx,
+				);
+				"HEADER_SEARCH_PATHS[arch=x86_64]" = (
+					source/config/mac/x64,
 					source/config,
 					source/libvpx,
 				);
@@ -3869,8 +3951,9 @@
 		BAA3C55892CC8E4D27F0761A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = i386;
+				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
 				INTERMEDIATE_DIR = "$(PROJECT_DERIVED_FILE_DIR)/$(CONFIGURATION)";
+				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
 				SHARED_INTERMEDIATE_DIR = "$(SYMROOT)/DerivedSources/$(CONFIGURATION)";
 				SYMROOT = ../../xcodebuild;
@@ -3941,8 +4024,13 @@
 				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
-				HEADER_SEARCH_PATHS = (
+				HEADER_SEARCH_PATHS = "";
+				"HEADER_SEARCH_PATHS[arch=i386]" = (
 					source/config/mac/ia32,
+					source/libvpx,
+				);
+				"HEADER_SEARCH_PATHS[arch=x86_64]" = (
+					source/config/mac/x64,
 					source/libvpx,
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
@@ -4033,8 +4121,13 @@
 				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
-				HEADER_SEARCH_PATHS = (
+				HEADER_SEARCH_PATHS = "";
+				"HEADER_SEARCH_PATHS[arch=i386]" = (
 					source/config/mac/ia32,
+					source/libvpx,
+				);
+				"HEADER_SEARCH_PATHS[arch=x86_64]" = (
+					source/config/mac/x64,
 					source/libvpx,
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
