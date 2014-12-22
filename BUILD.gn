@@ -186,7 +186,7 @@ static_library("libvpx") {
       sources = libvpx_srcs_x86_64
     }
   } else if (cpu_arch == "mipsel") {
-    sources = libvpx_srcs_generic
+    sources = libvpx_srcs_mips
   } else if (cpu_arch == "arm") {
     if (arm_use_neon) {
       sources = libvpx_srcs_arm_neon
