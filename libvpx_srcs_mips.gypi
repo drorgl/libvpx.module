@@ -221,6 +221,8 @@
     '<(libvpx_source)/vp9/encoder/vp9_encodemv.h',
     '<(libvpx_source)/vp9/encoder/vp9_encoder.c',
     '<(libvpx_source)/vp9/encoder/vp9_encoder.h',
+    '<(libvpx_source)/vp9/encoder/vp9_ethread.c',
+    '<(libvpx_source)/vp9/encoder/vp9_ethread.h',
     '<(libvpx_source)/vp9/encoder/vp9_extend.c',
     '<(libvpx_source)/vp9/encoder/vp9_extend.h',
     '<(libvpx_source)/vp9/encoder/vp9_firstpass.c',

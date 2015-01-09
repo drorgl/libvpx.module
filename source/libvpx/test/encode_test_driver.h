@@ -104,6 +104,8 @@ class Encoder {
     return CxDataIterator(&encoder_);
   }
 
+  void InitEncoder(VideoSource *video);
+
   const vpx_image_t *GetPreviewFrame() {
     return vpx_codec_get_preview_frame(&encoder_);
   }
@@ -185,6 +187,11 @@ class EncoderTest {
   // Map the TestMode enum to the deadline_ and passes_ variables.
   void SetMode(TestMode mode);
 
+  // Set encoder flag.
+  void set_init_flags(unsigned long flag) {  // NOLINT(runtime/int)
+    init_flags_ = flag;
+  }
+
   // Main loop
   virtual void RunLoop(VideoSource *video);
 
@@ -238,6 +245,7 @@ class EncoderTest {
 
   bool                 abort_;
   vpx_codec_enc_cfg_t  cfg_;
+  vpx_codec_dec_cfg_t  dec_cfg_;
   unsigned int         passes_;
   unsigned long        deadline_;
   TwopassStatsStore    stats_;

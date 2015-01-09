@@ -17,7 +17,7 @@ SECTION .text
 
 %macro QUANTIZE_FN 2
 cglobal quantize_%1, 0, %2, 15, coeff, ncoeff, skip, zbin, round, quant, \
-                                shift, qcoeff, dqcoeff, dequant, zbin_oq, \
+                                shift, qcoeff, dqcoeff, dequant, \
                                 eob, scan, iscan
   cmp                    dword skipm, 0
   jne .blank
@@ -29,13 +29,9 @@ cglobal quantize_%1, 0, %2, 15, coeff, ncoeff, skip, zbin, round, quant, \
   movifnidn                    zbinq, zbinmp
   movifnidn                   roundq, roundmp
   movifnidn                   quantq, quantmp
-  movd                            m4, dword zbin_oqm       ; m4 = zbin_oq
   mova                            m0, [zbinq]              ; m0 = zbin
-  punpcklwd                       m4, m4
   mova                            m1, [roundq]             ; m1 = round
-  pshufd                          m4, m4, 0
   mova                            m2, [quantq]             ; m2 = quant
-  paddw                           m0, m4                   ; m0 = zbin + zbin_oq
 %ifidn %1, b_32x32
   pcmpeqw                         m5, m5
   psrlw                           m5, 15
@@ -55,7 +51,7 @@ cglobal quantize_%1, 0, %2, 15, coeff, ncoeff, skip, zbin, round, quant, \
   psllw                           m4, 1
 %endif
   pxor                            m5, m5                   ; m5 = dedicated zero
-  DEFINE_ARGS coeff, ncoeff, d1, qcoeff, dqcoeff, iscan, d2, d3, d4, d5, d6, eob
+  DEFINE_ARGS coeff, ncoeff, d1, qcoeff, dqcoeff, iscan, d2, d3, d4, d5, eob
   lea                         coeffq, [  coeffq+ncoeffq*2]
   lea                         iscanq, [  iscanq+ncoeffq*2]
   lea                        qcoeffq, [ qcoeffq+ncoeffq*2]
@@ -122,8 +118,8 @@ cglobal quantize_%1, 0, %2, 15, coeff, ncoeff, skip, zbin, round, quant, \
   pcmpgtw                         m7, m6, m0               ; m7 = c[i] >= zbin
   pcmpgtw                        m12, m11, m0              ; m12 = c[i] >= zbin
 %ifidn %1, b_32x32
-  pmovmskb                        r6, m7
-  pmovmskb                        r2, m12
+  pmovmskb                       r6d, m7
+  pmovmskb                       r2d, m12
   or                              r6, r2
   jz .skip_iter
 %endif
@@ -220,7 +216,7 @@ QUANTIZE_FN b_32x32, 7
 
 %macro QUANTIZE_FP 2
 cglobal quantize_%1, 0, %2, 15, coeff, ncoeff, skip, zbin, round, quant, \
-                                shift, qcoeff, dqcoeff, dequant, zbin_oq, \
+                                shift, qcoeff, dqcoeff, dequant, \
                                 eob, scan, iscan
   cmp                    dword skipm, 0
   jne .blank
@@ -248,7 +244,7 @@ cglobal quantize_%1, 0, %2, 15, coeff, ncoeff, skip, zbin, round, quant, \
   psllw                           m2, 1
 %endif
   pxor                            m5, m5                   ; m5 = dedicated zero
-  DEFINE_ARGS coeff, ncoeff, d1, qcoeff, dqcoeff, iscan, d2, d3, d4, d5, d6, eob
+  DEFINE_ARGS coeff, ncoeff, d1, qcoeff, dqcoeff, iscan, d2, d3, d4, d5, eob
   lea                         coeffq, [  coeffq+ncoeffq*2]
   lea                         iscanq, [  iscanq+ncoeffq*2]
   lea                        qcoeffq, [ qcoeffq+ncoeffq*2]
@@ -308,8 +304,8 @@ cglobal quantize_%1, 0, %2, 15, coeff, ncoeff, skip, zbin, round, quant, \
 %ifidn %1, fp_32x32
   pcmpgtw                         m7, m6,  m0
   pcmpgtw                        m12, m11, m0
-  pmovmskb                        r6, m7
-  pmovmskb                        r2, m12
+  pmovmskb                       r6d, m7
+  pmovmskb                       r2d, m12
 
   or                              r6, r2
   jz .skip_iter

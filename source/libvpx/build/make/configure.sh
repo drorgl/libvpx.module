@@ -805,7 +805,12 @@ process_common_toolchain() {
           ;;
         armv7|armv7s)
           soft_enable neon
-          soft_enable neon_asm
+          # Only enable neon_asm when neon is also enabled.
+          enabled neon && soft_enable neon_asm
+          # If someone tries to force it through, die.
+          if disabled neon && enabled neon_asm; then
+            die "Disabling neon while keeping neon-asm is not supported"
+          fi
           soft_enable media
           soft_enable fast_unaligned
           ;;
@@ -1118,7 +1123,7 @@ EOF
       bits=32
       enabled x86_64 && bits=64
       check_cpp <<EOF && bits=x32
-#ifndef __ILP32__
+#if !defined(__ILP32__) || !defined(__x86_64__)
 #error "not x32"
 #endif
 EOF
@@ -1266,9 +1271,6 @@ EOF
     # Try to find which inline keywords are supported
     check_cc <<EOF && INLINE="inline"
 static inline function() {}
-EOF
-    check_cc <<EOF && INLINE="__inline__ __attribute__((always_inline))"
-static __attribute__((always_inline)) function() {}
 EOF
 
   # Almost every platform uses pthreads.

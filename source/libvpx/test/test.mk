@@ -31,6 +31,7 @@ LIBVPX_TEST_SRCS-$(CONFIG_VP8_ENCODER) += config_test.cc
 LIBVPX_TEST_SRCS-$(CONFIG_VP8_ENCODER) += cq_test.cc
 LIBVPX_TEST_SRCS-$(CONFIG_VP8_ENCODER) += keyframe_test.cc
 
+LIBVPX_TEST_SRCS-$(CONFIG_VP9_DECODER) += byte_alignment_test.cc
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_DECODER) += external_frame_buffer_test.cc
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_DECODER) += invalid_file_test.cc
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_DECODER) += user_priv_test.cc
@@ -40,11 +41,15 @@ LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += cpu_speed_test.cc
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += frame_size_tests.cc
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += vp9_lossless_test.cc
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += vp9_end_to_end_test.cc
+LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += vp9_ethread_test.cc
 
 LIBVPX_TEST_SRCS-yes                   += decode_test_driver.cc
 LIBVPX_TEST_SRCS-yes                   += decode_test_driver.h
 LIBVPX_TEST_SRCS-yes                   += encode_test_driver.cc
 LIBVPX_TEST_SRCS-yes                   += encode_test_driver.h
+
+## IVF writing.
+LIBVPX_TEST_SRCS-$(CONFIG_ENCODERS)    += ../ivfenc.c ../ivfenc.h
 
 ## Y4m parsing.
 LIBVPX_TEST_SRCS-$(CONFIG_ENCODERS)    += y4m_test.cc ../y4menc.c ../y4menc.h
@@ -91,6 +96,7 @@ ifneq ($(CONFIG_VP8_ENCODER)$(CONFIG_VP8_DECODER),)
 # These tests require both the encoder and decoder to be built.
 ifeq ($(CONFIG_VP8_ENCODER)$(CONFIG_VP8_DECODER),yesyes)
 LIBVPX_TEST_SRCS-yes                   += vp8_boolcoder_test.cc
+LIBVPX_TEST_SRCS-yes                   += vp8_fragments_test.cc
 endif
 
 LIBVPX_TEST_SRCS-$(CONFIG_POSTPROC)    += pp_filter_test.cc
@@ -124,6 +130,12 @@ LIBVPX_TEST_SRCS-yes                   += superframe_test.cc
 LIBVPX_TEST_SRCS-yes                   += tile_independence_test.cc
 LIBVPX_TEST_SRCS-yes                   += vp9_boolcoder_test.cc
 
+# TODO(jbb): Remove this when the TODO(minghai): in vpx_encoder.h gets resolved.
+# This test fails because of a mismatch in the size of the vpx_codec_alg_priv
+# between encoder and decoder when this is enabled.
+ifneq ($(CONFIG_SPATIAL_SVC),yes)
+LIBVPX_TEST_SRCS-yes                   += vp9_encoder_parms_get_to_decoder.cc
+endif
 endif
 
 LIBVPX_TEST_SRCS-$(CONFIG_VP9)         += convolve_test.cc

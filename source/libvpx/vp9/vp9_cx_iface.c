@@ -13,6 +13,7 @@
 
 #include "./vpx_config.h"
 #include "vpx/vpx_codec.h"
+#include "vpx_ports/vpx_once.h"
 #include "vpx/internal/vpx_codec_internal.h"
 #include "./vpx_version.h"
 #include "vp9/encoder/vp9_encoder.h"
@@ -208,7 +209,7 @@ static vpx_codec_err_t validate_config(vpx_codec_alg_priv_t *ctx,
           "or kf_max_dist instead.");
 
   RANGE_CHECK(extra_cfg, enable_auto_alt_ref, 0, 2);
-  RANGE_CHECK(extra_cfg, cpu_used, -16, 16);
+  RANGE_CHECK(extra_cfg, cpu_used, -8, 8);
   RANGE_CHECK_HI(extra_cfg, noise_sensitivity, 6);
   RANGE_CHECK(extra_cfg, tile_columns, 0, 6);
   RANGE_CHECK(extra_cfg, tile_rows, 0, 2);
@@ -355,6 +356,7 @@ static vpx_codec_err_t set_encoder_config(
     const struct vp9_extracfg *extra_cfg) {
   const int is_vbr = cfg->rc_end_usage == VPX_VBR;
   oxcf->profile = cfg->g_profile;
+  oxcf->max_threads = (int)cfg->g_threads;
   oxcf->width   = cfg->g_w;
   oxcf->height  = cfg->g_h;
   oxcf->bit_depth = cfg->g_bit_depth;
@@ -728,7 +730,7 @@ static vpx_codec_err_t encoder_init(vpx_codec_ctx_t *ctx,
     }
 
     priv->extra_cfg = default_extra_cfg;
-    vp9_initialize_enc();
+    once(vp9_initialize_enc);
 
     res = validate_config(priv, &priv->cfg, &priv->extra_cfg);
 
