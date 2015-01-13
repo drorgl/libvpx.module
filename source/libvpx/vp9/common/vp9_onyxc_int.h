@@ -48,42 +48,6 @@ extern const struct {
   PARTITION_CONTEXT left;
 } partition_context_lookup[BLOCK_SIZES];
 
-typedef struct frame_contexts {
-  vp9_prob y_mode_prob[BLOCK_SIZE_GROUPS][INTRA_MODES - 1];
-  vp9_prob uv_mode_prob[INTRA_MODES][INTRA_MODES - 1];
-  vp9_prob partition_prob[PARTITION_CONTEXTS][PARTITION_TYPES - 1];
-  vp9_coeff_probs_model coef_probs[TX_SIZES][PLANE_TYPES];
-  vp9_prob switchable_interp_prob[SWITCHABLE_FILTER_CONTEXTS]
-                                 [SWITCHABLE_FILTERS - 1];
-  vp9_prob inter_mode_probs[INTER_MODE_CONTEXTS][INTER_MODES - 1];
-  vp9_prob intra_inter_prob[INTRA_INTER_CONTEXTS];
-  vp9_prob comp_inter_prob[COMP_INTER_CONTEXTS];
-  vp9_prob single_ref_prob[REF_CONTEXTS][2];
-  vp9_prob comp_ref_prob[REF_CONTEXTS];
-  struct tx_probs tx_probs;
-  vp9_prob skip_probs[SKIP_CONTEXTS];
-  nmv_context nmvc;
-} FRAME_CONTEXT;
-
-typedef struct {
-  unsigned int y_mode[BLOCK_SIZE_GROUPS][INTRA_MODES];
-  unsigned int uv_mode[INTRA_MODES][INTRA_MODES];
-  unsigned int partition[PARTITION_CONTEXTS][PARTITION_TYPES];
-  vp9_coeff_count_model coef[TX_SIZES][PLANE_TYPES];
-  unsigned int eob_branch[TX_SIZES][PLANE_TYPES][REF_TYPES]
-                         [COEF_BANDS][COEFF_CONTEXTS];
-  unsigned int switchable_interp[SWITCHABLE_FILTER_CONTEXTS]
-                                [SWITCHABLE_FILTERS];
-  unsigned int inter_mode[INTER_MODE_CONTEXTS][INTER_MODES];
-  unsigned int intra_inter[INTRA_INTER_CONTEXTS][2];
-  unsigned int comp_inter[COMP_INTER_CONTEXTS][2];
-  unsigned int single_ref[REF_CONTEXTS][2][2];
-  unsigned int comp_ref[REF_CONTEXTS][2];
-  struct tx_counts tx;
-  unsigned int skip[SKIP_CONTEXTS][2];
-  nmv_context_counts mv;
-} FRAME_COUNTS;
-
 
 typedef enum {
   SINGLE_REFERENCE      = 0,
@@ -92,9 +56,16 @@ typedef enum {
   REFERENCE_MODES       = 3,
 } REFERENCE_MODE;
 
+typedef struct {
+  int_mv mv[2];
+  MV_REFERENCE_FRAME ref_frame[2];
+} MV_REF;
 
 typedef struct {
   int ref_count;
+  MV_REF *mvs;
+  int mi_rows;
+  int mi_cols;
   vpx_codec_frame_buffer_t raw_frame_buffer;
   YV12_BUFFER_CONFIG buf;
 } RefCntBuffer;
@@ -104,9 +75,6 @@ typedef struct VP9Common {
 
   DECLARE_ALIGNED(16, int16_t, y_dequant[QINDEX_RANGE][8]);
   DECLARE_ALIGNED(16, int16_t, uv_dequant[QINDEX_RANGE][8]);
-#if CONFIG_ALPHA
-  DECLARE_ALIGNED(16, int16_t, a_dequant[QINDEX_RANGE][8]);
-#endif
 
   COLOR_SPACE color_space;
 
@@ -123,9 +91,16 @@ typedef struct VP9Common {
   int subsampling_x;
   int subsampling_y;
 
-  YV12_BUFFER_CONFIG *frame_to_show;
+#if CONFIG_VP9_HIGHBITDEPTH
+  int use_highbitdepth;  // Marks if we need to use 16bit frame buffers.
+#endif
 
+  YV12_BUFFER_CONFIG *frame_to_show;
   RefCntBuffer frame_bufs[FRAME_BUFFERS];
+  RefCntBuffer *prev_frame;
+
+  // TODO(hkuang): Combine this with cur_buf in macroblockd.
+  RefCntBuffer *cur_frame;
 
   int ref_frame_map[REF_FRAMES]; /* maps fb_idx to reference slot */
 
@@ -156,13 +131,12 @@ typedef struct VP9Common {
   // frame header, 3 reset all contexts.
   int reset_frame_context;
 
-  int frame_flags;
   // MBs, mb_rows/cols is in 16-pixel units; mi_rows/cols is in
   // MODE_INFO (8-pixel) units.
   int MBs;
   int mb_rows, mi_rows;
   int mb_cols, mi_cols;
-  int mode_info_stride;
+  int mi_stride;
 
   /* profile settings */
   TX_MODE tx_mode;
@@ -171,23 +145,26 @@ typedef struct VP9Common {
   int y_dc_delta_q;
   int uv_dc_delta_q;
   int uv_ac_delta_q;
-#if CONFIG_ALPHA
-  int a_dc_delta_q;
-  int a_ac_delta_q;
-#endif
 
   /* We allocate a MODE_INFO struct for each macroblock, together with
      an extra row on top and column on the left to simplify prediction. */
-
+  int mi_alloc_size;
   MODE_INFO *mip; /* Base of allocated array */
   MODE_INFO *mi;  /* Corresponds to upper left visible macroblock */
+
+  // TODO(agrange): Move prev_mi into encoder structure.
+  // prev_mip and prev_mi will only be allocated in VP9 encoder.
   MODE_INFO *prev_mip; /* MODE_INFO array 'mip' from last decoded frame */
   MODE_INFO *prev_mi;  /* 'mi' from last frame (points into prev_mip) */
 
-  MODE_INFO **mi_grid_base;
-  MODE_INFO **mi_grid_visible;
-  MODE_INFO **prev_mi_grid_base;
-  MODE_INFO **prev_mi_grid_visible;
+  // Separate mi functions between encoder and decoder.
+  int (*alloc_mi)(struct VP9Common *cm, int mi_size);
+  void (*free_mi)(struct VP9Common *cm);
+  void (*setup_mi)(struct VP9Common *cm);
+
+
+  // Whether to use previous frame's motion vectors for prediction.
+  int use_prev_frame_mvs;
 
   // Persistent mb segment id map used in prediction.
   unsigned char *last_frame_seg_map;
@@ -209,13 +186,17 @@ typedef struct VP9Common {
   MV_REFERENCE_FRAME comp_var_ref[2];
   REFERENCE_MODE reference_mode;
 
-  FRAME_CONTEXT fc;  /* this frame entropy */
-  FRAME_CONTEXT frame_contexts[FRAME_CONTEXTS];
+  FRAME_CONTEXT *fc;  /* this frame entropy */
+  FRAME_CONTEXT *frame_contexts;   // FRAME_CONTEXTS
   unsigned int  frame_context_idx; /* Context to use/update */
   FRAME_COUNTS counts;
 
   unsigned int current_video_frame;
-  int version;
+  BITSTREAM_PROFILE profile;
+
+  // VPX_BITS_8 in profile 0 or 1, VPX_BITS_10 or VPX_BITS_12 in profile 2 or 3.
+  vpx_bit_depth_t bit_depth;
+  vpx_bit_depth_t dequant_bit_depth;  // bit_depth of current dequantizer
 
 #if CONFIG_VP9_POSTPROC
   struct postproc_state  postproc_state;
@@ -223,11 +204,6 @@ typedef struct VP9Common {
 
   int error_resilient_mode;
   int frame_parallel_decoding_mode;
-
-  // Flag indicates if prev_mi can be used in coding:
-  //   0: encoder assumes decoder does not have prev_mi
-  //   1: encoder assumes decoder has and uses prev_mi
-  unsigned int coding_use_prev_mi;
 
   int log2_tile_cols, log2_tile_rows;
 
@@ -238,7 +214,19 @@ typedef struct VP9Common {
 
   // Handles memory for the codec.
   InternalFrameBufferList int_frame_buffers;
+
+  PARTITION_CONTEXT *above_seg_context;
+  ENTROPY_CONTEXT *above_context;
 } VP9_COMMON;
+
+static INLINE YV12_BUFFER_CONFIG *get_ref_frame(VP9_COMMON *cm, int index) {
+  if (index < 0 || index >= REF_FRAMES)
+    return NULL;
+  if (cm->ref_frame_map[index] < 0)
+    return NULL;
+  assert(cm->ref_frame_map[index] < FRAME_BUFFERS);
+  return &cm->frame_bufs[cm->ref_frame_map[index]].buf;
+}
 
 static INLINE YV12_BUFFER_CONFIG *get_frame_new_buffer(VP9_COMMON *cm) {
   return &cm->frame_bufs[cm->new_fb_idx].buf;
@@ -270,24 +258,43 @@ static INLINE int mi_cols_aligned_to_sb(int n_mis) {
   return ALIGN_POWER_OF_TWO(n_mis, MI_BLOCK_SIZE_LOG2);
 }
 
-static INLINE const vp9_prob* get_partition_probs(VP9_COMMON *cm, int ctx) {
-  return cm->frame_type == KEY_FRAME ? vp9_kf_partition_probs[ctx]
-                                     : cm->fc.partition_prob[ctx];
+static INLINE void init_macroblockd(VP9_COMMON *cm, MACROBLOCKD *xd) {
+  int i;
+
+  for (i = 0; i < MAX_MB_PLANE; ++i) {
+    xd->plane[i].dqcoeff = xd->dqcoeff[i];
+    xd->above_context[i] = cm->above_context +
+        i * sizeof(*cm->above_context) * 2 * mi_cols_aligned_to_sb(cm->mi_cols);
+  }
+
+  xd->above_seg_context = cm->above_seg_context;
+  xd->mi_stride = cm->mi_stride;
 }
 
-static INLINE void set_skip_context(
-    MACROBLOCKD *xd,
-    ENTROPY_CONTEXT *above_context[MAX_MB_PLANE],
-    ENTROPY_CONTEXT left_context[MAX_MB_PLANE][16],
-    int mi_row, int mi_col) {
+static INLINE int frame_is_intra_only(const VP9_COMMON *const cm) {
+  return cm->frame_type == KEY_FRAME || cm->intra_only;
+}
+
+static INLINE const vp9_prob* get_partition_probs(const VP9_COMMON *cm,
+                                                  int ctx) {
+  return frame_is_intra_only(cm) ? vp9_kf_partition_probs[ctx]
+                                 : cm->fc->partition_prob[ctx];
+}
+
+static INLINE void set_skip_context(MACROBLOCKD *xd, int mi_row, int mi_col) {
   const int above_idx = mi_col * 2;
   const int left_idx = (mi_row * 2) & 15;
   int i;
-  for (i = 0; i < MAX_MB_PLANE; i++) {
+  for (i = 0; i < MAX_MB_PLANE; ++i) {
     struct macroblockd_plane *const pd = &xd->plane[i];
-    pd->above_context = above_context[i] + (above_idx >> pd->subsampling_x);
-    pd->left_context = left_context[i] + (left_idx >> pd->subsampling_y);
+    pd->above_context = &xd->above_context[i][above_idx >> pd->subsampling_x];
+    pd->left_context = &xd->left_context[i][left_idx >> pd->subsampling_y];
   }
+}
+
+static INLINE int calc_mi_size(int len) {
+  // len is in mi units.
+  return len + MI_BLOCK_SIZE;
 }
 
 static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
@@ -304,7 +311,7 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
   xd->left_available  = (mi_col > tile->mi_col_start);
 }
 
-static void set_prev_mi(VP9_COMMON *cm) {
+static INLINE void set_prev_mi(VP9_COMMON *cm) {
   const int use_prev_in_find_mv_refs = cm->width == cm->last_width &&
                                        cm->height == cm->last_height &&
                                        !cm->intra_only &&
@@ -312,19 +319,15 @@ static void set_prev_mi(VP9_COMMON *cm) {
   // Special case: set prev_mi to NULL when the previous mode info
   // context cannot be used.
   cm->prev_mi = use_prev_in_find_mv_refs ?
-                  cm->prev_mip + cm->mode_info_stride + 1 : NULL;
+                  cm->prev_mip + cm->mi_stride + 1 : NULL;
 }
 
-static INLINE int frame_is_intra_only(const VP9_COMMON *const cm) {
-  return cm->frame_type == KEY_FRAME || cm->intra_only;
-}
-
-static INLINE void update_partition_context(
-    PARTITION_CONTEXT *above_seg_context,
-    PARTITION_CONTEXT left_seg_context[8],
-    int mi_row, int mi_col, BLOCK_SIZE subsize, BLOCK_SIZE bsize) {
-  PARTITION_CONTEXT *const above_ctx = above_seg_context + mi_col;
-  PARTITION_CONTEXT *const left_ctx = left_seg_context + (mi_row & MI_MASK);
+static INLINE void update_partition_context(MACROBLOCKD *xd,
+                                            int mi_row, int mi_col,
+                                            BLOCK_SIZE subsize,
+                                            BLOCK_SIZE bsize) {
+  PARTITION_CONTEXT *const above_ctx = xd->above_seg_context + mi_col;
+  PARTITION_CONTEXT *const left_ctx = xd->left_seg_context + (mi_row & MI_MASK);
 
   // num_4x4_blocks_wide_lookup[bsize] / 2
   const int bs = num_8x8_blocks_wide_lookup[bsize];
@@ -336,18 +339,17 @@ static INLINE void update_partition_context(
   vpx_memset(left_ctx, partition_context_lookup[subsize].left, bs);
 }
 
-static INLINE int partition_plane_context(
-    const PARTITION_CONTEXT *above_seg_context,
-    const PARTITION_CONTEXT left_seg_context[8],
-    int mi_row, int mi_col, BLOCK_SIZE bsize) {
-  const PARTITION_CONTEXT *above_ctx = above_seg_context + mi_col;
-  const PARTITION_CONTEXT *left_ctx = left_seg_context + (mi_row & MI_MASK);
+static INLINE int partition_plane_context(const MACROBLOCKD *xd,
+                                          int mi_row, int mi_col,
+                                          BLOCK_SIZE bsize) {
+  const PARTITION_CONTEXT *above_ctx = xd->above_seg_context + mi_col;
+  const PARTITION_CONTEXT *left_ctx = xd->left_seg_context + (mi_row & MI_MASK);
 
-  const int bsl = mi_width_log2(bsize);
+  const int bsl = mi_width_log2_lookup[bsize];
   const int bs = 1 << bsl;
   int above = 0, left = 0, i;
 
-  assert(b_width_log2(bsize) == b_height_log2(bsize));
+  assert(b_width_log2_lookup[bsize] == b_height_log2_lookup[bsize]);
   assert(bsl >= 0);
 
   for (i = 0; i < bs; i++) {

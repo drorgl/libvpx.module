@@ -17,10 +17,12 @@
 
 namespace {
 
-class DatarateTest : public ::libvpx_test::EncoderTest,
+class DatarateTestLarge : public ::libvpx_test::EncoderTest,
     public ::libvpx_test::CodecTestWithParam<libvpx_test::TestMode> {
  public:
-  DatarateTest() : EncoderTest(GET_PARAM(0)) {}
+  DatarateTestLarge() : EncoderTest(GET_PARAM(0)) {}
+
+  virtual ~DatarateTestLarge() {}
 
  protected:
   virtual void SetUp() {
@@ -40,6 +42,9 @@ class DatarateTest : public ::libvpx_test::EncoderTest,
 
   virtual void PreEncodeFrameHook(::libvpx_test::VideoSource *video,
                                   ::libvpx_test::Encoder *encoder) {
+    if (video->frame() == 1) {
+      encoder->Control(VP8E_SET_NOISE_SENSITIVITY, denoiser_on_);
+    }
     const vpx_rational_t tb = video->timebase();
     timebase_ = static_cast<double>(tb.num) / tb.den;
     duration_ = 0;
@@ -118,9 +123,42 @@ class DatarateTest : public ::libvpx_test::EncoderTest,
   double file_datarate_;
   double effective_datarate_;
   size_t bits_in_last_frame_;
+  int denoiser_on_;
 };
 
-TEST_P(DatarateTest, BasicBufferModel) {
+#if CONFIG_TEMPORAL_DENOISING
+// Check basic datarate targeting, for a single bitrate, but loop over the
+// various denoiser settings.
+TEST_P(DatarateTestLarge, DenoiserLevels) {
+  cfg_.rc_buf_initial_sz = 500;
+  cfg_.rc_dropframe_thresh = 1;
+  cfg_.rc_max_quantizer = 56;
+  cfg_.rc_end_usage = VPX_CBR;
+  ::libvpx_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+                                       30, 1, 0, 140);
+  for (int j = 1; j < 5; ++j) {
+    // Run over the denoiser levels.
+    // For the temporal denoiser (#if CONFIG_TEMPORAL_DENOISING) the level j
+    // refers to the 4 denoiser modes: denoiserYonly, denoiserOnYUV,
+    // denoiserOnAggressive, and denoiserOnAdaptive.
+    // For the spatial denoiser (if !CONFIG_TEMPORAL_DENOISING), the level j
+    // refers to the blur thresholds: 20, 40, 60 80.
+    // The j = 0 case (denoiser off) is covered in the tests below.
+    denoiser_on_ = j;
+    cfg_.rc_target_bitrate = 300;
+    ResetModel();
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+    ASSERT_GE(cfg_.rc_target_bitrate, effective_datarate_ * 0.95)
+        << " The datarate for the file exceeds the target!";
+
+    ASSERT_LE(cfg_.rc_target_bitrate, file_datarate_ * 1.3)
+        << " The datarate for the file missed the target!";
+  }
+}
+#endif  // CONFIG_TEMPORAL_DENOISING
+
+TEST_P(DatarateTestLarge, BasicBufferModel) {
+  denoiser_on_ = 0;
   cfg_.rc_buf_initial_sz = 500;
   cfg_.rc_dropframe_thresh = 1;
   cfg_.rc_max_quantizer = 56;
@@ -143,7 +181,7 @@ TEST_P(DatarateTest, BasicBufferModel) {
     cfg_.rc_target_bitrate = i;
     ResetModel();
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
-    ASSERT_GE(cfg_.rc_target_bitrate, effective_datarate_)
+    ASSERT_GE(cfg_.rc_target_bitrate, effective_datarate_ * 0.95)
         << " The datarate for the file exceeds the target!";
 
     ASSERT_LE(cfg_.rc_target_bitrate, file_datarate_ * 1.3)
@@ -151,7 +189,8 @@ TEST_P(DatarateTest, BasicBufferModel) {
   }
 }
 
-TEST_P(DatarateTest, ChangingDropFrameThresh) {
+TEST_P(DatarateTestLarge, ChangingDropFrameThresh) {
+  denoiser_on_ = 0;
   cfg_.rc_buf_initial_sz = 500;
   cfg_.rc_max_quantizer = 36;
   cfg_.rc_end_usage = VPX_CBR;
@@ -179,13 +218,13 @@ TEST_P(DatarateTest, ChangingDropFrameThresh) {
   }
 }
 
-class DatarateTestVP9 : public ::libvpx_test::EncoderTest,
+class DatarateTestVP9Large : public ::libvpx_test::EncoderTest,
     public ::libvpx_test::CodecTestWith2Params<libvpx_test::TestMode, int> {
  public:
-  DatarateTestVP9() : EncoderTest(GET_PARAM(0)) {}
+  DatarateTestVP9Large() : EncoderTest(GET_PARAM(0)) {}
 
  protected:
-  virtual ~DatarateTestVP9() {}
+  virtual ~DatarateTestVP9Large() {}
 
   virtual void SetUp() {
     InitializeConfig();
@@ -201,6 +240,8 @@ class DatarateTestVP9 : public ::libvpx_test::EncoderTest,
     tot_frame_number_ = 0;
     first_drop_ = 0;
     num_drops_ = 0;
+    // Denoiser is off by default.
+    denoiser_on_ = 0;
     // For testing up to 3 layers.
     for (int i = 0; i < 3; ++i) {
       bits_total_[i] = 0;
@@ -274,6 +315,7 @@ class DatarateTestVP9 : public ::libvpx_test::EncoderTest,
                                   ::libvpx_test::Encoder *encoder) {
     if (video->frame() == 1) {
       encoder->Control(VP8E_SET_CPUUSED, set_cpu_used_);
+      encoder->Control(VP9E_SET_NOISE_SENSITIVITY, denoiser_on_);
     }
     if (cfg_.ts_number_layers > 1) {
       if (video->frame() == 1) {
@@ -355,10 +397,11 @@ class DatarateTestVP9 : public ::libvpx_test::EncoderTest,
   int64_t bits_in_buffer_model_;
   vpx_codec_pts_t first_drop_;
   int num_drops_;
+  int denoiser_on_;
 };
 
 // Check basic rate targeting,
-TEST_P(DatarateTestVP9, BasicRateTargeting) {
+TEST_P(DatarateTestVP9Large, BasicRateTargeting) {
   cfg_.rc_buf_initial_sz = 500;
   cfg_.rc_buf_optimal_sz = 500;
   cfg_.rc_buf_sz = 1000;
@@ -382,7 +425,7 @@ TEST_P(DatarateTestVP9, BasicRateTargeting) {
 }
 
 // Check basic rate targeting,
-TEST_P(DatarateTestVP9, BasicRateTargeting444) {
+TEST_P(DatarateTestVP9Large, BasicRateTargeting444) {
   ::libvpx_test::Y4mVideoSource video("rush_hour_444.y4m", 0, 140);
 
   cfg_.g_profile = 1;
@@ -414,7 +457,7 @@ TEST_P(DatarateTestVP9, BasicRateTargeting444) {
 // as the drop frame threshold is increased, and (2) that the total number of
 // frame drops does not decrease as we increase frame drop threshold.
 // Use a lower qp-max to force some frame drops.
-TEST_P(DatarateTestVP9, ChangingDropFrameThresh) {
+TEST_P(DatarateTestVP9Large, ChangingDropFrameThresh) {
   cfg_.rc_buf_initial_sz = 500;
   cfg_.rc_buf_optimal_sz = 500;
   cfg_.rc_buf_sz = 1000;
@@ -455,7 +498,7 @@ TEST_P(DatarateTestVP9, ChangingDropFrameThresh) {
 }
 
 // Check basic rate targeting for 2 temporal layers.
-TEST_P(DatarateTestVP9, BasicRateTargeting2TemporalLayers) {
+TEST_P(DatarateTestVP9Large, BasicRateTargeting2TemporalLayers) {
   cfg_.rc_buf_initial_sz = 500;
   cfg_.rc_buf_optimal_sz = 500;
   cfg_.rc_buf_sz = 1000;
@@ -470,6 +513,9 @@ TEST_P(DatarateTestVP9, BasicRateTargeting2TemporalLayers) {
   cfg_.ts_number_layers = 2;
   cfg_.ts_rate_decimator[0] = 2;
   cfg_.ts_rate_decimator[1] = 1;
+
+  if (deadline_ == VPX_DL_REALTIME)
+    cfg_.g_error_resilient = 1;
 
   ::libvpx_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                        30, 1, 0, 200);
@@ -492,7 +538,7 @@ TEST_P(DatarateTestVP9, BasicRateTargeting2TemporalLayers) {
 }
 
 // Check basic rate targeting for 3 temporal layers.
-TEST_P(DatarateTestVP9, BasicRateTargeting3TemporalLayers) {
+TEST_P(DatarateTestVP9Large, BasicRateTargeting3TemporalLayers) {
   cfg_.rc_buf_initial_sz = 500;
   cfg_.rc_buf_optimal_sz = 500;
   cfg_.rc_buf_sz = 1000;
@@ -520,10 +566,14 @@ TEST_P(DatarateTestVP9, BasicRateTargeting3TemporalLayers) {
     cfg_.ts_target_bitrate[2] = cfg_.rc_target_bitrate;
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
     for (int j = 0; j < static_cast<int>(cfg_.ts_number_layers); ++j) {
-      ASSERT_GE(effective_datarate_[j], cfg_.ts_target_bitrate[j] * 0.85)
+      // TODO(yaowu): Work out more stable rc control strategy and
+      //              Adjust the thresholds to be tighter than .75.
+      ASSERT_GE(effective_datarate_[j], cfg_.ts_target_bitrate[j] * 0.75)
           << " The datarate for the file is lower than target by too much, "
               "for layer: " << j;
-      ASSERT_LE(effective_datarate_[j], cfg_.ts_target_bitrate[j] * 1.15)
+      // TODO(yaowu): Work out more stable rc control strategy and
+      //              Adjust the thresholds to be tighter than 1.25.
+      ASSERT_LE(effective_datarate_[j], cfg_.ts_target_bitrate[j] * 1.25)
           << " The datarate for the file is greater than target by too much, "
               "for layer: " << j;
     }
@@ -533,7 +583,7 @@ TEST_P(DatarateTestVP9, BasicRateTargeting3TemporalLayers) {
 // Check basic rate targeting for 3 temporal layers, with frame dropping.
 // Only for one (low) bitrate with lower max_quantizer, and somewhat higher
 // frame drop threshold, to force frame dropping.
-TEST_P(DatarateTestVP9, BasicRateTargeting3TemporalLayersFrameDropping) {
+TEST_P(DatarateTestVP9Large, BasicRateTargeting3TemporalLayersFrameDropping) {
   cfg_.rc_buf_initial_sz = 500;
   cfg_.rc_buf_optimal_sz = 500;
   cfg_.rc_buf_sz = 1000;
@@ -568,14 +618,45 @@ TEST_P(DatarateTestVP9, BasicRateTargeting3TemporalLayersFrameDropping) {
         << " The datarate for the file is greater than target by too much, "
             "for layer: " << j;
     // Expect some frame drops in this test: for this 200 frames test,
-    // expect at least 10% and not more than 50% drops.
+    // expect at least 10% and not more than 60% drops.
     ASSERT_GE(num_drops_, 20);
-    ASSERT_LE(num_drops_, 100);
+    ASSERT_LE(num_drops_, 130);
   }
 }
 
-VP8_INSTANTIATE_TEST_CASE(DatarateTest, ALL_TEST_MODES);
-VP9_INSTANTIATE_TEST_CASE(DatarateTestVP9,
-                          ::testing::Values(::libvpx_test::kOnePassGood),
-                          ::testing::Range(2, 5));
+#if CONFIG_VP9_TEMPORAL_DENOISING
+// Check basic datarate targeting, for a single bitrate, when denoiser is on.
+TEST_P(DatarateTestVP9Large, DenoiserLevels) {
+  cfg_.rc_buf_initial_sz = 500;
+  cfg_.rc_buf_optimal_sz = 500;
+  cfg_.rc_buf_sz = 1000;
+  cfg_.rc_dropframe_thresh = 1;
+  cfg_.rc_min_quantizer = 2;
+  cfg_.rc_max_quantizer = 56;
+  cfg_.rc_end_usage = VPX_CBR;
+  cfg_.g_lag_in_frames = 0;
+
+  ::libvpx_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+                                       30, 1, 0, 140);
+
+  // For the temporal denoiser (#if CONFIG_VP9_TEMPORAL_DENOISING),
+  // there is only one denoiser mode: denoiserYonly(which is 1),
+  // but may add more modes in the future.
+  cfg_.rc_target_bitrate = 300;
+  ResetModel();
+  // Turn on the denoiser.
+  denoiser_on_ = 1;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  ASSERT_GE(effective_datarate_[0], cfg_.rc_target_bitrate * 0.85)
+      << " The datarate for the file is lower than target by too much!";
+  ASSERT_LE(effective_datarate_[0], cfg_.rc_target_bitrate * 1.15)
+      << " The datarate for the file is greater than target by too much!";
+}
+#endif  // CONFIG_VP9_TEMPORAL_DENOISING
+
+VP8_INSTANTIATE_TEST_CASE(DatarateTestLarge, ALL_TEST_MODES);
+VP9_INSTANTIATE_TEST_CASE(DatarateTestVP9Large,
+                          ::testing::Values(::libvpx_test::kOnePassGood,
+                                            ::libvpx_test::kRealTime),
+                          ::testing::Range(2, 7));
 }  // namespace

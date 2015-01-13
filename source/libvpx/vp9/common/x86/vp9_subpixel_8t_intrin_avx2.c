@@ -32,6 +32,27 @@ DECLARE_ALIGNED(32, static const uint8_t, filt4_global_avx2[32]) = {
   6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14
 };
 
+#if defined(__clang__)
+# if __clang_major__ < 3 || (__clang_major__ == 3 && __clang_minor__ <= 3) || \
+      (defined(__APPLE__) && __clang_major__ == 5 && __clang_minor__ == 0)
+#  define MM256_BROADCASTSI128_SI256(x) \
+       _mm_broadcastsi128_si256((__m128i const *)&(x))
+# else  // clang > 3.3, and not 5.0 on macosx.
+#  define MM256_BROADCASTSI128_SI256(x) _mm256_broadcastsi128_si256(x)
+# endif  // clang <= 3.3
+#elif defined(__GNUC__)
+# if __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ <= 6)
+#  define MM256_BROADCASTSI128_SI256(x) \
+       _mm_broadcastsi128_si256((__m128i const *)&(x))
+# elif __GNUC__ == 4 && __GNUC_MINOR__ == 7
+#  define MM256_BROADCASTSI128_SI256(x) _mm_broadcastsi128_si256(x)
+# else  // gcc > 4.7
+#  define MM256_BROADCASTSI128_SI256(x) _mm256_broadcastsi128_si256(x)
+# endif  // gcc <= 4.6
+#else  // !(gcc || clang)
+# define MM256_BROADCASTSI128_SI256(x) _mm256_broadcastsi128_si256(x)
+#endif  // __clang__
+
 void vp9_filter_block1d16_h8_avx2(unsigned char *src_ptr,
                                   unsigned int src_pixels_per_line,
                                   unsigned char *output_ptr,
@@ -53,18 +74,7 @@ void vp9_filter_block1d16_h8_avx2(unsigned char *src_ptr,
   // in both lanes of 128 bit register.
   filtersReg =_mm_packs_epi16(filtersReg, filtersReg);
   // have the same data in both lanes of a 256 bit register
-#if defined (__GNUC__)
-#if ( __GNUC__ < 4 || (__GNUC__ == 4 && \
-(__GNUC_MINOR__ < 6 || (__GNUC_MINOR__ == 6 && __GNUC_PATCHLEVEL__ > 0))))
-  filtersReg32 = _mm_broadcastsi128_si256((__m128i const *)&filtersReg);
-#elif(__GNUC__ == 4 && (__GNUC_MINOR__ == 7 && __GNUC_PATCHLEVEL__ > 0))
-  filtersReg32 = _mm_broadcastsi128_si256(filtersReg);
-#else
-  filtersReg32 = _mm256_broadcastsi128_si256(filtersReg);
-#endif
-#else
-  filtersReg32 = _mm256_broadcastsi128_si256(filtersReg);
-#endif
+  filtersReg32 = MM256_BROADCASTSI128_SI256(filtersReg);
 
   // duplicate only the first 16 bits (first and second byte)
   // across 256 bit register
@@ -101,21 +111,21 @@ void vp9_filter_block1d16_h8_avx2(unsigned char *src_ptr,
 
     // filter the source buffer
     srcRegFilt32b1_1= _mm256_shuffle_epi8(srcReg32b1, filt1Reg);
-    srcRegFilt32b2= _mm256_shuffle_epi8(srcReg32b1, filt2Reg);
+    srcRegFilt32b2= _mm256_shuffle_epi8(srcReg32b1, filt4Reg);
 
     // multiply 2 adjacent elements with the filter and add the result
     srcRegFilt32b1_1 = _mm256_maddubs_epi16(srcRegFilt32b1_1, firstFilters);
-    srcRegFilt32b2 = _mm256_maddubs_epi16(srcRegFilt32b2, secondFilters);
+    srcRegFilt32b2 = _mm256_maddubs_epi16(srcRegFilt32b2, forthFilters);
 
     // add and saturate the results together
     srcRegFilt32b1_1 = _mm256_adds_epi16(srcRegFilt32b1_1, srcRegFilt32b2);
 
     // filter the source buffer
-    srcRegFilt32b3= _mm256_shuffle_epi8(srcReg32b1, filt4Reg);
+    srcRegFilt32b3= _mm256_shuffle_epi8(srcReg32b1, filt2Reg);
     srcRegFilt32b2= _mm256_shuffle_epi8(srcReg32b1, filt3Reg);
 
     // multiply 2 adjacent elements with the filter and add the result
-    srcRegFilt32b3 = _mm256_maddubs_epi16(srcRegFilt32b3, forthFilters);
+    srcRegFilt32b3 = _mm256_maddubs_epi16(srcRegFilt32b3, secondFilters);
     srcRegFilt32b2 = _mm256_maddubs_epi16(srcRegFilt32b2, thirdFilters);
 
     // add and saturate the results together
@@ -136,21 +146,21 @@ void vp9_filter_block1d16_h8_avx2(unsigned char *src_ptr,
 
     // filter the source buffer
     srcRegFilt32b2_1 = _mm256_shuffle_epi8(srcReg32b2, filt1Reg);
-    srcRegFilt32b2 = _mm256_shuffle_epi8(srcReg32b2, filt2Reg);
+    srcRegFilt32b2 = _mm256_shuffle_epi8(srcReg32b2, filt4Reg);
 
     // multiply 2 adjacent elements with the filter and add the result
     srcRegFilt32b2_1 = _mm256_maddubs_epi16(srcRegFilt32b2_1, firstFilters);
-    srcRegFilt32b2 = _mm256_maddubs_epi16(srcRegFilt32b2, secondFilters);
+    srcRegFilt32b2 = _mm256_maddubs_epi16(srcRegFilt32b2, forthFilters);
 
     // add and saturate the results together
     srcRegFilt32b2_1 = _mm256_adds_epi16(srcRegFilt32b2_1, srcRegFilt32b2);
 
     // filter the source buffer
-    srcRegFilt32b3= _mm256_shuffle_epi8(srcReg32b2, filt4Reg);
+    srcRegFilt32b3= _mm256_shuffle_epi8(srcReg32b2, filt2Reg);
     srcRegFilt32b2= _mm256_shuffle_epi8(srcReg32b2, filt3Reg);
 
     // multiply 2 adjacent elements with the filter and add the result
-    srcRegFilt32b3 = _mm256_maddubs_epi16(srcRegFilt32b3, forthFilters);
+    srcRegFilt32b3 = _mm256_maddubs_epi16(srcRegFilt32b3, secondFilters);
     srcRegFilt32b2 = _mm256_maddubs_epi16(srcRegFilt32b2, thirdFilters);
 
     // add and saturate the results together
@@ -198,26 +208,26 @@ void vp9_filter_block1d16_h8_avx2(unsigned char *src_ptr,
     srcRegFilt1_1 = _mm_shuffle_epi8(srcReg1,
                     _mm256_castsi256_si128(filt1Reg));
     srcRegFilt2 = _mm_shuffle_epi8(srcReg1,
-                  _mm256_castsi256_si128(filt2Reg));
+                  _mm256_castsi256_si128(filt4Reg));
 
     // multiply 2 adjacent elements with the filter and add the result
     srcRegFilt1_1 = _mm_maddubs_epi16(srcRegFilt1_1,
                     _mm256_castsi256_si128(firstFilters));
     srcRegFilt2 = _mm_maddubs_epi16(srcRegFilt2,
-                  _mm256_castsi256_si128(secondFilters));
+                  _mm256_castsi256_si128(forthFilters));
 
     // add and saturate the results together
     srcRegFilt1_1 = _mm_adds_epi16(srcRegFilt1_1, srcRegFilt2);
 
     // filter the source buffer
     srcRegFilt3= _mm_shuffle_epi8(srcReg1,
-                 _mm256_castsi256_si128(filt4Reg));
+                 _mm256_castsi256_si128(filt2Reg));
     srcRegFilt2= _mm_shuffle_epi8(srcReg1,
                  _mm256_castsi256_si128(filt3Reg));
 
     // multiply 2 adjacent elements with the filter and add the result
     srcRegFilt3 = _mm_maddubs_epi16(srcRegFilt3,
-                  _mm256_castsi256_si128(forthFilters));
+                  _mm256_castsi256_si128(secondFilters));
     srcRegFilt2 = _mm_maddubs_epi16(srcRegFilt2,
                   _mm256_castsi256_si128(thirdFilters));
 
@@ -237,26 +247,26 @@ void vp9_filter_block1d16_h8_avx2(unsigned char *src_ptr,
     srcRegFilt2_1 = _mm_shuffle_epi8(srcReg2,
                     _mm256_castsi256_si128(filt1Reg));
     srcRegFilt2 = _mm_shuffle_epi8(srcReg2,
-                  _mm256_castsi256_si128(filt2Reg));
+                  _mm256_castsi256_si128(filt4Reg));
 
     // multiply 2 adjacent elements with the filter and add the result
     srcRegFilt2_1 = _mm_maddubs_epi16(srcRegFilt2_1,
                     _mm256_castsi256_si128(firstFilters));
     srcRegFilt2 = _mm_maddubs_epi16(srcRegFilt2,
-                  _mm256_castsi256_si128(secondFilters));
+                  _mm256_castsi256_si128(forthFilters));
 
     // add and saturate the results together
     srcRegFilt2_1 = _mm_adds_epi16(srcRegFilt2_1, srcRegFilt2);
 
     // filter the source buffer
     srcRegFilt3 = _mm_shuffle_epi8(srcReg2,
-                  _mm256_castsi256_si128(filt4Reg));
+                  _mm256_castsi256_si128(filt2Reg));
     srcRegFilt2 = _mm_shuffle_epi8(srcReg2,
                   _mm256_castsi256_si128(filt3Reg));
 
     // multiply 2 adjacent elements with the filter and add the result
     srcRegFilt3 = _mm_maddubs_epi16(srcRegFilt3,
-                  _mm256_castsi256_si128(forthFilters));
+                  _mm256_castsi256_si128(secondFilters));
     srcRegFilt2 = _mm_maddubs_epi16(srcRegFilt2,
                   _mm256_castsi256_si128(thirdFilters));
 
@@ -297,7 +307,7 @@ void vp9_filter_block1d16_v8_avx2(unsigned char *src_ptr,
   __m256i addFilterReg64;
   __m256i srcReg32b1, srcReg32b2, srcReg32b3, srcReg32b4, srcReg32b5;
   __m256i srcReg32b6, srcReg32b7, srcReg32b8, srcReg32b9, srcReg32b10;
-  __m256i srcReg32b11, srcReg32b12, srcReg32b13, filtersReg32;
+  __m256i srcReg32b11, srcReg32b12, filtersReg32;
   __m256i firstFilters, secondFilters, thirdFilters, forthFilters;
   unsigned int i;
   unsigned int src_stride, dst_stride;
@@ -309,18 +319,7 @@ void vp9_filter_block1d16_v8_avx2(unsigned char *src_ptr,
   // same data in both lanes of 128 bit register.
   filtersReg =_mm_packs_epi16(filtersReg, filtersReg);
   // have the same data in both lanes of a 256 bit register
-#if defined (__GNUC__)
-#if ( __GNUC__ < 4 || (__GNUC__ == 4 && \
-(__GNUC_MINOR__ < 6 || (__GNUC_MINOR__ == 6 && __GNUC_PATCHLEVEL__ > 0))))
-  filtersReg32 = _mm_broadcastsi128_si256((__m128i const *)&filtersReg);
-#elif(__GNUC__ == 4 && (__GNUC_MINOR__ == 7 && __GNUC_PATCHLEVEL__ > 0))
-  filtersReg32 = _mm_broadcastsi128_si256(filtersReg);
-#else
-  filtersReg32 = _mm256_broadcastsi128_si256(filtersReg);
-#endif
-#else
-  filtersReg32 = _mm256_broadcastsi128_si256(filtersReg);
-#endif
+  filtersReg32 = MM256_BROADCASTSI128_SI256(filtersReg);
 
   // duplicate only the first 16 bits (first and second byte)
   // across 256 bit register
@@ -410,35 +409,35 @@ void vp9_filter_block1d16_v8_avx2(unsigned char *src_ptr,
      // multiply 2 adjacent elements with the filter and add the result
      srcReg32b10 = _mm256_maddubs_epi16(srcReg32b10, firstFilters);
      srcReg32b6 = _mm256_maddubs_epi16(srcReg32b4, forthFilters);
-     srcReg32b1 = _mm256_maddubs_epi16(srcReg32b1, firstFilters);
-     srcReg32b8 = _mm256_maddubs_epi16(srcReg32b7, forthFilters);
 
      // add and saturate the results together
      srcReg32b10 = _mm256_adds_epi16(srcReg32b10, srcReg32b6);
-     srcReg32b1 = _mm256_adds_epi16(srcReg32b1, srcReg32b8);
-
 
      // multiply 2 adjacent elements with the filter and add the result
      srcReg32b8 = _mm256_maddubs_epi16(srcReg32b11, secondFilters);
-     srcReg32b6 = _mm256_maddubs_epi16(srcReg32b3, secondFilters);
-
-     // multiply 2 adjacent elements with the filter and add the result
      srcReg32b12 = _mm256_maddubs_epi16(srcReg32b2, thirdFilters);
-     srcReg32b13 = _mm256_maddubs_epi16(srcReg32b5, thirdFilters);
-
 
      // add and saturate the results together
      srcReg32b10 = _mm256_adds_epi16(srcReg32b10,
                    _mm256_min_epi16(srcReg32b8, srcReg32b12));
-     srcReg32b1 = _mm256_adds_epi16(srcReg32b1,
-                  _mm256_min_epi16(srcReg32b6, srcReg32b13));
-
-     // add and saturate the results together
      srcReg32b10 = _mm256_adds_epi16(srcReg32b10,
                    _mm256_max_epi16(srcReg32b8, srcReg32b12));
-     srcReg32b1 = _mm256_adds_epi16(srcReg32b1,
-                  _mm256_max_epi16(srcReg32b6, srcReg32b13));
 
+     // multiply 2 adjacent elements with the filter and add the result
+     srcReg32b1 = _mm256_maddubs_epi16(srcReg32b1, firstFilters);
+     srcReg32b6 = _mm256_maddubs_epi16(srcReg32b7, forthFilters);
+
+     srcReg32b1 = _mm256_adds_epi16(srcReg32b1, srcReg32b6);
+
+     // multiply 2 adjacent elements with the filter and add the result
+     srcReg32b8 = _mm256_maddubs_epi16(srcReg32b3, secondFilters);
+     srcReg32b12 = _mm256_maddubs_epi16(srcReg32b5, thirdFilters);
+
+     // add and saturate the results together
+     srcReg32b1 = _mm256_adds_epi16(srcReg32b1,
+                  _mm256_min_epi16(srcReg32b8, srcReg32b12));
+     srcReg32b1 = _mm256_adds_epi16(srcReg32b1,
+                  _mm256_max_epi16(srcReg32b8, srcReg32b12));
 
      srcReg32b10 = _mm256_adds_epi16(srcReg32b10, addFilterReg64);
      srcReg32b1 = _mm256_adds_epi16(srcReg32b1, addFilterReg64);
