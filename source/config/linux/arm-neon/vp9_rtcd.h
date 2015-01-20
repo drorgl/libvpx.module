@@ -638,7 +638,8 @@ unsigned int vp9_sub_pixel_variance64x32_c(const uint8_t *src_ptr, int source_st
 #define vp9_sub_pixel_variance64x32 vp9_sub_pixel_variance64x32_c
 
 unsigned int vp9_sub_pixel_variance64x64_c(const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
-#define vp9_sub_pixel_variance64x64 vp9_sub_pixel_variance64x64_c
+unsigned int vp9_sub_pixel_variance64x64_neon(const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
+#define vp9_sub_pixel_variance64x64 vp9_sub_pixel_variance64x64_neon
 
 unsigned int vp9_sub_pixel_variance8x16_c(const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 #define vp9_sub_pixel_variance8x16 vp9_sub_pixel_variance8x16_c
@@ -707,7 +708,8 @@ unsigned int vp9_variance32x32_neon(const uint8_t *src_ptr, int source_stride, c
 #define vp9_variance32x32 vp9_variance32x32_neon
 
 unsigned int vp9_variance32x64_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
-#define vp9_variance32x64 vp9_variance32x64_c
+unsigned int vp9_variance32x64_neon(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
+#define vp9_variance32x64 vp9_variance32x64_neon
 
 unsigned int vp9_variance4x4_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 #define vp9_variance4x4 vp9_variance4x4_c
@@ -716,10 +718,12 @@ unsigned int vp9_variance4x8_c(const uint8_t *src_ptr, int source_stride, const 
 #define vp9_variance4x8 vp9_variance4x8_c
 
 unsigned int vp9_variance64x32_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
-#define vp9_variance64x32 vp9_variance64x32_c
+unsigned int vp9_variance64x32_neon(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
+#define vp9_variance64x32 vp9_variance64x32_neon
 
 unsigned int vp9_variance64x64_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
-#define vp9_variance64x64 vp9_variance64x64_c
+unsigned int vp9_variance64x64_neon(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
+#define vp9_variance64x64 vp9_variance64x64_neon
 
 unsigned int vp9_variance8x16_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 #define vp9_variance8x16 vp9_variance8x16_c

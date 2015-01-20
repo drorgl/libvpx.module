@@ -36,7 +36,6 @@
 #include "vp9/decoder/vp9_decodemv.h"
 #include "vp9/decoder/vp9_decoder.h"
 #include "vp9/decoder/vp9_dsubexp.h"
-#include "vp9/decoder/vp9_dthread.h"
 #include "vp9/decoder/vp9_read_bit_buffer.h"
 #include "vp9/decoder/vp9_reader.h"
 
@@ -727,6 +726,8 @@ static void setup_frame_size(VP9_COMMON *cm, struct vp9_read_bit_buffer *rb) {
   }
   cm->frame_bufs[cm->new_fb_idx].buf.subsampling_x = cm->subsampling_x;
   cm->frame_bufs[cm->new_fb_idx].buf.subsampling_y = cm->subsampling_y;
+  cm->frame_bufs[cm->new_fb_idx].buf.color_space =
+      (vpx_color_space_t)cm->color_space;
   cm->frame_bufs[cm->new_fb_idx].buf.bit_depth = (unsigned int)cm->bit_depth;
 }
 
@@ -781,7 +782,7 @@ static void setup_frame_size_with_refs(VP9_COMMON *cm,
             cm->subsampling_x,
             cm->subsampling_y))
       vpx_internal_error(&cm->error, VPX_CODEC_CORRUPT_FRAME,
-                         "Referenced frame has incompatible color space");
+                         "Referenced frame has incompatible color format");
   }
 
   resize_context_buffers(cm, width, height);
@@ -1225,8 +1226,8 @@ static void read_bitdepth_colorspace_sampling(
     cm->use_highbitdepth = 0;
 #endif
   }
-  cm->color_space = (COLOR_SPACE)vp9_rb_read_literal(rb, 3);
-  if (cm->color_space != SRGB) {
+  cm->color_space = vp9_rb_read_literal(rb, 3);
+  if (cm->color_space != VPX_CS_SRGB) {
     vp9_rb_read_bit(rb);  // [16,235] (including xvycc) vs [0,255] range
     if (cm->profile == PROFILE_1 || cm->profile == PROFILE_3) {
       cm->subsampling_x = vp9_rb_read_bit(rb);
@@ -1324,9 +1325,9 @@ static size_t read_uncompressed_header(VP9Decoder *pbi,
       } else {
         // NOTE: The intra-only frame header does not include the specification
         // of either the color format or color sub-sampling in profile 0. VP9
-        // specifies that the default color space should be YUV 4:2:0 in this
+        // specifies that the default color format should be YUV 4:2:0 in this
         // case (normative).
-        cm->color_space = BT_601;
+        cm->color_space = VPX_CS_BT_601;
         cm->subsampling_y = cm->subsampling_x = 1;
         cm->bit_depth = VPX_BITS_8;
 #if CONFIG_VP9_HIGHBITDEPTH
@@ -1589,9 +1590,9 @@ void vp9_decode_frame(VP9Decoder *pbi,
     if (!xd->corrupted) {
       // If multiple threads are used to decode tiles, then we use those threads
       // to do parallel loopfiltering.
-      vp9_loop_filter_frame_mt(&pbi->lf_row_sync, new_fb, pbi->mb.plane, cm,
-                               pbi->tile_workers, pbi->num_tile_workers,
-                               cm->lf.filter_level, 0);
+      vp9_loop_filter_frame_mt(new_fb, cm, pbi->mb.plane, cm->lf.filter_level,
+                               0, 0, pbi->tile_workers, pbi->num_tile_workers,
+                               &pbi->lf_row_sync);
     } else {
       vpx_internal_error(&cm->error, VPX_CODEC_CORRUPT_FRAME,
                          "Decode failed. Frame data is corrupted.");

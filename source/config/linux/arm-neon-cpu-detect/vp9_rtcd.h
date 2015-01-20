@@ -638,7 +638,8 @@ unsigned int vp9_sub_pixel_variance64x32_c(const uint8_t *src_ptr, int source_st
 #define vp9_sub_pixel_variance64x32 vp9_sub_pixel_variance64x32_c
 
 unsigned int vp9_sub_pixel_variance64x64_c(const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
-#define vp9_sub_pixel_variance64x64 vp9_sub_pixel_variance64x64_c
+unsigned int vp9_sub_pixel_variance64x64_neon(const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
+RTCD_EXTERN unsigned int (*vp9_sub_pixel_variance64x64)(const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 
 unsigned int vp9_sub_pixel_variance8x16_c(const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 #define vp9_sub_pixel_variance8x16 vp9_sub_pixel_variance8x16_c
@@ -707,7 +708,8 @@ unsigned int vp9_variance32x32_neon(const uint8_t *src_ptr, int source_stride, c
 RTCD_EXTERN unsigned int (*vp9_variance32x32)(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 
 unsigned int vp9_variance32x64_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
-#define vp9_variance32x64 vp9_variance32x64_c
+unsigned int vp9_variance32x64_neon(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
+RTCD_EXTERN unsigned int (*vp9_variance32x64)(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 
 unsigned int vp9_variance4x4_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 #define vp9_variance4x4 vp9_variance4x4_c
@@ -716,10 +718,12 @@ unsigned int vp9_variance4x8_c(const uint8_t *src_ptr, int source_stride, const 
 #define vp9_variance4x8 vp9_variance4x8_c
 
 unsigned int vp9_variance64x32_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
-#define vp9_variance64x32 vp9_variance64x32_c
+unsigned int vp9_variance64x32_neon(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
+RTCD_EXTERN unsigned int (*vp9_variance64x32)(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 
 unsigned int vp9_variance64x64_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
-#define vp9_variance64x64 vp9_variance64x64_c
+unsigned int vp9_variance64x64_neon(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
+RTCD_EXTERN unsigned int (*vp9_variance64x64)(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 
 unsigned int vp9_variance8x16_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 #define vp9_variance8x16 vp9_variance8x16_c
@@ -837,6 +841,8 @@ static void setup_rtcd_internal(void)
     if (flags & HAS_NEON) vp9_sub_pixel_variance16x16 = vp9_sub_pixel_variance16x16_neon;
     vp9_sub_pixel_variance32x32 = vp9_sub_pixel_variance32x32_c;
     if (flags & HAS_NEON) vp9_sub_pixel_variance32x32 = vp9_sub_pixel_variance32x32_neon;
+    vp9_sub_pixel_variance64x64 = vp9_sub_pixel_variance64x64_c;
+    if (flags & HAS_NEON) vp9_sub_pixel_variance64x64 = vp9_sub_pixel_variance64x64_neon;
     vp9_sub_pixel_variance8x8 = vp9_sub_pixel_variance8x8_c;
     if (flags & HAS_NEON) vp9_sub_pixel_variance8x8 = vp9_sub_pixel_variance8x8_neon;
     vp9_subtract_block = vp9_subtract_block_c;
@@ -861,6 +867,12 @@ static void setup_rtcd_internal(void)
     if (flags & HAS_NEON) vp9_variance16x16 = vp9_variance16x16_neon;
     vp9_variance32x32 = vp9_variance32x32_c;
     if (flags & HAS_NEON) vp9_variance32x32 = vp9_variance32x32_neon;
+    vp9_variance32x64 = vp9_variance32x64_c;
+    if (flags & HAS_NEON) vp9_variance32x64 = vp9_variance32x64_neon;
+    vp9_variance64x32 = vp9_variance64x32_c;
+    if (flags & HAS_NEON) vp9_variance64x32 = vp9_variance64x32_neon;
+    vp9_variance64x64 = vp9_variance64x64_c;
+    if (flags & HAS_NEON) vp9_variance64x64 = vp9_variance64x64_neon;
     vp9_variance8x8 = vp9_variance8x8_c;
     if (flags & HAS_NEON) vp9_variance8x8 = vp9_variance8x8_neon;
 }
