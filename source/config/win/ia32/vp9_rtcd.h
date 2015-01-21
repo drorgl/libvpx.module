@@ -218,6 +218,10 @@ void vp9_dc_top_predictor_4x4_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t 
 void vp9_dc_top_predictor_8x8_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
 #define vp9_dc_top_predictor_8x8 vp9_dc_top_predictor_8x8_c
 
+int vp9_denoiser_filter_c(const uint8_t *sig, int sig_stride, const uint8_t *mc_avg, int mc_avg_stride, uint8_t *avg, int avg_stride, int increase_denoising, BLOCK_SIZE bs, int motion_magnitude);
+int vp9_denoiser_filter_sse2(const uint8_t *sig, int sig_stride, const uint8_t *mc_avg, int mc_avg_stride, uint8_t *avg, int avg_stride, int increase_denoising, BLOCK_SIZE bs, int motion_magnitude);
+RTCD_EXTERN int (*vp9_denoiser_filter)(const uint8_t *sig, int sig_stride, const uint8_t *mc_avg, int mc_avg_stride, uint8_t *avg, int avg_stride, int increase_denoising, BLOCK_SIZE bs, int motion_magnitude);
+
 int vp9_diamond_search_sad_c(const struct macroblock *x, const struct search_site_config *cfg,  struct mv *ref_mv, struct mv *best_mv, int search_param, int sad_per_bit, int *num00, const struct vp9_variance_vtable *fn_ptr, const struct mv *center_mv);
 #define vp9_diamond_search_sad vp9_diamond_search_sad_c
 
@@ -960,6 +964,8 @@ static void setup_rtcd_internal(void)
     if (flags & HAS_SSE) vp9_dc_predictor_4x4 = vp9_dc_predictor_4x4_sse;
     vp9_dc_predictor_8x8 = vp9_dc_predictor_8x8_c;
     if (flags & HAS_SSE) vp9_dc_predictor_8x8 = vp9_dc_predictor_8x8_sse;
+    vp9_denoiser_filter = vp9_denoiser_filter_c;
+    if (flags & HAS_SSE2) vp9_denoiser_filter = vp9_denoiser_filter_sse2;
     vp9_fdct16x16 = vp9_fdct16x16_c;
     if (flags & HAS_SSE2) vp9_fdct16x16 = vp9_fdct16x16_sse2;
     vp9_fdct16x16_1 = vp9_fdct16x16_1_c;

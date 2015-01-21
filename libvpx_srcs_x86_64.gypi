@@ -258,6 +258,8 @@
     '<(libvpx_source)/vp9/encoder/vp9_cost.h',
     '<(libvpx_source)/vp9/encoder/vp9_dct.c',
     '<(libvpx_source)/vp9/encoder/vp9_dct.h',
+    '<(libvpx_source)/vp9/encoder/vp9_denoiser.c',
+    '<(libvpx_source)/vp9/encoder/vp9_denoiser.h',
     '<(libvpx_source)/vp9/encoder/vp9_encodeframe.c',
     '<(libvpx_source)/vp9/encoder/vp9_encodeframe.h',
     '<(libvpx_source)/vp9/encoder/vp9_encodemb.c',

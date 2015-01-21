@@ -40,6 +40,7 @@
         '<(libvpx_source)/vp9/encoder/x86/vp9_dct32x32_sse2.c',
         '<(libvpx_source)/vp9/encoder/x86/vp9_dct_impl_sse2.c',
         '<(libvpx_source)/vp9/encoder/x86/vp9_dct_sse2.c',
+        '<(libvpx_source)/vp9/encoder/x86/vp9_denoiser_sse2.c',
         '<(libvpx_source)/vp9/encoder/x86/vp9_quantize_sse2.c',
         '<(libvpx_source)/vp9/encoder/x86/vp9_variance_sse2.c',
       ],
