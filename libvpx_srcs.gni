@@ -401,6 +401,16 @@ libvpx_srcs_x86_sse4_1 = [
 libvpx_srcs_x86_avx = [
 ]
 libvpx_srcs_x86_avx2 = [
+  "//third_party/libvpx/source/libvpx/vp9/common/x86/vp9_loopfilter_intrin_avx2.c",
+  "//third_party/libvpx/source/libvpx/vp9/common/x86/vp9_subpixel_8t_intrin_avx2.c",
+  "//third_party/libvpx/source/libvpx/vp9/encoder/x86/vp9_dct32x32_avx2.c",
+  "//third_party/libvpx/source/libvpx/vp9/encoder/x86/vp9_dct_avx2.c",
+  "//third_party/libvpx/source/libvpx/vp9/encoder/x86/vp9_error_intrin_avx2.c",
+  "//third_party/libvpx/source/libvpx/vp9/encoder/x86/vp9_sad4d_intrin_avx2.c",
+  "//third_party/libvpx/source/libvpx/vp9/encoder/x86/vp9_sad_intrin_avx2.c",
+  "//third_party/libvpx/source/libvpx/vp9/encoder/x86/vp9_subpel_variance_impl_intrin_avx2.c",
+  "//third_party/libvpx/source/libvpx/vp9/encoder/x86/vp9_variance_avx2.c",
+  "//third_party/libvpx/source/libvpx/vp9/encoder/x86/vp9_variance_impl_intrin_avx2.c",
 ]
 libvpx_srcs_x86_64 = [
   "//third_party/libvpx/source/libvpx/vp8/common/alloccommon.c",
@@ -806,6 +816,16 @@ libvpx_srcs_x86_64_sse4_1 = [
 libvpx_srcs_x86_64_avx = [
 ]
 libvpx_srcs_x86_64_avx2 = [
+  "//third_party/libvpx/source/libvpx/vp9/common/x86/vp9_loopfilter_intrin_avx2.c",
+  "//third_party/libvpx/source/libvpx/vp9/common/x86/vp9_subpixel_8t_intrin_avx2.c",
+  "//third_party/libvpx/source/libvpx/vp9/encoder/x86/vp9_dct32x32_avx2.c",
+  "//third_party/libvpx/source/libvpx/vp9/encoder/x86/vp9_dct_avx2.c",
+  "//third_party/libvpx/source/libvpx/vp9/encoder/x86/vp9_error_intrin_avx2.c",
+  "//third_party/libvpx/source/libvpx/vp9/encoder/x86/vp9_sad4d_intrin_avx2.c",
+  "//third_party/libvpx/source/libvpx/vp9/encoder/x86/vp9_sad_intrin_avx2.c",
+  "//third_party/libvpx/source/libvpx/vp9/encoder/x86/vp9_subpel_variance_impl_intrin_avx2.c",
+  "//third_party/libvpx/source/libvpx/vp9/encoder/x86/vp9_variance_avx2.c",
+  "//third_party/libvpx/source/libvpx/vp9/encoder/x86/vp9_variance_impl_intrin_avx2.c",
 ]
 libvpx_srcs_arm = [
   "//third_party/libvpx/source/libvpx/vp8/common/alloccommon.c",
