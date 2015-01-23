@@ -132,7 +132,7 @@ static_library("libvpx_intrinsics_avx2") {
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
   if (is_win) {
-    cflags = [ "/arch:AVX" ]
+    cflags = [ "/arch:AVX2" ]
   } else {
     cflags = [ "-mavx2" ]
   }

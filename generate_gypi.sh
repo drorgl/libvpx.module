@@ -117,10 +117,10 @@ function write_target_definition {
   fi
   echo "      'cflags': [ '-m$4', ]," >> "$2"
   echo "      'xcode_settings': { 'OTHER_CFLAGS': [ '-m$4' ] }," >> "$2"
-  if [[ $4 == avx* ]]; then
+  if [[ $4 == avx2 ]]; then
   echo "      'msvs_settings': {" >> "$2"
   echo "        'VCCLCompilerTool': {" >> "$2"
-  echo "          'EnableEnhancedInstructionSet': '3', # /arch:AVX" >> "$2"
+  echo "          'EnableEnhancedInstructionSet': '5', # /arch:AVX2" >> "$2"
   echo "        }," >> "$2"
   echo "      }," >> "$2"
   elif [[ $4 == ssse3 || $4 == sse4.1 ]]; then
