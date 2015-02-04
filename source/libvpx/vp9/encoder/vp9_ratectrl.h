@@ -55,6 +55,7 @@ typedef struct {
   int max_gf_interval;
   int static_scene_max_gf_interval;
   int baseline_gf_interval;
+  int constrained_gf_group;
   int frames_to_key;
   int frames_since_key;
   int this_key_frame_forced;
@@ -159,7 +160,7 @@ void vp9_rc_postencode_update_drop_frame(struct VP9_COMP *cpi);
 
 // Updates rate correction factors
 // Changes only the rate correction factors in the rate control structure.
-void vp9_rc_update_rate_correction_factors(struct VP9_COMP *cpi, int damp_var);
+void vp9_rc_update_rate_correction_factors(struct VP9_COMP *cpi);
 
 // Decide if we should drop this frame: For 1-pass CBR.
 // Changes only the decimation count in the rate control structure

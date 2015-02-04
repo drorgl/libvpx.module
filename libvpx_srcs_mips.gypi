@@ -193,6 +193,8 @@
     '<(libvpx_source)/vp9/decoder/vp9_detokenize.h',
     '<(libvpx_source)/vp9/decoder/vp9_dsubexp.c',
     '<(libvpx_source)/vp9/decoder/vp9_dsubexp.h',
+    '<(libvpx_source)/vp9/decoder/vp9_dthread.c',
+    '<(libvpx_source)/vp9/decoder/vp9_dthread.h',
     '<(libvpx_source)/vp9/decoder/vp9_read_bit_buffer.c',
     '<(libvpx_source)/vp9/decoder/vp9_read_bit_buffer.h',
     '<(libvpx_source)/vp9/decoder/vp9_reader.c',

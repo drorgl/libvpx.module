@@ -396,7 +396,7 @@ static void set_rate_correction_factor(VP9_COMP *cpi, double factor) {
   }
 }
 
-void vp9_rc_update_rate_correction_factors(VP9_COMP *cpi, int damp_var) {
+void vp9_rc_update_rate_correction_factors(VP9_COMP *cpi) {
   const VP9_COMMON *const cm = &cpi->common;
   int correction_factor = 100;
   double rate_correction_factor = get_rate_correction_factor(cpi);
@@ -431,19 +431,8 @@ void vp9_rc_update_rate_correction_factors(VP9_COMP *cpi, int damp_var) {
 
   // More heavily damped adjustment used if we have been oscillating either side
   // of target.
-  switch (damp_var) {
-    case 0:
-      adjustment_limit = 0.75;
-      break;
-    case 1:
-      adjustment_limit = 0.25 +
-          0.5 * MIN(1, fabs(log10(0.01 * correction_factor)));
-      break;
-    case 2:
-    default:
-      adjustment_limit = 0.25;
-      break;
-  }
+  adjustment_limit = 0.25 +
+      0.5 * MIN(1, fabs(log10(0.01 * correction_factor)));
 
   cpi->rc.q_2_frame = cpi->rc.q_1_frame;
   cpi->rc.q_1_frame = cm->base_qindex;
@@ -1222,9 +1211,7 @@ void vp9_rc_postencode_update(VP9_COMP *cpi, uint64_t bytes_used) {
   rc->projected_frame_size = (int)(bytes_used << 3);
 
   // Post encode loop adjustment of Q prediction.
-  vp9_rc_update_rate_correction_factors(
-      cpi, (cpi->sf.recode_loop >= ALLOW_RECODE_KFARFGF) ? 2 :
-            ((oxcf->rc_mode == VPX_CBR) ? 1 : 0));
+  vp9_rc_update_rate_correction_factors(cpi);
 
   // Keep a record of last Q and ambient average Q.
   if (cm->frame_type == KEY_FRAME) {
@@ -1254,7 +1241,9 @@ void vp9_rc_postencode_update(VP9_COMP *cpi, uint64_t bytes_used) {
   // better than that already stored.
   // This is used to help set quality in forced key frames to reduce popping
   if ((qindex < rc->last_boosted_qindex) ||
-      (((cm->frame_type == KEY_FRAME) || cpi->refresh_alt_ref_frame ||
+      (cm->frame_type == KEY_FRAME) ||
+      (!rc->constrained_gf_group &&
+       (cpi->refresh_alt_ref_frame ||
         (cpi->refresh_golden_frame && !rc->is_src_frame_alt_ref)))) {
     rc->last_boosted_qindex = qindex;
   }
@@ -1358,8 +1347,12 @@ void vp9_rc_get_one_pass_vbr_params(VP9_COMP *cpi) {
     rc->baseline_gf_interval = DEFAULT_GF_INTERVAL;
     rc->frames_till_gf_update_due = rc->baseline_gf_interval;
     // NOTE: frames_till_gf_update_due must be <= frames_to_key.
-    if (rc->frames_till_gf_update_due > rc->frames_to_key)
+    if (rc->frames_till_gf_update_due > rc->frames_to_key) {
       rc->frames_till_gf_update_due = rc->frames_to_key;
+      rc->constrained_gf_group = 1;
+    } else {
+      rc->constrained_gf_group = 0;
+    }
     cpi->refresh_golden_frame = 1;
     rc->source_alt_ref_pending = USE_ALTREF_FOR_ONE_PASS;
     rc->gfu_boost = DEFAULT_GF_BOOST;

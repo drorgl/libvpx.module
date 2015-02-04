@@ -2026,7 +2026,8 @@ static void setup_buffer_inter(VP9_COMP *cpi, MACROBLOCK *x,
   vp9_setup_pred_block(xd, yv12_mb[ref_frame], yv12, mi_row, mi_col, sf, sf);
 
   // Gets an initial list of candidate vectors from neighbours and orders them
-  vp9_find_mv_refs(cm, xd, tile, mi, ref_frame, candidates, mi_row, mi_col);
+  vp9_find_mv_refs(cm, xd, tile, mi, ref_frame, candidates, mi_row, mi_col,
+                   NULL, NULL);
 
   // Candidate refinement carried out at encoder and decoder
   vp9_find_best_ref_mvs(xd, cm->allow_high_precision_mv, candidates,
@@ -3047,8 +3048,8 @@ void vp9_rd_pick_inter_mode_sb(VP9_COMP *cpi,
       }
     }
 
-    if (ref_frame_skip_mask[0] & (1 << ref_frame) &&
-        ref_frame_skip_mask[1] & (1 << MAX(0, second_ref_frame)))
+    if ((ref_frame_skip_mask[0] & (1 << ref_frame)) &&
+        (ref_frame_skip_mask[1] & (1 << MAX(0, second_ref_frame))))
       continue;
 
     if (mode_skip_mask[ref_frame] & (1 << this_mode))
@@ -3750,8 +3751,8 @@ void vp9_rd_pick_inter_mode_sub8x8(VP9_COMP *cpi,
       }
     }
 
-    if (ref_frame_skip_mask[0] & (1 << ref_frame) &&
-        ref_frame_skip_mask[1] & (1 << MAX(0, second_ref_frame)))
+    if ((ref_frame_skip_mask[0] & (1 << ref_frame)) &&
+        (ref_frame_skip_mask[1] & (1 << MAX(0, second_ref_frame))))
       continue;
 
     // Test best rd so far against threshold for trying this mode.
