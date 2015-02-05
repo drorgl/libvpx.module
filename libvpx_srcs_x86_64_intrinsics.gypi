@@ -121,6 +121,9 @@
           'EnableEnhancedInstructionSet': '5', # /arch:AVX2
         },
       },
+      # TODO(pcc): Remove this once we properly support subtarget specific
+      # code generation in LLVM (http://llvm.org/PR19416).
+      'cflags!': [ '-flto', ],
     },
   ],
 }
