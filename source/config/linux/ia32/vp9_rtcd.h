@@ -383,6 +383,14 @@ void vp9_iht8x8_64_add_c(const tran_low_t *input, uint8_t *dest, int dest_stride
 void vp9_iht8x8_64_add_sse2(const tran_low_t *input, uint8_t *dest, int dest_stride, int tx_type);
 RTCD_EXTERN void (*vp9_iht8x8_64_add)(const tran_low_t *input, uint8_t *dest, int dest_stride, int tx_type);
 
+int16_t vp9_int_pro_col_c(uint8_t const *ref, const int width);
+int16_t vp9_int_pro_col_sse2(uint8_t const *ref, const int width);
+RTCD_EXTERN int16_t (*vp9_int_pro_col)(uint8_t const *ref, const int width);
+
+void vp9_int_pro_row_c(int16_t *hbuf, uint8_t const *ref, const int ref_stride, const int height);
+void vp9_int_pro_row_sse2(int16_t *hbuf, uint8_t const *ref, const int ref_stride, const int height);
+RTCD_EXTERN void (*vp9_int_pro_row)(int16_t *hbuf, uint8_t const *ref, const int ref_stride, const int height);
+
 void vp9_iwht4x4_16_add_c(const tran_low_t *input, uint8_t *dest, int dest_stride);
 #define vp9_iwht4x4_16_add vp9_iwht4x4_16_add_c
 
@@ -918,6 +926,10 @@ unsigned int vp9_variance8x8_c(const uint8_t *src_ptr, int source_stride, const 
 unsigned int vp9_variance8x8_sse2(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 RTCD_EXTERN unsigned int (*vp9_variance8x8)(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 
+int vp9_vector_sad_c(int16_t const *ref, int16_t const *src, const int width);
+int vp9_vector_sad_sse2(int16_t const *ref, int16_t const *src, const int width);
+RTCD_EXTERN int (*vp9_vector_sad)(int16_t const *ref, int16_t const *src, const int width);
+
 void vp9_rtcd(void);
 
 #ifdef RTCD_C
@@ -1079,6 +1091,10 @@ static void setup_rtcd_internal(void)
     if (flags & HAS_SSE2) vp9_iht4x4_16_add = vp9_iht4x4_16_add_sse2;
     vp9_iht8x8_64_add = vp9_iht8x8_64_add_c;
     if (flags & HAS_SSE2) vp9_iht8x8_64_add = vp9_iht8x8_64_add_sse2;
+    vp9_int_pro_col = vp9_int_pro_col_c;
+    if (flags & HAS_SSE2) vp9_int_pro_col = vp9_int_pro_col_sse2;
+    vp9_int_pro_row = vp9_int_pro_row_c;
+    if (flags & HAS_SSE2) vp9_int_pro_row = vp9_int_pro_row_sse2;
     vp9_lpf_horizontal_16 = vp9_lpf_horizontal_16_c;
     if (flags & HAS_SSE2) vp9_lpf_horizontal_16 = vp9_lpf_horizontal_16_sse2;
     if (flags & HAS_AVX2) vp9_lpf_horizontal_16 = vp9_lpf_horizontal_16_avx2;
@@ -1348,6 +1364,8 @@ static void setup_rtcd_internal(void)
     if (flags & HAS_SSE2) vp9_variance8x4 = vp9_variance8x4_sse2;
     vp9_variance8x8 = vp9_variance8x8_c;
     if (flags & HAS_SSE2) vp9_variance8x8 = vp9_variance8x8_sse2;
+    vp9_vector_sad = vp9_vector_sad_c;
+    if (flags & HAS_SSE2) vp9_vector_sad = vp9_vector_sad_sse2;
 }
 #endif
 

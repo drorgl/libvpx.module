@@ -88,6 +88,8 @@ VP9_CX_SRCS-yes += encoder/vp9_aq_cyclicrefresh.c
 VP9_CX_SRCS-yes += encoder/vp9_aq_cyclicrefresh.h
 VP9_CX_SRCS-yes += encoder/vp9_aq_complexity.c
 VP9_CX_SRCS-yes += encoder/vp9_aq_complexity.h
+VP9_CX_SRCS-yes += encoder/vp9_skin_detection.c
+VP9_CX_SRCS-yes += encoder/vp9_skin_detection.h
 ifeq ($(CONFIG_VP9_POSTPROC),yes)
 VP9_CX_SRCS-$(CONFIG_INTERNAL_STATS) += common/vp9_postproc.h
 VP9_CX_SRCS-$(CONFIG_INTERNAL_STATS) += common/vp9_postproc.c
@@ -150,7 +152,9 @@ VP9_CX_SRCS-$(HAVE_AVX2) += encoder/x86/vp9_dct_avx2.c
 VP9_CX_SRCS-$(HAVE_AVX2) += encoder/x86/vp9_error_intrin_avx2.c
 VP9_CX_SRCS-$(HAVE_AVX2) += encoder/x86/vp9_variance_avx2.c
 
+VP9_CX_SRCS-$(HAVE_NEON) += encoder/arm/neon/vp9_avg_neon.c
 VP9_CX_SRCS-$(HAVE_NEON) += encoder/arm/neon/vp9_sad_neon.c
+VP9_CX_SRCS-$(HAVE_NEON) += encoder/arm/neon/vp9_sad4d_neon.c
 VP9_CX_SRCS-$(HAVE_NEON) += encoder/arm/neon/vp9_dct_neon.c
 VP9_CX_SRCS-$(HAVE_NEON) += encoder/arm/neon/vp9_variance_neon.c
 VP9_CX_SRCS-$(HAVE_NEON) += encoder/arm/neon/vp9_quantize_neon.c

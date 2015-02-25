@@ -216,6 +216,8 @@ static void model_rd_for_sb_y(VP9_COMP *cpi, BLOCK_SIZE bsize,
   int64_t dist;
   struct macroblock_plane *const p = &x->plane[0];
   struct macroblockd_plane *const pd = &xd->plane[0];
+  const int64_t dc_thr = p->quant_thred[0] >> 6;
+  const int64_t ac_thr = p->quant_thred[1] >> 6;
   const uint32_t dc_quant = pd->dequant[0];
   const uint32_t ac_quant = pd->dequant[1];
   unsigned int var = cpi->fn_ptr[bsize].vf(p->src.buf, p->src.stride,
@@ -223,12 +225,14 @@ static void model_rd_for_sb_y(VP9_COMP *cpi, BLOCK_SIZE bsize,
   *var_y = var;
   *sse_y = sse;
 
-  if (sse < dc_quant * dc_quant >> 6)
-    x->skip_txfm[0] = 1;
-  else if (var < ac_quant * ac_quant >> 6)
+  x->skip_txfm[0] = 0;
+  // Check if all ac coefficients can be quantized to zero.
+  if (var < ac_thr || var == 0) {
     x->skip_txfm[0] = 2;
-  else
-    x->skip_txfm[0] = 0;
+    // Check if dc coefficient can be quantized to zero.
+    if (sse - var < dc_thr || sse == var)
+      x->skip_txfm[0] = 1;
+  }
 
   if (cpi->common.tx_mode == TX_MODE_SELECT) {
     if (sse > (var << 2))
@@ -238,9 +242,13 @@ static void model_rd_for_sb_y(VP9_COMP *cpi, BLOCK_SIZE bsize,
     else
       xd->mi[0].src_mi->mbmi.tx_size = TX_8X8;
 
-    if (cpi->sf.partition_search_type == VAR_BASED_PARTITION &&
-        xd->mi[0].src_mi->mbmi.tx_size > TX_16X16)
-      xd->mi[0].src_mi->mbmi.tx_size = TX_16X16;
+    if (cpi->sf.partition_search_type == VAR_BASED_PARTITION) {
+      if (cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ &&
+          xd->mi[0].src_mi->mbmi.segment_id != CR_SEGMENT_ID_BASE)
+        xd->mi[0].src_mi->mbmi.tx_size = TX_8X8;
+      else if (xd->mi[0].src_mi->mbmi.tx_size > TX_16X16)
+        xd->mi[0].src_mi->mbmi.tx_size = TX_16X16;
+    }
   } else {
     xd->mi[0].src_mi->mbmi.tx_size =
         MIN(max_txsize_lookup[bsize],
@@ -281,6 +289,71 @@ static void model_rd_for_sb_y(VP9_COMP *cpi, BLOCK_SIZE bsize,
 
   if (*out_rate_sum == 0)
     x->skip_txfm[0] = 1;
+}
+
+static void model_rd_for_sb_uv(VP9_COMP *cpi, BLOCK_SIZE bsize,
+                               MACROBLOCK *x, MACROBLOCKD *xd,
+                               int *out_rate_sum, int64_t *out_dist_sum,
+                               unsigned int *var_y, unsigned int *sse_y) {
+  // Note our transform coeffs are 8 times an orthogonal transform.
+  // Hence quantizer step is also 8 times. To get effective quantizer
+  // we need to divide by 8 before sending to modeling function.
+  unsigned int sse;
+  int rate;
+  int64_t dist;
+  int i;
+
+  *out_rate_sum = 0;
+  *out_dist_sum = 0;
+
+  for (i = 1; i <= 2; ++i) {
+    struct macroblock_plane *const p = &x->plane[i];
+    struct macroblockd_plane *const pd = &xd->plane[i];
+    const uint32_t dc_quant = pd->dequant[0];
+    const uint32_t ac_quant = pd->dequant[1];
+    const BLOCK_SIZE bs = get_plane_block_size(bsize, pd);
+    unsigned int var;
+
+    if (!x->color_sensitivity[i - 1])
+      continue;
+
+    var = cpi->fn_ptr[bs].vf(p->src.buf, p->src.stride,
+                             pd->dst.buf, pd->dst.stride, &sse);
+    *var_y += var;
+    *sse_y += sse;
+
+  #if CONFIG_VP9_HIGHBITDEPTH
+    if (xd->cur_buf->flags & YV12_FLAG_HIGHBITDEPTH) {
+      vp9_model_rd_from_var_lapndz(sse - var, num_pels_log2_lookup[bs],
+                                   dc_quant >> (xd->bd - 5), &rate, &dist);
+    } else {
+      vp9_model_rd_from_var_lapndz(sse - var, num_pels_log2_lookup[bs],
+                                   dc_quant >> 3, &rate, &dist);
+    }
+  #else
+    vp9_model_rd_from_var_lapndz(sse - var, num_pels_log2_lookup[bs],
+                                 dc_quant >> 3, &rate, &dist);
+  #endif  // CONFIG_VP9_HIGHBITDEPTH
+
+    *out_rate_sum += rate >> 1;
+    *out_dist_sum += dist << 3;
+
+  #if CONFIG_VP9_HIGHBITDEPTH
+    if (xd->cur_buf->flags & YV12_FLAG_HIGHBITDEPTH) {
+      vp9_model_rd_from_var_lapndz(var, num_pels_log2_lookup[bs],
+                                   ac_quant >> (xd->bd - 5), &rate, &dist);
+    } else {
+      vp9_model_rd_from_var_lapndz(var, num_pels_log2_lookup[bs],
+                                   ac_quant >> 3, &rate, &dist);
+    }
+  #else
+    vp9_model_rd_from_var_lapndz(var, num_pels_log2_lookup[bs],
+                                 ac_quant >> 3, &rate, &dist);
+  #endif  // CONFIG_VP9_HIGHBITDEPTH
+
+    *out_rate_sum += rate;
+    *out_dist_sum += dist << 4;
+  }
 }
 
 static int get_pred_buffer(PRED_BUFFER *p, int len) {
@@ -325,11 +398,11 @@ static void encode_breakout_test(VP9_COMP *cpi, MACROBLOCK *x,
     const unsigned int min_thresh =
         MIN(((unsigned int)x->encode_breakout << 4), max_thresh);
 #if CONFIG_VP9_HIGHBITDEPTH
-    const int shift = 2 * xd->bd - 16;
+    const int shift = (xd->bd << 1) - 16;
 #endif
 
     // Calculate threshold according to dequant value.
-    thresh_ac = (xd->plane[0].dequant[1] * xd->plane[0].dequant[1]) / 9;
+    thresh_ac = (xd->plane[0].dequant[1] * xd->plane[0].dequant[1]) >> 3;
 #if CONFIG_VP9_HIGHBITDEPTH
     if ((xd->cur_buf->flags & YV12_FLAG_HIGHBITDEPTH) && shift > 0) {
       thresh_ac = ROUND_POWER_OF_TWO(thresh_ac, shift);
@@ -371,14 +444,14 @@ static void encode_breakout_test(VP9_COMP *cpi, MACROBLOCK *x,
                                     xd->plane[1].dst.stride, &sse_u);
 
     // U skipping condition checking
-    if ((var_u * 4 <= thresh_ac) && (sse_u - var_u <= thresh_dc)) {
+    if (((var_u << 2) <= thresh_ac) && (sse_u - var_u <= thresh_dc)) {
       var_v = cpi->fn_ptr[uv_size].vf(x->plane[2].src.buf,
                                       x->plane[2].src.stride,
                                       xd->plane[2].dst.buf,
                                       xd->plane[2].dst.stride, &sse_v);
 
       // V skipping condition checking
-      if ((var_v * 4 <= thresh_ac) && (sse_v - var_v <= thresh_dc)) {
+      if (((var_v << 2) <= thresh_ac) && (sse_v - var_v <= thresh_dc)) {
         x->skip = 1;
 
         // The cost of skip bit needs to be added.
@@ -508,6 +581,13 @@ void vp9_pick_intra_mode(VP9_COMP *cpi, MACROBLOCK *x, RD_COST *rd_cost,
   *rd_cost = best_rdc;
 }
 
+static const PREDICTION_MODE inter_mode_set[INTER_MODES] = {
+    ZEROMV, NEARESTMV, NEARMV, NEWMV,
+};
+
+static const int ref_frame_cost[MAX_REF_FRAMES] = {
+    1235, 229, 530, 615,
+};
 // TODO(jingning) placeholder for inter-frame non-RD mode decision.
 // this needs various further optimizations. to be continued..
 void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
@@ -624,7 +704,7 @@ void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
 
       if (cm->use_prev_frame_mvs)
         vp9_find_mv_refs(cm, xd, tile_info, xd->mi[0].src_mi, ref_frame,
-                         candidates, mi_row, mi_col);
+                         candidates, mi_row, mi_col, NULL, NULL);
       else
         const_motion[ref_frame] = mv_refs_rt(cm, xd, tile_info,
                                              xd->mi[0].src_mi,
@@ -658,7 +738,8 @@ void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
       continue;
 
     // Select prediction reference frames.
-    xd->plane[0].pre[0] = yv12_mb[ref_frame][0];
+    for (i = 0; i < MAX_MB_PLANE; i++)
+      xd->plane[i].pre[0] = yv12_mb[ref_frame][i];
 
     clamp_mv2(&frame_mv[NEARESTMV][ref_frame].as_mv, xd);
     clamp_mv2(&frame_mv[NEARMV][ref_frame].as_mv, xd);
@@ -666,10 +747,12 @@ void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
     mbmi->ref_frame[0] = ref_frame;
     set_ref_ptrs(cm, xd, ref_frame, NONE);
 
-    for (this_mode = NEARESTMV; this_mode <= NEWMV; ++this_mode) {
+    for (i = 0; i < INTER_MODES; ++i) {
       int rate_mv = 0;
       int mode_rd_thresh;
-      int mode_index = mode_idx[ref_frame][INTER_OFFSET(this_mode)];
+      int mode_index;
+      this_mode = inter_mode_set[i];
+      mode_index = mode_idx[ref_frame][INTER_OFFSET(this_mode)];
 
       if (const_motion[ref_frame] && this_mode == NEARMV)
         continue;
@@ -735,9 +818,8 @@ void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
           vp9_build_inter_predictors_sby(xd, mi_row, mi_col, bsize);
           model_rd_for_sb_y(cpi, bsize, x, xd, &pf_rate[filter],
                             &pf_dist[filter], &pf_var[filter], &pf_sse[filter]);
-          cost = RDCOST(x->rdmult, x->rddiv,
-                        vp9_get_switchable_rate(cpi, xd) + pf_rate[filter],
-                        pf_dist[filter]);
+          pf_rate[filter] += vp9_get_switchable_rate(cpi, xd);
+          cost = RDCOST(x->rdmult, x->rddiv, pf_rate[filter], pf_dist[filter]);
           pf_tx_size[filter] = mbmi->tx_size;
           if (cost < best_cost) {
             best_filter = filter;
@@ -774,11 +856,28 @@ void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
         vp9_build_inter_predictors_sby(xd, mi_row, mi_col, bsize);
         model_rd_for_sb_y(cpi, bsize, x, xd, &this_rdc.rate, &this_rdc.dist,
                           &var_y, &sse_y);
+        this_rdc.rate += cm->interp_filter == SWITCHABLE ?
+            vp9_get_switchable_rate(cpi, xd) : 0;
+      }
+
+      // chroma component rate-distortion cost modeling
+      if (x->color_sensitivity[0] || x->color_sensitivity[1]) {
+        int uv_rate = 0;
+        int64_t uv_dist = 0;
+        if (x->color_sensitivity[0])
+          vp9_build_inter_predictors_sbp(xd, mi_row, mi_col, bsize, 1);
+        if (x->color_sensitivity[1])
+          vp9_build_inter_predictors_sbp(xd, mi_row, mi_col, bsize, 2);
+        model_rd_for_sb_uv(cpi, bsize, x, xd, &uv_rate, &uv_dist,
+                           &var_y, &sse_y);
+        this_rdc.rate += uv_rate;
+        this_rdc.dist += uv_dist;
       }
 
       this_rdc.rate += rate_mv;
       this_rdc.rate += cpi->inter_mode_cost[mbmi->mode_context[ref_frame]]
                                   [INTER_OFFSET(this_mode)];
+      this_rdc.rate += ref_frame_cost[ref_frame];
       this_rdc.rdcost = RDCOST(x->rdmult, x->rddiv,
                                this_rdc.rate, this_rdc.dist);
 
@@ -885,6 +984,7 @@ void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
       this_rdc.rate = args.rate;
       this_rdc.dist = args.dist;
       this_rdc.rate += cpi->mbmode_cost[this_mode];
+      this_rdc.rate += ref_frame_cost[INTRA_FRAME];
       this_rdc.rate += intra_cost_penalty;
       this_rdc.rdcost = RDCOST(x->rdmult, x->rddiv,
                                this_rdc.rate, this_rdc.dist);
@@ -988,7 +1088,7 @@ void vp9_pick_inter_mode_sub8x8(VP9_COMP *cpi, MACROBLOCK *x,
       vp9_setup_pred_block(xd, yv12_mb[ref_frame], yv12, mi_row, mi_col,
                            sf, sf);
       vp9_find_mv_refs(cm, xd, tile_info, xd->mi[0].src_mi, ref_frame,
-                       candidates, mi_row, mi_col);
+                       candidates, mi_row, mi_col, NULL, NULL);
 
       vp9_find_best_ref_mvs(xd, cm->allow_high_precision_mv, candidates,
                             &dummy_mv[0], &dummy_mv[1]);
@@ -1038,8 +1138,6 @@ void vp9_pick_inter_mode_sub8x8(VP9_COMP *cpi, MACROBLOCK *x,
         int64_t b_best_rd = INT64_MAX;
         const int i = idy * 2 + idx;
         PREDICTION_MODE this_mode;
-        int b_rate = 0;
-        int64_t b_dist = 0;
         RD_COST this_rdc;
         unsigned int var_y, sse_y;
 
@@ -1067,6 +1165,7 @@ void vp9_pick_inter_mode_sub8x8(VP9_COMP *cpi, MACROBLOCK *x,
                                       &b_mv[NEARMV]);
 
         for (this_mode = NEARESTMV; this_mode <= NEWMV; ++this_mode) {
+          int b_rate = 0;
           xd->mi[0].bmi[i].as_mv[0].as_int = b_mv[this_mode].as_int;
 
           if (this_mode == NEWMV) {
@@ -1128,9 +1227,14 @@ void vp9_pick_inter_mode_sub8x8(VP9_COMP *cpi, MACROBLOCK *x,
                                          &x->pred_sse[ref_frame], NULL, 0, 0);
 
             xd->mi[0].bmi[i].as_mv[0].as_mv = tmp_mv;
+          } else {
+            b_rate += cpi->inter_mode_cost[mbmi->mode_context[ref_frame]]
+                                          [INTER_OFFSET(this_mode)];
           }
 
-          vp9_build_inter_predictor(pd->pre[0].buf, pd->pre[0].stride,
+#if CONFIG_VP9_HIGHBITDEPTH
+          if (xd->cur_buf->flags & YV12_FLAG_HIGHBITDEPTH) {
+            vp9_highbd_build_inter_predictor(pd->pre[0].buf, pd->pre[0].stride,
                                     pd->dst.buf, pd->dst.stride,
                                     &xd->mi[0].bmi[i].as_mv[0].as_mv,
                                     &xd->block_refs[0]->sf,
@@ -1139,12 +1243,28 @@ void vp9_pick_inter_mode_sub8x8(VP9_COMP *cpi, MACROBLOCK *x,
                                     vp9_get_interp_kernel(mbmi->interp_filter),
                                     MV_PRECISION_Q3,
                                     mi_col * MI_SIZE + 4 * (i & 0x01),
-                                    mi_row * MI_SIZE + 4 * (i >> 1));
+                                    mi_row * MI_SIZE + 4 * (i >> 1), xd->bd);
+          } else {
+#endif
+            vp9_build_inter_predictor(pd->pre[0].buf, pd->pre[0].stride,
+                                     pd->dst.buf, pd->dst.stride,
+                                     &xd->mi[0].bmi[i].as_mv[0].as_mv,
+                                     &xd->block_refs[0]->sf,
+                                     4 * num_4x4_blocks_wide,
+                                     4 * num_4x4_blocks_high, 0,
+                                     vp9_get_interp_kernel(mbmi->interp_filter),
+                                     MV_PRECISION_Q3,
+                                     mi_col * MI_SIZE + 4 * (i & 0x01),
+                                     mi_row * MI_SIZE + 4 * (i >> 1));
+
+#if CONFIG_VP9_HIGHBITDEPTH
+          }
+#endif
+
           model_rd_for_sb_y(cpi, bsize, x, xd, &this_rdc.rate, &this_rdc.dist,
                             &var_y, &sse_y);
 
           this_rdc.rate += b_rate;
-          this_rdc.dist += b_dist;
           this_rdc.rdcost = RDCOST(x->rdmult, x->rddiv,
                                    this_rdc.rate, this_rdc.dist);
           if (this_rdc.rdcost < b_best_rd) {

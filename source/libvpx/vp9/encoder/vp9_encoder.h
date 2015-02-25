@@ -19,7 +19,7 @@
 
 #include "vp9/common/vp9_ppflags.h"
 #include "vp9/common/vp9_entropymode.h"
-#include "vp9/common/vp9_loopfilter_thread.h"
+#include "vp9/common/vp9_thread_common.h"
 #include "vp9/common/vp9_onyxc_int.h"
 #include "vp9/common/vp9_thread.h"
 
@@ -269,6 +269,8 @@ struct EncWorkerData;
 typedef struct VP9_COMP {
   QUANTS quants;
   ThreadData td;
+  DECLARE_ALIGNED(16, int16_t, y_dequant[QINDEX_RANGE][8]);
+  DECLARE_ALIGNED(16, int16_t, uv_dequant[QINDEX_RANGE][8]);
   VP9_COMMON common;
   VP9EncoderConfig oxcf;
   struct lookahead_ctx    *lookahead;
@@ -448,6 +450,15 @@ typedef struct VP9_COMP {
   VP9_DENOISER denoiser;
 #endif
 
+  int resize_pending;
+
+  // VAR_BASED_PARTITION thresholds
+  int64_t vbp_threshold;
+  int64_t vbp_threshold_bsize_min;
+  int64_t vbp_threshold_bsize_max;
+  int64_t vbp_threshold_16x16;
+  BLOCK_SIZE vbp_bsize_min;
+
   // Multi-threading
   int num_workers;
   VP9Worker *workers;
@@ -457,7 +468,8 @@ typedef struct VP9_COMP {
 
 void vp9_initialize_enc(void);
 
-struct VP9_COMP *vp9_create_compressor(VP9EncoderConfig *oxcf);
+struct VP9_COMP *vp9_create_compressor(VP9EncoderConfig *oxcf,
+                                       BufferPool *const pool);
 void vp9_remove_compressor(VP9_COMP *cpi);
 
 void vp9_change_config(VP9_COMP *cpi, const VP9EncoderConfig *oxcf);
@@ -518,8 +530,9 @@ static INLINE int get_ref_frame_idx(const VP9_COMP *cpi,
 
 static INLINE YV12_BUFFER_CONFIG *get_ref_frame_buffer(
     VP9_COMP *cpi, MV_REFERENCE_FRAME ref_frame) {
-  VP9_COMMON * const cm = &cpi->common;
-  return &cm->frame_bufs[cm->ref_frame_map[get_ref_frame_idx(cpi, ref_frame)]]
+  VP9_COMMON *const cm = &cpi->common;
+  BufferPool *const pool = cm->buffer_pool;
+  return &pool->frame_bufs[cm->ref_frame_map[get_ref_frame_idx(cpi, ref_frame)]]
       .buf;
 }
 
@@ -590,6 +603,8 @@ static INLINE int get_chessboard_index(const int frame_index) {
 static INLINE int *cond_cost_list(const struct VP9_COMP *cpi, int *cost_list) {
   return cpi->sf.mv.subpel_search_method != SUBPEL_TREE ? cost_list : NULL;
 }
+
+void vp9_new_framerate(VP9_COMP *cpi, double framerate);
 
 #ifdef __cplusplus
 }  // extern "C"

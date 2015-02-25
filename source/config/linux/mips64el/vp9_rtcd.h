@@ -299,6 +299,12 @@ void vp9_iht4x4_16_add_c(const tran_low_t *input, uint8_t *dest, int dest_stride
 void vp9_iht8x8_64_add_c(const tran_low_t *input, uint8_t *dest, int dest_stride, int tx_type);
 #define vp9_iht8x8_64_add vp9_iht8x8_64_add_c
 
+int16_t vp9_int_pro_col_c(uint8_t const *ref, const int width);
+#define vp9_int_pro_col vp9_int_pro_col_c
+
+void vp9_int_pro_row_c(int16_t *hbuf, uint8_t const *ref, const int ref_stride, const int height);
+#define vp9_int_pro_row vp9_int_pro_row_c
+
 void vp9_iwht4x4_16_add_c(const tran_low_t *input, uint8_t *dest, int dest_stride);
 #define vp9_iwht4x4_16_add vp9_iwht4x4_16_add_c
 
@@ -673,6 +679,9 @@ unsigned int vp9_variance8x4_c(const uint8_t *src_ptr, int source_stride, const 
 
 unsigned int vp9_variance8x8_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 #define vp9_variance8x8 vp9_variance8x8_c
+
+int vp9_vector_sad_c(int16_t const *ref, int16_t const *src, const int width);
+#define vp9_vector_sad vp9_vector_sad_c
 
 void vp9_rtcd(void);
 

@@ -509,8 +509,9 @@ static void block_rd_txfm(int plane, int block, BLOCK_SIZE plane_bsize,
       args->sse  = x->bsse[(plane << 2) + (block >> (tx_size << 1))] << 4;
       args->dist = args->sse;
       if (x->plane[plane].eobs[block]) {
-        int64_t dc_correct = coeff[0] * coeff[0] -
-            (coeff[0] - dqcoeff[0]) * (coeff[0] - dqcoeff[0]);
+        const int64_t orig_sse = (int64_t)coeff[0] * coeff[0];
+        const int64_t resd_sse = coeff[0] - dqcoeff[0];
+        int64_t dc_correct = orig_sse - resd_sse * resd_sse;
 #if CONFIG_VP9_HIGHBITDEPTH
         dc_correct >>= ((xd->bd - 8) * 2);
 #endif
@@ -1859,7 +1860,7 @@ static int64_t rd_pick_best_sub8x8_mode(VP9_COMP *cpi, MACROBLOCK *x,
           for (midx = 0; midx < INTER_MODES; ++midx)
             bsi->rdstat[iy][midx].brdcost = INT64_MAX;
         bsi->segment_rd = INT64_MAX;
-        return INT64_MAX;;
+        return INT64_MAX;
       }
 
       mode_idx = INTER_OFFSET(mode_selected);
@@ -1882,7 +1883,7 @@ static int64_t rd_pick_best_sub8x8_mode(VP9_COMP *cpi, MACROBLOCK *x,
           for (midx = 0; midx < INTER_MODES; ++midx)
             bsi->rdstat[iy][midx].brdcost = INT64_MAX;
         bsi->segment_rd = INT64_MAX;
-        return INT64_MAX;;
+        return INT64_MAX;
       }
     }
   } /* for each label */
@@ -2026,7 +2027,8 @@ static void setup_buffer_inter(VP9_COMP *cpi, MACROBLOCK *x,
   vp9_setup_pred_block(xd, yv12_mb[ref_frame], yv12, mi_row, mi_col, sf, sf);
 
   // Gets an initial list of candidate vectors from neighbours and orders them
-  vp9_find_mv_refs(cm, xd, tile, mi, ref_frame, candidates, mi_row, mi_col);
+  vp9_find_mv_refs(cm, xd, tile, mi, ref_frame, candidates, mi_row, mi_col,
+                   NULL, NULL);
 
   // Candidate refinement carried out at encoder and decoder
   vp9_find_best_ref_mvs(xd, cm->allow_high_precision_mv, candidates,
@@ -2104,24 +2106,27 @@ static void single_motion_search(VP9_COMP *cpi, MACROBLOCK *x,
   if (cpi->sf.adaptive_motion_search) {
     int bwl = b_width_log2_lookup[bsize];
     int bhl = b_height_log2_lookup[bsize];
-    int i;
     int tlevel = x->pred_mv_sad[ref] >> (bwl + bhl + 4);
 
     if (tlevel < 5)
       step_param += 2;
 
-    for (i = LAST_FRAME; i <= ALTREF_FRAME && cm->show_frame; ++i) {
-      if ((x->pred_mv_sad[ref] >> 3) > x->pred_mv_sad[i]) {
-        x->pred_mv[ref].row = 0;
-        x->pred_mv[ref].col = 0;
-        tmp_mv->as_int = INVALID_MV;
+    // prev_mv_sad is not setup for dynamically scaled frames.
+    if (cpi->oxcf.resize_mode != RESIZE_DYNAMIC) {
+      int i;
+      for (i = LAST_FRAME; i <= ALTREF_FRAME && cm->show_frame; ++i) {
+        if ((x->pred_mv_sad[ref] >> 3) > x->pred_mv_sad[i]) {
+          x->pred_mv[ref].row = 0;
+          x->pred_mv[ref].col = 0;
+          tmp_mv->as_int = INVALID_MV;
 
-        if (scaled_ref_frame) {
-          int i;
-          for (i = 0; i < MAX_MB_PLANE; i++)
-            xd->plane[i].pre[0] = backup_yv12[i];
+          if (scaled_ref_frame) {
+            int i;
+            for (i = 0; i < MAX_MB_PLANE; ++i)
+              xd->plane[i].pre[0] = backup_yv12[i];
+          }
+          return;
         }
-        return;
       }
     }
   }
@@ -3047,8 +3052,8 @@ void vp9_rd_pick_inter_mode_sb(VP9_COMP *cpi,
       }
     }
 
-    if (ref_frame_skip_mask[0] & (1 << ref_frame) &&
-        ref_frame_skip_mask[1] & (1 << MAX(0, second_ref_frame)))
+    if ((ref_frame_skip_mask[0] & (1 << ref_frame)) &&
+        (ref_frame_skip_mask[1] & (1 << MAX(0, second_ref_frame))))
       continue;
 
     if (mode_skip_mask[ref_frame] & (1 << this_mode))
@@ -3517,6 +3522,8 @@ void vp9_rd_pick_inter_mode_sb(VP9_COMP *cpi,
     best_mode_skippable |= !has_high_freq_coeff;
   }
 
+  assert(best_mode_index >= 0);
+
   store_coding_context(x, ctx, best_mode_index, best_pred_diff,
                        best_tx_diff, best_filter_diff, best_mode_skippable);
 }
@@ -3750,8 +3757,8 @@ void vp9_rd_pick_inter_mode_sub8x8(VP9_COMP *cpi,
       }
     }
 
-    if (ref_frame_skip_mask[0] & (1 << ref_frame) &&
-        ref_frame_skip_mask[1] & (1 << MAX(0, second_ref_frame)))
+    if ((ref_frame_skip_mask[0] & (1 << ref_frame)) &&
+        (ref_frame_skip_mask[1] & (1 << MAX(0, second_ref_frame))))
       continue;
 
     // Test best rd so far against threshold for trying this mode.
