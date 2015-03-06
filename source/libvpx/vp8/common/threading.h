@@ -28,8 +28,13 @@ extern "C" {
 #define THREAD_SPECIFIC_INDEX DWORD
 #define pthread_t HANDLE
 #define pthread_attr_t DWORD
-#define pthread_create(thhandle,attr,thfunc,tharg) (int)((*thhandle=(HANDLE)_beginthreadex(NULL,0,(unsigned int (__stdcall *)(void *))thfunc,tharg,0,NULL))==NULL)
-#define pthread_join(thread, result) ((WaitForSingleObject((thread),INFINITE)!=WAIT_OBJECT_0) || !CloseHandle(thread))
+#if defined(WINRT)
+  #define pthread_create(thhandle,attr,thfunc,tharg) (int)((*thhandle=(HANDLE)CreateThread(NULL, 0, (unsigned int (__stdcall *)(void *))thfunc, tharg, 0, NULL))==NULL);
+  #define pthread_join(thread, result) ((WaitForSingleObjectEx((thread),INFINITE, FALSE)!=WAIT_OBJECT_0) || !CloseHandle(thread))
+#else
+  #define pthread_create(thhandle,attr,thfunc,tharg) (int)((*thhandle=(HANDLE)_beginthreadex(NULL,0,(unsigned int (__stdcall *)(void *))thfunc,tharg,0,NULL))==NULL)
+  #define pthread_join(thread, result) ((WaitForSingleObject((thread),INFINITE)!=WAIT_OBJECT_0) || !CloseHandle(thread))
+#endif
 #define pthread_detach(thread) if(thread!=NULL)CloseHandle(thread)
 #define thread_sleep(nms) Sleep(nms)
 #define pthread_cancel(thread) terminate_thread(thread,0)
@@ -85,11 +90,22 @@ extern "C" {
 #ifdef _WIN32
 #define sem_t HANDLE
 #define pause(voidpara) __asm PAUSE
-#define sem_init(sem, sem_attr1, sem_init_value) (int)((*sem = CreateSemaphore(NULL,0,32768,NULL))==NULL)
-#define sem_wait(sem) (int)(WAIT_OBJECT_0 != WaitForSingleObject(*sem,INFINITE))
+
+#ifdef WINRT
+  #define InitializeCriticalSection(a) InitializeCriticalSectionEx(a, 0, 0)
+#endif
+
+#ifdef WINRT
+  #define sem_init(sem, sem_attr1, sem_init_value) (int)((*sem = CreateSemaphoreEx(NULL,0,32768,NULL,0,0))==NULL)
+  #define sem_wait(sem) (int)(WAIT_OBJECT_0 != WaitForSingleObjectEx(*sem,INFINITE,FALSE))
+#else
+  #define sem_init(sem, sem_attr1, sem_init_value) (int)((*sem = CreateSemaphore(NULL,0,32768,NULL))==NULL)
+  #define sem_wait(sem) (int)(WAIT_OBJECT_0 != WaitForSingleObject(*sem,INFINITE))
+#endif
 #define sem_post(sem) ReleaseSemaphore(*sem,1,NULL)
 #define sem_destroy(sem) if(*sem)((int)(CloseHandle(*sem))==TRUE)
 #define thread_sleep(nms) Sleep(nms)
+
 
 #elif defined(__OS2__)
 typedef struct

@@ -15,7 +15,11 @@
       ['OS=="win"', {
         'asm_obj_extension': 'obj',
       }],
-
+      ['(target_arch=="ia32" or target_arch=="x64") and OS == "win" and OS_RUNTIME == "winrt"', {
+        # set ysam_path variable before ../yasm/yasm_compile.gypi' is loaded in the include session
+        'use_prebuilt_yasm': '1',
+        'yasm_path': '../yasm/binaries/win/yasm<(EXECUTABLE_SUFFIX)',
+      }],
       ['msan==1', {
         'target_arch_full': 'generic',
       }, {
@@ -124,6 +128,7 @@
             '<(libvpx_source)/vp8/decoder',
             '<(libvpx_source)/vp8/encoder',
             '<(shared_generated_dir)', # Provides vpx_rtcd.h.
+
           ],
           'direct_dependent_settings': {
             'include_dirs': [

@@ -153,9 +153,10 @@ x86_simd_caps(void) {
   unsigned int flags = 0;
   unsigned int mask = ~0;
   unsigned int reg_eax, reg_ebx, reg_ecx, reg_edx;
-  char *env;
   (void)reg_ebx;
 
+#if !defined(WINRT)
+  char *env;
   /* See if the CPU capabilities are being overridden by the environment */
   env = getenv("VPX_SIMD_CAPS");
 
@@ -166,6 +167,7 @@ x86_simd_caps(void) {
 
   if (env && *env)
     mask = strtol(env, NULL, 0);
+#endif
 
   /* Ensure that the CPUID instruction supports extended features */
   cpuid(0, 0, reg_eax, reg_ebx, reg_ecx, reg_edx);
