@@ -16,6 +16,11 @@
 #if CONFIG_MULTITHREAD && defined(_WIN32)
 #include <windows.h>
 #include <stdlib.h>
+
+#ifdef WINRT
+#define InitializeCriticalSection(a) InitializeCriticalSectionEx(a, 0, 0)
+#endif
+
 static void once(void (*func)(void))
 {
     static CRITICAL_SECTION *lock;

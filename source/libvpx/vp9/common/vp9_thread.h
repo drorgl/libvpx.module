@@ -28,6 +28,15 @@ extern "C" {
 #include <errno.h>  // NOLINT
 #include <process.h>  // NOLINT
 #include <windows.h>  // NOLINT
+
+#ifdef WINRT
+#define InitializeCriticalSection(a) InitializeCriticalSectionEx(a, 0, 0)
+#define WaitForSingleObject(a, b) WaitForSingleObjectEx(a, b, FALSE)
+#define CreateSemaphore(a,b,c,d) CreateSemaphoreEx(a,b,c,d,0,0)
+#define CreateEvent(lpEventAttributes, bManualReset, bInitialState, lpName) CreateEventEx(lpEventAttributes, lpName, (bManualReset?CREATE_EVENT_MANUAL_RESET:0 | bInitialState?CREATE_EVENT_INITIAL_SET:0), 0)
+#endif
+
+
 typedef HANDLE pthread_t;
 typedef CRITICAL_SECTION pthread_mutex_t;
 typedef struct {
@@ -47,12 +56,23 @@ static INLINE int pthread_create(pthread_t* const thread, const void* attr,
                                  unsigned int (__stdcall *start)(void*),
                                  void* arg) {
   (void)attr;
+
+#if defined(WINRT)
+  *thread = (pthread_t)CreateThread(NULL,  /* void *security */
+    0,    /* unsigned stack_size */ 
+    start,
+    arg,
+    0,   /* unsigned initflag */
+    NULL); /* unsigned *thrdaddr */
+#else
   *thread = (pthread_t)_beginthreadex(NULL,   /* void *security */
-                                      0,      /* unsigned stack_size */
-                                      start,
-                                      arg,
-                                      0,      /* unsigned initflag */
-                                      NULL);  /* unsigned *thrdaddr */
+	  0,      /* unsigned stack_size */
+	  start,
+	  arg,
+	  0,      /* unsigned initflag */
+	  NULL);  /* unsigned *thrdaddr */
+#endif
+
   if (*thread == NULL) return 1;
   SetThreadPriority(*thread, THREAD_PRIORITY_ABOVE_NORMAL);
   return 0;
