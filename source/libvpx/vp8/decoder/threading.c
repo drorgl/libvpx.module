@@ -683,8 +683,8 @@ void vp8_decoder_create_threads(VP8D_COMP *pbi)
             pbi->de_thread_data[ithread].ithread  = ithread;
             pbi->de_thread_data[ithread].ptr1     = (void *)pbi;
             pbi->de_thread_data[ithread].ptr2     = (void *) &pbi->mb_row_di[ithread];
-            pthread_create(&pbi->h_decoding_thread[ithread], 0, thread_decoding_proc, (&pbi->de_thread_data[ithread]));
 
+            pthread_create(&pbi->h_decoding_thread[ithread], 0, thread_decoding_proc, (&pbi->de_thread_data[ithread]));
         }
 
         sem_init(&pbi->h_event_end_decoding, 0, 0);

@@ -96,7 +96,7 @@ extern "C" {
 #endif
 
 #ifdef WINRT
-  #define sem_init(sem, sem_attr1, sem_init_value) (int)((*sem = CreateSemaphoreEx(NULL,0,32768,NULL,0,0))==NULL)
+#define sem_init(sem, sem_attr1, sem_init_value) (int)((*sem = CreateSemaphoreEx(NULL,0,32768,NULL,0,SEMAPHORE_ALL_ACCESS))==NULL)
   #define sem_wait(sem) (int)(WAIT_OBJECT_0 != WaitForSingleObjectEx(*sem,INFINITE,FALSE))
 #else
   #define sem_init(sem, sem_attr1, sem_init_value) (int)((*sem = CreateSemaphore(NULL,0,32768,NULL))==NULL)

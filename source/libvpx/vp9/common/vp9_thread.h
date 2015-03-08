@@ -32,7 +32,7 @@ extern "C" {
 #ifdef WINRT
 #define InitializeCriticalSection(a) InitializeCriticalSectionEx(a, 0, 0)
 #define WaitForSingleObject(a, b) WaitForSingleObjectEx(a, b, FALSE)
-#define CreateSemaphore(a,b,c,d) CreateSemaphoreEx(a,b,c,d,0,0)
+#define CreateSemaphore(a, b, c, d) CreateSemaphoreEx(a, b, c ,d, 0, SEMAPHORE_ALL_ACCESS)
 #define CreateEvent(lpEventAttributes, bManualReset, bInitialState, lpName) CreateEventEx(lpEventAttributes, lpName, (bManualReset?CREATE_EVENT_MANUAL_RESET:0 | bInitialState?CREATE_EVENT_INITIAL_SET:0), 0)
 #endif
 

@@ -30,9 +30,6 @@ typedef void (WINAPI *PGNSI)(LPSYSTEM_INFO);
 #include <os2.h>
 #endif
 #endif
-#ifdef WINRT
-#define GetModuleHandle(a) LoadPackagedLibrary(a, 0)
-#endif
 
 #if CONFIG_MULTITHREAD
 static int get_cpu_count()
@@ -47,20 +44,20 @@ static int get_cpu_count()
 #endif
 #elif defined(_WIN32)
     {
-        PGNSI pGNSI;
+      /* Call GetNativeSystemInfo if supported or
+      * GetSystemInfo otherwise. */
         SYSTEM_INFO sysinfo;
+#if defined(WINRT)
+        GetNativeSystemInfo(&sysinfo);
+#else
+        PGNSI pGNSI;
 
-        /* Call GetNativeSystemInfo if supported or
-         * GetSystemInfo otherwise. */
         pGNSI = (PGNSI) GetProcAddress(
           GetModuleHandle(TEXT("kernel32.dll")), "GetNativeSystemInfo");
 
         if (pGNSI != NULL)
             pGNSI(&sysinfo);
         else
-#if defined(WINRT)
-            GetNativeSystemInfo(&sysinfo);
-#else
             GetSystemInfo(&sysinfo);
 #endif
 
