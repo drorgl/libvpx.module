@@ -926,9 +926,9 @@ unsigned int vp9_variance8x8_c(const uint8_t *src_ptr, int source_stride, const 
 unsigned int vp9_variance8x8_sse2(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 RTCD_EXTERN unsigned int (*vp9_variance8x8)(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 
-int vp9_vector_sad_c(int16_t const *ref, int16_t const *src, const int width);
-int vp9_vector_sad_sse2(int16_t const *ref, int16_t const *src, const int width);
-RTCD_EXTERN int (*vp9_vector_sad)(int16_t const *ref, int16_t const *src, const int width);
+int vp9_vector_var_c(int16_t const *ref, int16_t const *src, const int bwl);
+int vp9_vector_var_sse2(int16_t const *ref, int16_t const *src, const int bwl);
+RTCD_EXTERN int (*vp9_vector_var)(int16_t const *ref, int16_t const *src, const int bwl);
 
 void vp9_rtcd(void);
 
@@ -1364,8 +1364,8 @@ static void setup_rtcd_internal(void)
     if (flags & HAS_SSE2) vp9_variance8x4 = vp9_variance8x4_sse2;
     vp9_variance8x8 = vp9_variance8x8_c;
     if (flags & HAS_SSE2) vp9_variance8x8 = vp9_variance8x8_sse2;
-    vp9_vector_sad = vp9_vector_sad_c;
-    if (flags & HAS_SSE2) vp9_vector_sad = vp9_vector_sad_sse2;
+    vp9_vector_var = vp9_vector_var_c;
+    if (flags & HAS_SSE2) vp9_vector_var = vp9_vector_var_sse2;
 }
 #endif
 

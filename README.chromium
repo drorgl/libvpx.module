@@ -5,9 +5,9 @@ License: BSD
 License File: source/libvpx/LICENSE
 Security Critical: yes
 
-Date: Wednesday February 25 2015
+Date: Monday March 9 2015
 Branch: master
-Commit: 3e1d14a6ce812dece1f50800c2a29431b25822b7
+Commit: b12f531cc52945aaa51d51bf98b9237caf8b8fe3
 
 Description:
 Contains the sources used to compile libvpx binaries used by Google Chrome and

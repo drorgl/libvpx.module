@@ -192,7 +192,6 @@ static int combined_motion_search(VP9_COMP *cpi, MACROBLOCK *x,
                                  cond_cost_list(cpi, cost_list),
                                  x->nmvjointcost, x->mvcost,
                                  &dis, &x->pred_sse[ref], NULL, 0, 0);
-    x->pred_mv[ref] = tmp_mv->as_mv;
   }
 
   if (scaled_ref_frame) {
@@ -690,12 +689,13 @@ void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
 #endif
 
   for (ref_frame = LAST_FRAME; ref_frame <= GOLDEN_FRAME; ++ref_frame) {
+    const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_buffer(cpi, ref_frame);
+
     x->pred_mv_sad[ref_frame] = INT_MAX;
     frame_mv[NEWMV][ref_frame].as_int = INVALID_MV;
     frame_mv[ZEROMV][ref_frame].as_int = 0;
 
-    if (cpi->ref_frame_flags & flag_list[ref_frame]) {
-      const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_buffer(cpi, ref_frame);
+    if ((cpi->ref_frame_flags & flag_list[ref_frame]) && (yv12 != NULL)) {
       int_mv *const candidates = mbmi->ref_mvs[ref_frame];
       const struct scale_factors *const sf = &cm->frame_refs[ref_frame - 1].sf;
 
@@ -1077,11 +1077,11 @@ void vp9_pick_inter_mode_sub8x8(VP9_COMP *cpi, MACROBLOCK *x,
   ctx->pred_pixel_ready = 0;
 
   for (ref_frame = LAST_FRAME; ref_frame <= GOLDEN_FRAME; ++ref_frame) {
+    const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_buffer(cpi, ref_frame);
     int_mv dummy_mv[2];
     x->pred_mv_sad[ref_frame] = INT_MAX;
 
-    if (cpi->ref_frame_flags & flag_list[ref_frame]) {
-      const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_buffer(cpi, ref_frame);
+    if ((cpi->ref_frame_flags & flag_list[ref_frame]) && (yv12 != NULL)) {
       int_mv *const candidates = mbmi->ref_mvs[ref_frame];
       const struct scale_factors *const sf =
                              &cm->frame_refs[ref_frame - 1].sf;

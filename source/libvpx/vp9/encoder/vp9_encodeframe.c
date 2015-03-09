@@ -144,12 +144,14 @@ static unsigned int get_sby_perpixel_diff_variance(VP9_COMP *cpi,
                                                    const struct buf_2d *ref,
                                                    int mi_row, int mi_col,
                                                    BLOCK_SIZE bs) {
+  unsigned int sse, var;
+  uint8_t *last_y;
   const YV12_BUFFER_CONFIG *last = get_ref_frame_buffer(cpi, LAST_FRAME);
-  const uint8_t* last_y = &last->y_buffer[mi_row * MI_SIZE * last->y_stride +
-                                              mi_col * MI_SIZE];
-  unsigned int sse;
-  const unsigned int var = cpi->fn_ptr[bs].vf(ref->buf, ref->stride,
-                                              last_y, last->y_stride, &sse);
+
+  assert(last != NULL);
+  last_y =
+      &last->y_buffer[mi_row * MI_SIZE * last->y_stride + mi_col * MI_SIZE];
+  var = cpi->fn_ptr[bs].vf(ref->buf, ref->stride, last_y, last->y_stride, &sse);
   return ROUND_POWER_OF_TWO(var, num_pels_log2_lookup[bs]);
 }
 
@@ -518,154 +520,8 @@ void vp9_set_vbp_thresholds(VP9_COMP *cpi, int q) {
 #define GLOBAL_MOTION 1
 #endif
 
-#if GLOBAL_MOTION
-static int vector_match(int16_t *ref, int16_t *src) {
-  int best_sad = INT_MAX;
-  int this_sad;
-  int d;
-  int center, offset = 0;
-  for (d = 0; d <= 64; d += 16) {
-    this_sad = vp9_vector_sad(&ref[d], src, 64);
-    if (this_sad < best_sad) {
-      best_sad = this_sad;
-      offset = d;
-    }
-  }
-  center = offset;
-
-  for (d = -8; d <= 8; d += 16) {
-    int this_pos = offset + d;
-    // check limit
-    if (this_pos < 0 || this_pos > 64)
-      continue;
-    this_sad = vp9_vector_sad(&ref[this_pos], src, 64);
-    if (this_sad < best_sad) {
-      best_sad = this_sad;
-      center = this_pos;
-    }
-  }
-  offset = center;
-
-  for (d = -4; d <= 4; d += 8) {
-    int this_pos = offset + d;
-    // check limit
-    if (this_pos < 0 || this_pos > 64)
-      continue;
-    this_sad = vp9_vector_sad(&ref[this_pos], src, 64);
-    if (this_sad < best_sad) {
-      best_sad = this_sad;
-      center = this_pos;
-    }
-  }
-  offset = center;
-
-  for (d = -2; d <= 2; d += 4) {
-    int this_pos = offset + d;
-    // check limit
-    if (this_pos < 0 || this_pos > 64)
-      continue;
-    this_sad = vp9_vector_sad(&ref[this_pos], src, 64);
-    if (this_sad < best_sad) {
-      best_sad = this_sad;
-      center = this_pos;
-    }
-  }
-  offset = center;
-
-  for (d = -1; d <= 1; d += 2) {
-    int this_pos = offset + d;
-    // check limit
-    if (this_pos < 0 || this_pos > 64)
-      continue;
-    this_sad = vp9_vector_sad(&ref[this_pos], src, 64);
-    if (this_sad < best_sad) {
-      best_sad = this_sad;
-      center = this_pos;
-    }
-  }
-
-  return (center - 32);
-}
-
-static const MV search_pos[9] = {
-  {-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 0}, {0, 1},
-  {1, -1}, {1, 0}, {1, 1},
-};
-
-static void motion_estimation(VP9_COMP *cpi, MACROBLOCK *x) {
-  MACROBLOCKD *xd = &x->e_mbd;
-  DECLARE_ALIGNED(16, int16_t, hbuf[128]);
-  DECLARE_ALIGNED(16, int16_t, vbuf[128]);
-  DECLARE_ALIGNED(16, int16_t, src_hbuf[64]);
-  DECLARE_ALIGNED(16, int16_t, src_vbuf[64]);
-  int idx;
-  const int stride = 64;
-  const int search_width = 128;
-  const int search_height = 128;
-  const int src_stride = x->plane[0].src.stride;
-  const int ref_stride = xd->plane[0].pre[0].stride;
-  uint8_t const *ref_buf, *src_buf;
-  MV *tmp_mv = &xd->mi[0].src_mi->mbmi.mv[0].as_mv;
-  int best_sad;
-  MV this_mv;
-
-  // Set up prediction 1-D reference set
-  ref_buf = xd->plane[0].pre[0].buf + (-32);
-  for (idx = 0; idx < search_width; idx += 16) {
-    vp9_int_pro_row(&hbuf[idx], ref_buf, ref_stride, 64);
-    ref_buf += 16;
-  }
-
-  ref_buf = xd->plane[0].pre[0].buf + (-32) * ref_stride;
-  for (idx = 0; idx < search_height; ++idx) {
-    vbuf[idx] = vp9_int_pro_col(ref_buf, 64);
-    ref_buf += ref_stride;
-  }
-
-  // Set up src 1-D reference set
-  for (idx = 0; idx < stride; idx += 16) {
-    src_buf = x->plane[0].src.buf + idx;
-    vp9_int_pro_row(&src_hbuf[idx], src_buf, src_stride, 64);
-  }
-
-  src_buf = x->plane[0].src.buf;
-  for (idx = 0; idx < stride; ++idx) {
-    src_vbuf[idx] = vp9_int_pro_col(src_buf, 64);
-    src_buf += src_stride;
-  }
-
-  // Find the best match per 1-D search
-
-  tmp_mv->col = vector_match(hbuf, src_hbuf);
-  tmp_mv->row = vector_match(vbuf, src_vbuf);
-
-  best_sad = INT_MAX;
-  this_mv = *tmp_mv;
-  for (idx = 0; idx < 9; ++idx) {
-    int this_sad;
-    src_buf = x->plane[0].src.buf;
-    ref_buf = xd->plane[0].pre[0].buf +
-        (search_pos[idx].row + this_mv.row) * ref_stride +
-        (search_pos[idx].col + this_mv.col);
-
-    this_sad = cpi->fn_ptr[BLOCK_64X64].sdf(src_buf, src_stride,
-                                            ref_buf, ref_stride);
-    if (this_sad < best_sad) {
-      best_sad = this_sad;
-      tmp_mv->row = search_pos[idx].row + this_mv.row;
-      tmp_mv->col = search_pos[idx].col + this_mv.col;
-    }
-  }
-
-  tmp_mv->row *= 8;
-  tmp_mv->col *= 8;
-
-  x->pred_mv[LAST_FRAME] = *tmp_mv;
-}
-#endif
-
 // This function chooses partitioning based on the variance between source and
-// reconstructed last, where variance is computed for downs-sampled inputs.
+// reconstructed last, where variance is computed for down-sampled inputs.
 static void choose_partitioning(VP9_COMP *cpi,
                                 const TileInfo *const tile,
                                 MACROBLOCK *x,
@@ -680,7 +536,6 @@ static void choose_partitioning(VP9_COMP *cpi,
   int sp;
   int dp;
   int pixels_wide = 64, pixels_high = 64;
-  const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_buffer(cpi, LAST_FRAME);
 
   // Always use 4x4 partition for key frame.
   const int is_key_frame = (cm->frame_type == KEY_FRAME);
@@ -707,7 +562,13 @@ static void choose_partitioning(VP9_COMP *cpi,
 
   if (!is_key_frame) {
     MB_MODE_INFO *mbmi = &xd->mi[0].src_mi->mbmi;
-    unsigned int var = 0, sse;
+    unsigned int uv_sad;
+#if GLOBAL_MOTION
+    unsigned int y_sad;
+    BLOCK_SIZE bsize;
+#endif
+    const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_buffer(cpi, LAST_FRAME);
+    assert(yv12 != NULL);
     vp9_setup_pre_planes(xd, 0, yv12, mi_row, mi_col,
         &cm->frame_refs[LAST_FRAME - 1].sf);
     mbmi->ref_frame[0] = LAST_FRAME;
@@ -717,7 +578,16 @@ static void choose_partitioning(VP9_COMP *cpi,
     mbmi->interp_filter = BILINEAR;
 
 #if GLOBAL_MOTION
-    motion_estimation(cpi, x);
+    if (mi_row + 4 < cm->mi_rows && mi_col + 4 < cm->mi_cols)
+      bsize = BLOCK_64X64;
+    else if (mi_row + 4 < cm->mi_rows && mi_col + 4 >= cm->mi_cols)
+      bsize = BLOCK_32X64;
+    else if (mi_row + 4 >= cm->mi_rows && mi_col + 4 < cm->mi_cols)
+      bsize = BLOCK_64X32;
+    else
+      bsize = BLOCK_32X32;
+
+    y_sad = vp9_int_pro_motion_estimation(cpi, x, bsize);
 #endif
 
     vp9_build_inter_predictors_sb(xd, mi_row, mi_col, BLOCK_64X64);
@@ -725,11 +595,22 @@ static void choose_partitioning(VP9_COMP *cpi,
     for (i = 1; i <= 2; ++i) {
       struct macroblock_plane  *p = &x->plane[i];
       struct macroblockd_plane *pd = &xd->plane[i];
+#if GLOBAL_MOTION
+      const BLOCK_SIZE bs = get_plane_block_size(bsize, pd);
+#else
       const BLOCK_SIZE bs = get_plane_block_size(BLOCK_64X64, pd);
-      var += cpi->fn_ptr[bs].vf(p->src.buf, p->src.stride,
-                                pd->dst.buf, pd->dst.stride, &sse);
-      if (sse > 2048)
-        x->color_sensitivity[i - 1] = 1;
+#endif
+      if (bs == BLOCK_INVALID)
+        uv_sad = INT_MAX;
+      else
+        uv_sad = cpi->fn_ptr[bs].sdf(p->src.buf, p->src.stride,
+                                     pd->dst.buf, pd->dst.stride);
+
+#if GLOBAL_MOTION
+      x->color_sensitivity[i - 1] = uv_sad * 4 > y_sad;
+#else
+      x->color_sensitivity[i - 1] = (uv_sad > 512);
+#endif
     }
 
     d = xd->plane[0].dst.buf;
@@ -3895,7 +3776,7 @@ static void encode_frame_internal(VP9_COMP *cpi) {
   // Special case: set prev_mi to NULL when the previous mode info
   // context cannot be used.
   cm->prev_mi = cm->use_prev_frame_mvs ?
-                  cm->prev_mip + cm->mi_stride + 1 : NULL;
+                cm->prev_mip + cm->mi_stride + 1 : NULL;
 
   x->quant_fp = cpi->sf.use_quant_fp;
   vp9_zero(x->skip_txfm);
@@ -4167,6 +4048,7 @@ static void encode_superblock(VP9_COMP *cpi, ThreadData *td,
     for (ref = 0; ref < 1 + is_compound; ++ref) {
       YV12_BUFFER_CONFIG *cfg = get_ref_frame_buffer(cpi,
                                                      mbmi->ref_frame[ref]);
+      assert(cfg != NULL);
       vp9_setup_pre_planes(xd, ref, cfg, mi_row, mi_col,
                            &xd->block_refs[ref]->sf);
     }

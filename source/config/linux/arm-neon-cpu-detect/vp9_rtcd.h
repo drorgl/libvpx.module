@@ -749,8 +749,8 @@ unsigned int vp9_variance8x8_c(const uint8_t *src_ptr, int source_stride, const 
 unsigned int vp9_variance8x8_neon(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 RTCD_EXTERN unsigned int (*vp9_variance8x8)(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 
-int vp9_vector_sad_c(int16_t const *ref, int16_t const *src, const int width);
-#define vp9_vector_sad vp9_vector_sad_c
+int vp9_vector_var_c(int16_t const *ref, int16_t const *src, const int bwl);
+#define vp9_vector_var vp9_vector_var_c
 
 void vp9_rtcd(void);
 
