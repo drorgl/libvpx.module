@@ -19,6 +19,7 @@
 # # Compare the two configuration files and output the final results.
 # ./lint_config.sh -h vpx_config.h -a vpx_config.asm -o libvpx.config -p
 
+export LC_ALL=C
 print_final="no"
 
 while getopts "h:a:o:p" flag
@@ -61,6 +62,9 @@ combined_config="$(echo "$combined_config" | sed 's/.*define//')"
 # Remove equ in the ASM file.
 combined_config="$(echo "$combined_config" | sed 's/\.equ//')" # gas style
 combined_config="$(echo "$combined_config" | sed 's/equ//')" # rvds style
+
+# Remove %define in YASM ASM files.
+combined_config="$(echo "$combined_config" | sed 's/%define\s *//')" # yasm style
 
 # Remove useless comma in gas style assembly file.
 combined_config="$(echo "$combined_config" | sed 's/,//')"

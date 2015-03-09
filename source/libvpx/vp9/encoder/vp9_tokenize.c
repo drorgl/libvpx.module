@@ -8,23 +8,37 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-
+#include <assert.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
-#include "vp9/encoder/vp9_onyx_int.h"
-#include "vp9/encoder/vp9_tokenize.h"
+
 #include "vpx_mem/vpx_mem.h"
 
+#include "vp9/common/vp9_entropy.h"
 #include "vp9/common/vp9_pred_common.h"
 #include "vp9/common/vp9_seg_common.h"
-#include "vp9/common/vp9_entropy.h"
+
+#include "vp9/encoder/vp9_cost.h"
+#include "vp9/encoder/vp9_encoder.h"
+#include "vp9/encoder/vp9_tokenize.h"
 
 static TOKENVALUE dct_value_tokens[DCT_MAX_VALUE * 2];
 const TOKENVALUE *vp9_dct_value_tokens_ptr;
 static int16_t dct_value_cost[DCT_MAX_VALUE * 2];
 const int16_t *vp9_dct_value_cost_ptr;
+
+#if CONFIG_VP9_HIGHBITDEPTH
+static TOKENVALUE dct_value_tokens_high10[DCT_MAX_VALUE_HIGH10 * 2];
+const TOKENVALUE *vp9_dct_value_tokens_high10_ptr;
+static int16_t dct_value_cost_high10[DCT_MAX_VALUE_HIGH10 * 2];
+const int16_t *vp9_dct_value_cost_high10_ptr;
+
+static TOKENVALUE dct_value_tokens_high12[DCT_MAX_VALUE_HIGH12 * 2];
+const TOKENVALUE *vp9_dct_value_tokens_high12_ptr;
+static int16_t dct_value_cost_high12[DCT_MAX_VALUE_HIGH12 * 2];
+const int16_t *vp9_dct_value_cost_high12_ptr;
+#endif
 
 // Array indices are identical to previously-existing CONTEXT_NODE indices
 const vp9_tree_index vp9_coef_tree[TREE_SIZE(ENTROPY_TOKENS)] = {
@@ -53,16 +67,22 @@ const vp9_tree_index vp9_coef_con_tree[TREE_SIZE(ENTROPY_TOKENS)] = {
   -CATEGORY5_TOKEN, -CATEGORY6_TOKEN   // 7 = CAT_FIVE
 };
 
-static const vp9_prob Pcat1[] = { 159};
-static const vp9_prob Pcat2[] = { 165, 145};
-static const vp9_prob Pcat3[] = { 173, 148, 140};
-static const vp9_prob Pcat4[] = { 176, 155, 140, 135};
-static const vp9_prob Pcat5[] = { 180, 157, 141, 134, 130};
-static const vp9_prob Pcat6[] = {
-  254, 254, 254, 252, 249, 243, 230, 196, 177, 153, 140, 133, 130, 129
-};
-
 static vp9_tree_index cat1[2], cat2[4], cat3[6], cat4[8], cat5[10], cat6[28];
+
+#if CONFIG_VP9_HIGHBITDEPTH
+static vp9_tree_index cat1_high10[2];
+static vp9_tree_index cat2_high10[4];
+static vp9_tree_index cat3_high10[6];
+static vp9_tree_index cat4_high10[8];
+static vp9_tree_index cat5_high10[10];
+static vp9_tree_index cat6_high10[32];
+static vp9_tree_index cat1_high12[2];
+static vp9_tree_index cat2_high12[4];
+static vp9_tree_index cat3_high12[6];
+static vp9_tree_index cat4_high12[8];
+static vp9_tree_index cat5_high12[10];
+static vp9_tree_index cat6_high12[36];
+#endif
 
 static void init_bit_tree(vp9_tree_index *p, int n) {
   int i = 0;
@@ -82,22 +102,67 @@ static void init_bit_trees() {
   init_bit_tree(cat4, 4);
   init_bit_tree(cat5, 5);
   init_bit_tree(cat6, 14);
+#if CONFIG_VP9_HIGHBITDEPTH
+  init_bit_tree(cat1_high10, 1);
+  init_bit_tree(cat2_high10, 2);
+  init_bit_tree(cat3_high10, 3);
+  init_bit_tree(cat4_high10, 4);
+  init_bit_tree(cat5_high10, 5);
+  init_bit_tree(cat6_high10, 16);
+  init_bit_tree(cat1_high12, 1);
+  init_bit_tree(cat2_high12, 2);
+  init_bit_tree(cat3_high12, 3);
+  init_bit_tree(cat4_high12, 4);
+  init_bit_tree(cat5_high12, 5);
+  init_bit_tree(cat6_high12, 18);
+#endif
 }
 
 const vp9_extra_bit vp9_extra_bits[ENTROPY_TOKENS] = {
-  {0, 0, 0, 0},           // ZERO_TOKEN
-  {0, 0, 0, 1},           // ONE_TOKEN
-  {0, 0, 0, 2},           // TWO_TOKEN
-  {0, 0, 0, 3},           // THREE_TOKEN
-  {0, 0, 0, 4},           // FOUR_TOKEN
-  {cat1, Pcat1, 1, 5},    // CATEGORY1_TOKEN
-  {cat2, Pcat2, 2, 7},    // CATEGORY2_TOKEN
-  {cat3, Pcat3, 3, 11},   // CATEGORY3_TOKEN
-  {cat4, Pcat4, 4, 19},   // CATEGORY4_TOKEN
-  {cat5, Pcat5, 5, 35},   // CATEGORY5_TOKEN
-  {cat6, Pcat6, 14, 67},  // CATEGORY6_TOKEN
-  {0, 0, 0, 0}            // EOB_TOKEN
+  {0, 0, 0, 0},                              // ZERO_TOKEN
+  {0, 0, 0, 1},                              // ONE_TOKEN
+  {0, 0, 0, 2},                              // TWO_TOKEN
+  {0, 0, 0, 3},                              // THREE_TOKEN
+  {0, 0, 0, 4},                              // FOUR_TOKEN
+  {cat1, vp9_cat1_prob, 1,  CAT1_MIN_VAL},   // CATEGORY1_TOKEN
+  {cat2, vp9_cat2_prob, 2,  CAT2_MIN_VAL},   // CATEGORY2_TOKEN
+  {cat3, vp9_cat3_prob, 3,  CAT3_MIN_VAL},   // CATEGORY3_TOKEN
+  {cat4, vp9_cat4_prob, 4,  CAT4_MIN_VAL},   // CATEGORY4_TOKEN
+  {cat5, vp9_cat5_prob, 5,  CAT5_MIN_VAL},   // CATEGORY5_TOKEN
+  {cat6, vp9_cat6_prob, 14, CAT6_MIN_VAL},   // CATEGORY6_TOKEN
+  {0, 0, 0, 0}                               // EOB_TOKEN
 };
+
+#if CONFIG_VP9_HIGHBITDEPTH
+const vp9_extra_bit vp9_extra_bits_high10[ENTROPY_TOKENS] = {
+  {0, 0, 0, 0},                                            // ZERO_TOKEN
+  {0, 0, 0, 1},                                            // ONE_TOKEN
+  {0, 0, 0, 2},                                            // TWO_TOKEN
+  {0, 0, 0, 3},                                            // THREE_TOKEN
+  {0, 0, 0, 4},                                            // FOUR_TOKEN
+  {cat1_high10, vp9_cat1_prob_high10, 1,  CAT1_MIN_VAL},   // CATEGORY1_TOKEN
+  {cat2_high10, vp9_cat2_prob_high10, 2,  CAT2_MIN_VAL},   // CATEGORY2_TOKEN
+  {cat3_high10, vp9_cat3_prob_high10, 3,  CAT3_MIN_VAL},   // CATEGORY3_TOKEN
+  {cat4_high10, vp9_cat4_prob_high10, 4,  CAT4_MIN_VAL},   // CATEGORY4_TOKEN
+  {cat5_high10, vp9_cat5_prob_high10, 5,  CAT5_MIN_VAL},   // CATEGORY5_TOKEN
+  {cat6_high10, vp9_cat6_prob_high10, 16, CAT6_MIN_VAL},   // CATEGORY6_TOKEN
+  {0, 0, 0, 0}                                             // EOB_TOKEN
+};
+const vp9_extra_bit vp9_extra_bits_high12[ENTROPY_TOKENS] = {
+  {0, 0, 0, 0},                                            // ZERO_TOKEN
+  {0, 0, 0, 1},                                            // ONE_TOKEN
+  {0, 0, 0, 2},                                            // TWO_TOKEN
+  {0, 0, 0, 3},                                            // THREE_TOKEN
+  {0, 0, 0, 4},                                            // FOUR_TOKEN
+  {cat1_high12, vp9_cat1_prob_high12, 1,  CAT1_MIN_VAL},   // CATEGORY1_TOKEN
+  {cat2_high12, vp9_cat2_prob_high12, 2,  CAT2_MIN_VAL},   // CATEGORY2_TOKEN
+  {cat3_high12, vp9_cat3_prob_high12, 3,  CAT3_MIN_VAL},   // CATEGORY3_TOKEN
+  {cat4_high12, vp9_cat4_prob_high12, 4,  CAT4_MIN_VAL},   // CATEGORY4_TOKEN
+  {cat5_high12, vp9_cat5_prob_high12, 5,  CAT5_MIN_VAL},   // CATEGORY5_TOKEN
+  {cat6_high12, vp9_cat6_prob_high12, 18, CAT6_MIN_VAL},   // CATEGORY6_TOKEN
+  {0, 0, 0, 0}                                             // EOB_TOKEN
+};
+#endif
 
 struct vp9_token vp9_coef_encodings[ENTROPY_TOKENS];
 
@@ -106,11 +171,9 @@ void vp9_coef_tree_initialize() {
   vp9_tokens_from_tree(vp9_coef_encodings, vp9_coef_tree);
 }
 
-static void fill_value_tokens() {
-  TOKENVALUE *const t = dct_value_tokens + DCT_MAX_VALUE;
-  const vp9_extra_bit *const e = vp9_extra_bits;
-
-  int i = -DCT_MAX_VALUE;
+static void tokenize_init_one(TOKENVALUE *t, const vp9_extra_bit *const e,
+                              int16_t *value_cost, int max_value) {
+  int i = -max_value;
   int sign = 1;
 
   do {
@@ -137,7 +200,7 @@ static void fill_value_tokens() {
     // initialize the cost for extra bits for all possible coefficient value.
     {
       int cost = 0;
-      const vp9_extra_bit *p = &vp9_extra_bits[t[i].token];
+      const vp9_extra_bit *p = &e[t[i].token];
 
       if (p->base_val) {
         const int extra = t[i].extra;
@@ -147,27 +210,51 @@ static void fill_value_tokens() {
           cost += treed_cost(p->tree, p->prob, extra >> 1, length);
 
         cost += vp9_cost_bit(vp9_prob_half, extra & 1); /* sign */
-        dct_value_cost[i + DCT_MAX_VALUE] = cost;
+        value_cost[i] = cost;
       }
     }
-  } while (++i < DCT_MAX_VALUE);
+  } while (++i < max_value);
+}
 
+void vp9_tokenize_initialize() {
   vp9_dct_value_tokens_ptr = dct_value_tokens + DCT_MAX_VALUE;
   vp9_dct_value_cost_ptr = dct_value_cost + DCT_MAX_VALUE;
+
+  tokenize_init_one(dct_value_tokens + DCT_MAX_VALUE, vp9_extra_bits,
+                    dct_value_cost + DCT_MAX_VALUE, DCT_MAX_VALUE);
+#if CONFIG_VP9_HIGHBITDEPTH
+  vp9_dct_value_tokens_high10_ptr = dct_value_tokens_high10 +
+      DCT_MAX_VALUE_HIGH10;
+  vp9_dct_value_cost_high10_ptr = dct_value_cost_high10 + DCT_MAX_VALUE_HIGH10;
+
+  tokenize_init_one(dct_value_tokens_high10 + DCT_MAX_VALUE_HIGH10,
+                    vp9_extra_bits_high10,
+                    dct_value_cost_high10 + DCT_MAX_VALUE_HIGH10,
+                    DCT_MAX_VALUE_HIGH10);
+  vp9_dct_value_tokens_high12_ptr = dct_value_tokens_high12 +
+      DCT_MAX_VALUE_HIGH12;
+  vp9_dct_value_cost_high12_ptr = dct_value_cost_high12 + DCT_MAX_VALUE_HIGH12;
+
+  tokenize_init_one(dct_value_tokens_high12 + DCT_MAX_VALUE_HIGH12,
+                    vp9_extra_bits_high12,
+                    dct_value_cost_high12 + DCT_MAX_VALUE_HIGH12,
+                    DCT_MAX_VALUE_HIGH12);
+#endif
 }
 
 struct tokenize_b_args {
   VP9_COMP *cpi;
-  MACROBLOCKD *xd;
+  ThreadData *td;
   TOKENEXTRA **tp;
-  uint8_t *token_cache;
 };
 
 static void set_entropy_context_b(int plane, int block, BLOCK_SIZE plane_bsize,
                                   TX_SIZE tx_size, void *arg) {
   struct tokenize_b_args* const args = arg;
-  MACROBLOCKD *const xd = args->xd;
-  struct macroblock_plane *p = &args->cpi->mb.plane[plane];
+  ThreadData *const td = args->td;
+  MACROBLOCK *const x = &td->mb;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  struct macroblock_plane *p = &x->plane[plane];
   struct macroblockd_plane *pd = &xd->plane[plane];
   int aoff, loff;
   txfrm_block_to_raster_xy(plane_bsize, tx_size, block, &aoff, &loff);
@@ -176,7 +263,7 @@ static void set_entropy_context_b(int plane, int block, BLOCK_SIZE plane_bsize,
 }
 
 static INLINE void add_token(TOKENEXTRA **t, const vp9_prob *context_tree,
-                             int16_t extra, uint8_t token,
+                             int32_t extra, uint8_t token,
                              uint8_t skip_eob_node,
                              unsigned int *counts) {
   (*t)->token = token;
@@ -209,31 +296,33 @@ static void tokenize_b(int plane, int block, BLOCK_SIZE plane_bsize,
                        TX_SIZE tx_size, void *arg) {
   struct tokenize_b_args* const args = arg;
   VP9_COMP *cpi = args->cpi;
-  MACROBLOCKD *xd = args->xd;
+  ThreadData *const td = args->td;
+  MACROBLOCK *const x = &td->mb;
+  MACROBLOCKD *const xd = &x->e_mbd;
   TOKENEXTRA **tp = args->tp;
-  uint8_t *token_cache = args->token_cache;
-  struct macroblock_plane *p = &cpi->mb.plane[plane];
+  uint8_t token_cache[32 * 32];
+  struct macroblock_plane *p = &x->plane[plane];
   struct macroblockd_plane *pd = &xd->plane[plane];
-  MB_MODE_INFO *mbmi = &xd->mi_8x8[0]->mbmi;
+  MB_MODE_INFO *mbmi = &xd->mi[0].src_mi->mbmi;
   int pt; /* near block/prev token context index */
   int c;
   TOKENEXTRA *t = *tp;        /* store tokens starting here */
   int eob = p->eobs[block];
   const PLANE_TYPE type = pd->plane_type;
-  const int16_t *qcoeff = BLOCK_OFFSET(p->qcoeff, block);
+  const tran_low_t *qcoeff = BLOCK_OFFSET(p->qcoeff, block);
   const int segment_id = mbmi->segment_id;
   const int16_t *scan, *nb;
   const scan_order *so;
   const int ref = is_inter_block(mbmi);
   unsigned int (*const counts)[COEFF_CONTEXTS][ENTROPY_TOKENS] =
-      cpi->coef_counts[tx_size][type][ref];
+      td->rd_counts.coef_counts[tx_size][type][ref];
   vp9_prob (*const coef_probs)[COEFF_CONTEXTS][UNCONSTRAINED_NODES] =
-      cpi->common.fc.coef_probs[tx_size][type][ref];
+      cpi->common.fc->coef_probs[tx_size][type][ref];
   unsigned int (*const eob_branch)[COEFF_CONTEXTS] =
-      cpi->common.counts.eob_branch[tx_size][type][ref];
-
+      td->counts->eob_branch[tx_size][type][ref];
   const uint8_t *const band = get_band_translate(tx_size);
   const int seg_eob = get_tx_eob(&cpi->common.seg, segment_id, tx_size);
+  const TOKENVALUE *dct_value_tokens;
 
   int aoff, loff;
   txfrm_block_to_raster_xy(plane_bsize, tx_size, block, &aoff, &loff);
@@ -244,6 +333,18 @@ static void tokenize_b(int plane, int block, BLOCK_SIZE plane_bsize,
   scan = so->scan;
   nb = so->neighbors;
   c = 0;
+#if CONFIG_VP9_HIGHBITDEPTH
+  if (cpi->common.profile >= PROFILE_2) {
+    dct_value_tokens = (cpi->common.bit_depth == VPX_BITS_10 ?
+                        vp9_dct_value_tokens_high10_ptr :
+                        vp9_dct_value_tokens_high12_ptr);
+  } else {
+    dct_value_tokens = vp9_dct_value_tokens_ptr;
+  }
+#else
+  dct_value_tokens = vp9_dct_value_tokens_ptr;
+#endif
+
   while (c < eob) {
     int v = 0;
     int skip_eob = 0;
@@ -262,14 +363,13 @@ static void tokenize_b(int plane, int block, BLOCK_SIZE plane_bsize,
     }
 
     add_token(&t, coef_probs[band[c]][pt],
-              vp9_dct_value_tokens_ptr[v].extra,
-              (uint8_t)vp9_dct_value_tokens_ptr[v].token,
+              dct_value_tokens[v].extra,
+              (uint8_t)dct_value_tokens[v].token,
               (uint8_t)skip_eob,
               counts[band[c]][pt]);
     eob_branch[band[c]][pt] += !skip_eob;
 
-    token_cache[scan[c]] =
-        vp9_pt_energy_class[vp9_dct_value_tokens_ptr[v].token];
+    token_cache[scan[c]] = vp9_pt_energy_class[dct_value_tokens[v].token];
     ++c;
     pt = get_coef_context(nb, token_cache, c);
   }
@@ -288,21 +388,17 @@ struct is_skippable_args {
   MACROBLOCK *x;
   int *skippable;
 };
-
 static void is_skippable(int plane, int block,
                          BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
                          void *argv) {
   struct is_skippable_args *args = argv;
+  (void)plane_bsize;
+  (void)tx_size;
   args->skippable[0] &= (!args->x->plane[plane].eobs[block]);
 }
 
-static int sb_is_skippable(MACROBLOCK *x, BLOCK_SIZE bsize) {
-  int result = 1;
-  struct is_skippable_args args = {x, &result};
-  vp9_foreach_transformed_block(&x->e_mbd, bsize, is_skippable, &args);
-  return result;
-}
-
+// TODO(yaowu): rewrite and optimize this function to remove the usage of
+//              vp9_foreach_transform_block() and simplify is_skippable().
 int vp9_is_skippable_in_plane(MACROBLOCK *x, BLOCK_SIZE bsize, int plane) {
   int result = 1;
   struct is_skippable_args args = {x, &result};
@@ -311,19 +407,38 @@ int vp9_is_skippable_in_plane(MACROBLOCK *x, BLOCK_SIZE bsize, int plane) {
   return result;
 }
 
-void vp9_tokenize_sb(VP9_COMP *cpi, TOKENEXTRA **t, int dry_run,
-                     BLOCK_SIZE bsize) {
+static void has_high_freq_coeff(int plane, int block,
+                                BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
+                                void *argv) {
+  struct is_skippable_args *args = argv;
+  int eobs = (tx_size == TX_4X4) ? 3 : 10;
+  (void) plane_bsize;
+
+  *(args->skippable) |= (args->x->plane[plane].eobs[block] > eobs);
+}
+
+int vp9_has_high_freq_in_plane(MACROBLOCK *x, BLOCK_SIZE bsize, int plane) {
+  int result = 0;
+  struct is_skippable_args args = {x, &result};
+  vp9_foreach_transformed_block_in_plane(&x->e_mbd, bsize, plane,
+                                         has_high_freq_coeff, &args);
+  return result;
+}
+
+void vp9_tokenize_sb(VP9_COMP *cpi, ThreadData *td, TOKENEXTRA **t,
+                     int dry_run, BLOCK_SIZE bsize) {
   VP9_COMMON *const cm = &cpi->common;
-  MACROBLOCKD *const xd = &cpi->mb.e_mbd;
-  MB_MODE_INFO *const mbmi = &xd->mi_8x8[0]->mbmi;
+  MACROBLOCK *const x = &td->mb;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *const mbmi = &xd->mi[0].src_mi->mbmi;
   TOKENEXTRA *t_backup = *t;
   const int ctx = vp9_get_skip_context(xd);
   const int skip_inc = !vp9_segfeature_active(&cm->seg, mbmi->segment_id,
                                               SEG_LVL_SKIP);
-  struct tokenize_b_args arg = {cpi, xd, t, cpi->mb.token_cache};
+  struct tokenize_b_args arg = {cpi, td, t};
   if (mbmi->skip) {
     if (!dry_run)
-      cm->counts.skip[ctx][1] += skip_inc;
+      td->counts->skip[ctx][1] += skip_inc;
     reset_skip_context(xd, bsize);
     if (dry_run)
       *t = t_backup;
@@ -331,14 +446,10 @@ void vp9_tokenize_sb(VP9_COMP *cpi, TOKENEXTRA **t, int dry_run,
   }
 
   if (!dry_run) {
-    cm->counts.skip[ctx][0] += skip_inc;
+    td->counts->skip[ctx][0] += skip_inc;
     vp9_foreach_transformed_block(xd, bsize, tokenize_b, &arg);
   } else {
     vp9_foreach_transformed_block(xd, bsize, set_entropy_context_b, &arg);
     *t = t_backup;
   }
-}
-
-void vp9_tokenize_initialize() {
-  fill_value_tokens();
 }

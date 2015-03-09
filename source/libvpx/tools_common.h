@@ -22,16 +22,13 @@
 #endif
 
 #if defined(_MSC_VER)
-/* MSVS doesn't define off_t, and uses _f{seek,tell}i64. */
-typedef __int64 off_t;
+/* MSVS uses _f{seek,tell}i64. */
 #define fseeko _fseeki64
 #define ftello _ftelli64
 #elif defined(_WIN32)
-/* MinGW defines off_t as long and uses f{seek,tell}o64/off64_t for large
- * files. */
+/* MinGW uses f{seek,tell}o64 for large files. */
 #define fseeko fseeko64
 #define ftello ftello64
-#define off_t off64_t
 #endif  /* _WIN32 */
 
 #if CONFIG_OS_SUPPORT
@@ -48,7 +45,6 @@ typedef __int64 off_t;
 /* Use 32-bit file operations in WebM file format when building ARM
  * executables (.axf) with RVCT. */
 #if !CONFIG_OS_SUPPORT
-typedef long off_t;  /* NOLINT */
 #define fseeko fseek
 #define ftello ftell
 #endif  /* CONFIG_OS_SUPPORT */
@@ -88,12 +84,13 @@ struct VpxRational {
 struct VpxInputContext {
   const char *filename;
   FILE *file;
-  off_t length;
+  int64_t length;
   struct FileTypeDetectionBuffer detect;
   enum VideoFileType file_type;
   uint32_t width;
   uint32_t height;
-  int use_i420;
+  vpx_img_fmt_t fmt;
+  vpx_bit_depth_t bit_depth;
   int only_i420;
   uint32_t fourcc;
   struct VpxRational framerate;
@@ -106,24 +103,32 @@ struct VpxInputContext {
 extern "C" {
 #endif
 
+#if defined(__GNUC__)
+#define VPX_NO_RETURN __attribute__((noreturn))
+#else
+#define VPX_NO_RETURN
+#endif
+
 /* Sets a stdio stream into binary mode */
 FILE *set_binary_mode(FILE *stream);
 
-void die(const char *fmt, ...);
-void fatal(const char *fmt, ...);
+void die(const char *fmt, ...) VPX_NO_RETURN;
+void fatal(const char *fmt, ...) VPX_NO_RETURN;
 void warn(const char *fmt, ...);
 
-void die_codec(vpx_codec_ctx_t *ctx, const char *s);
+void die_codec(vpx_codec_ctx_t *ctx, const char *s) VPX_NO_RETURN;
 
 /* The tool including this file must define usage_exit() */
-void usage_exit();
+void usage_exit() VPX_NO_RETURN;
+
+#undef VPX_NO_RETURN
 
 int read_yuv_frame(struct VpxInputContext *input_ctx, vpx_image_t *yuv_frame);
 
 typedef struct VpxInterface {
   const char *const name;
   const uint32_t fourcc;
-  vpx_codec_iface_t *(*const interface)();
+  vpx_codec_iface_t *(*const codec_interface)();
 } VpxInterface;
 
 int get_vpx_encoder_count();
@@ -143,6 +148,12 @@ void vpx_img_write(const vpx_image_t *img, FILE *file);
 int vpx_img_read(vpx_image_t *img, FILE *file);
 
 double sse_to_psnr(double samples, double peak, double mse);
+
+#if CONFIG_VP9 && CONFIG_VP9_HIGHBITDEPTH
+void vpx_img_upshift(vpx_image_t *dst, vpx_image_t *src, int input_shift);
+void vpx_img_downshift(vpx_image_t *dst, vpx_image_t *src, int down_shift);
+void vpx_img_truncate_16_to_8(vpx_image_t *dst, vpx_image_t *src);
+#endif
 
 #ifdef __cplusplus
 }  /* extern "C" */

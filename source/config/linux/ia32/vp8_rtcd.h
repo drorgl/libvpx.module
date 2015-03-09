@@ -7,10 +7,6 @@
 #define RTCD_EXTERN extern
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /*
  * VP8
  */
@@ -25,6 +21,10 @@ struct macroblock;
 struct variance_vtable;
 union int_mv;
 struct yv12_buffer_config;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void vp8_bilinear_predict16x16_c(unsigned char *src, int src_pitch, int xofst, int yofst, unsigned char *dst, int dst_pitch);
 void vp8_bilinear_predict16x16_mmx(unsigned char *src, int src_pitch, int xofst, int yofst, unsigned char *dst, int dst_pitch);
@@ -96,9 +96,13 @@ void vp8_dc_only_idct_add_c(short input, unsigned char *pred, int pred_stride, u
 void vp8_dc_only_idct_add_mmx(short input, unsigned char *pred, int pred_stride, unsigned char *dst, int dst_stride);
 RTCD_EXTERN void (*vp8_dc_only_idct_add)(short input, unsigned char *pred, int pred_stride, unsigned char *dst, int dst_stride);
 
-int vp8_denoiser_filter_c(struct yv12_buffer_config* mc_running_avg, struct yv12_buffer_config* running_avg, struct macroblock* signal, unsigned int motion_magnitude2, int y_offset, int uv_offset);
-int vp8_denoiser_filter_sse2(struct yv12_buffer_config* mc_running_avg, struct yv12_buffer_config* running_avg, struct macroblock* signal, unsigned int motion_magnitude2, int y_offset, int uv_offset);
-RTCD_EXTERN int (*vp8_denoiser_filter)(struct yv12_buffer_config* mc_running_avg, struct yv12_buffer_config* running_avg, struct macroblock* signal, unsigned int motion_magnitude2, int y_offset, int uv_offset);
+int vp8_denoiser_filter_c(unsigned char *mc_running_avg_y, int mc_avg_y_stride, unsigned char *running_avg_y, int avg_y_stride, unsigned char *sig, int sig_stride, unsigned int motion_magnitude, int increase_denoising);
+int vp8_denoiser_filter_sse2(unsigned char *mc_running_avg_y, int mc_avg_y_stride, unsigned char *running_avg_y, int avg_y_stride, unsigned char *sig, int sig_stride, unsigned int motion_magnitude, int increase_denoising);
+RTCD_EXTERN int (*vp8_denoiser_filter)(unsigned char *mc_running_avg_y, int mc_avg_y_stride, unsigned char *running_avg_y, int avg_y_stride, unsigned char *sig, int sig_stride, unsigned int motion_magnitude, int increase_denoising);
+
+int vp8_denoiser_filter_uv_c(unsigned char *mc_running_avg, int mc_avg_stride, unsigned char *running_avg, int avg_stride, unsigned char *sig, int sig_stride, unsigned int motion_magnitude, int increase_denoising);
+int vp8_denoiser_filter_uv_sse2(unsigned char *mc_running_avg, int mc_avg_stride, unsigned char *running_avg, int avg_stride, unsigned char *sig, int sig_stride, unsigned int motion_magnitude, int increase_denoising);
+RTCD_EXTERN int (*vp8_denoiser_filter_uv)(unsigned char *mc_running_avg, int mc_avg_stride, unsigned char *running_avg, int avg_stride, unsigned char *sig, int sig_stride, unsigned int motion_magnitude, int increase_denoising);
 
 void vp8_dequant_idct_add_c(short *input, short *dq, unsigned char *output, int stride);
 void vp8_dequant_idct_add_mmx(short *input, short *dq, unsigned char *output, int stride);
@@ -126,9 +130,6 @@ void vp8_fast_quantize_b_c(struct block *, struct blockd *);
 void vp8_fast_quantize_b_sse2(struct block *, struct blockd *);
 void vp8_fast_quantize_b_ssse3(struct block *, struct blockd *);
 RTCD_EXTERN void (*vp8_fast_quantize_b)(struct block *, struct blockd *);
-
-void vp8_fast_quantize_b_pair_c(struct block *b1, struct block *b2, struct blockd *d1, struct blockd *d2);
-#define vp8_fast_quantize_b_pair vp8_fast_quantize_b_pair_c
 
 void vp8_filter_by_weight16x16_c(unsigned char *src, int src_stride, unsigned char *dst, int dst_stride, int src_weight);
 void vp8_filter_by_weight16x16_sse2(unsigned char *src, int src_stride, unsigned char *dst, int dst_stride, int src_weight);
@@ -231,25 +232,14 @@ void vp8_post_proc_down_and_across_mb_row_c(unsigned char *src, unsigned char *d
 void vp8_post_proc_down_and_across_mb_row_sse2(unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch, int cols, unsigned char *flimits, int size);
 RTCD_EXTERN void (*vp8_post_proc_down_and_across_mb_row)(unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch, int cols, unsigned char *flimits, int size);
 
-void vp8_quantize_mb_c(struct macroblock *);
-#define vp8_quantize_mb vp8_quantize_mb_c
-
-void vp8_quantize_mbuv_c(struct macroblock *);
-#define vp8_quantize_mbuv vp8_quantize_mbuv_c
-
-void vp8_quantize_mby_c(struct macroblock *);
-#define vp8_quantize_mby vp8_quantize_mby_c
-
 int vp8_refining_search_sad_c(struct macroblock *x, struct block *b, struct blockd *d, union int_mv *ref_mv, int sad_per_bit, int distance, struct variance_vtable *fn_ptr, int *mvcost[2], union int_mv *center_mv);
 int vp8_refining_search_sadx4(struct macroblock *x, struct block *b, struct blockd *d, union int_mv *ref_mv, int sad_per_bit, int distance, struct variance_vtable *fn_ptr, int *mvcost[2], union int_mv *center_mv);
 RTCD_EXTERN int (*vp8_refining_search_sad)(struct macroblock *x, struct block *b, struct blockd *d, union int_mv *ref_mv, int sad_per_bit, int distance, struct variance_vtable *fn_ptr, int *mvcost[2], union int_mv *center_mv);
 
 void vp8_regular_quantize_b_c(struct block *, struct blockd *);
 void vp8_regular_quantize_b_sse2(struct block *, struct blockd *);
+void vp8_regular_quantize_b_sse4_1(struct block *, struct blockd *);
 RTCD_EXTERN void (*vp8_regular_quantize_b)(struct block *, struct blockd *);
-
-void vp8_regular_quantize_b_pair_c(struct block *b1, struct block *b2, struct blockd *d1, struct blockd *d2);
-#define vp8_regular_quantize_b_pair vp8_regular_quantize_b_pair_c
 
 unsigned int vp8_sad16x16_c(const unsigned char *src_ptr, int src_stride, const unsigned char *ref_ptr, int ref_stride, unsigned int max_sad);
 unsigned int vp8_sad16x16_mmx(const unsigned char *src_ptr, int src_stride, const unsigned char *ref_ptr, int ref_stride, unsigned int max_sad);
@@ -475,9 +465,6 @@ unsigned int vp8_variance_halfpixvar16x16_v_mmx(const unsigned char *src_ptr, in
 unsigned int vp8_variance_halfpixvar16x16_v_wmt(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);
 RTCD_EXTERN unsigned int (*vp8_variance_halfpixvar16x16_v)(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);
 
-void vp8_yv12_copy_partial_frame_c(struct yv12_buffer_config *src_ybc, struct yv12_buffer_config *dst_ybc);
-#define vp8_yv12_copy_partial_frame vp8_yv12_copy_partial_frame_c
-
 void vp8_rtcd(void);
 
 #ifdef RTCD_C
@@ -492,337 +479,242 @@ static void setup_rtcd_internal(void)
     if (flags & HAS_MMX) vp8_bilinear_predict16x16 = vp8_bilinear_predict16x16_mmx;
     if (flags & HAS_SSE2) vp8_bilinear_predict16x16 = vp8_bilinear_predict16x16_sse2;
     if (flags & HAS_SSSE3) vp8_bilinear_predict16x16 = vp8_bilinear_predict16x16_ssse3;
-
     vp8_bilinear_predict4x4 = vp8_bilinear_predict4x4_c;
     if (flags & HAS_MMX) vp8_bilinear_predict4x4 = vp8_bilinear_predict4x4_mmx;
-
     vp8_bilinear_predict8x4 = vp8_bilinear_predict8x4_c;
     if (flags & HAS_MMX) vp8_bilinear_predict8x4 = vp8_bilinear_predict8x4_mmx;
-
     vp8_bilinear_predict8x8 = vp8_bilinear_predict8x8_c;
     if (flags & HAS_MMX) vp8_bilinear_predict8x8 = vp8_bilinear_predict8x8_mmx;
     if (flags & HAS_SSE2) vp8_bilinear_predict8x8 = vp8_bilinear_predict8x8_sse2;
     if (flags & HAS_SSSE3) vp8_bilinear_predict8x8 = vp8_bilinear_predict8x8_ssse3;
-
-
-
-
     vp8_block_error = vp8_block_error_c;
     if (flags & HAS_MMX) vp8_block_error = vp8_block_error_mmx;
     if (flags & HAS_SSE2) vp8_block_error = vp8_block_error_xmm;
-
     vp8_build_intra_predictors_mbuv_s = vp8_build_intra_predictors_mbuv_s_c;
     if (flags & HAS_SSE2) vp8_build_intra_predictors_mbuv_s = vp8_build_intra_predictors_mbuv_s_sse2;
     if (flags & HAS_SSSE3) vp8_build_intra_predictors_mbuv_s = vp8_build_intra_predictors_mbuv_s_ssse3;
-
     vp8_build_intra_predictors_mby_s = vp8_build_intra_predictors_mby_s_c;
     if (flags & HAS_SSE2) vp8_build_intra_predictors_mby_s = vp8_build_intra_predictors_mby_s_sse2;
     if (flags & HAS_SSSE3) vp8_build_intra_predictors_mby_s = vp8_build_intra_predictors_mby_s_ssse3;
-
     vp8_clear_system_state = vp8_clear_system_state_c;
     if (flags & HAS_MMX) vp8_clear_system_state = vpx_reset_mmx_state;
-
     vp8_copy32xn = vp8_copy32xn_c;
     if (flags & HAS_SSE2) vp8_copy32xn = vp8_copy32xn_sse2;
     if (flags & HAS_SSE3) vp8_copy32xn = vp8_copy32xn_sse3;
-
     vp8_copy_mem16x16 = vp8_copy_mem16x16_c;
     if (flags & HAS_MMX) vp8_copy_mem16x16 = vp8_copy_mem16x16_mmx;
     if (flags & HAS_SSE2) vp8_copy_mem16x16 = vp8_copy_mem16x16_sse2;
-
     vp8_copy_mem8x4 = vp8_copy_mem8x4_c;
     if (flags & HAS_MMX) vp8_copy_mem8x4 = vp8_copy_mem8x4_mmx;
-
     vp8_copy_mem8x8 = vp8_copy_mem8x8_c;
     if (flags & HAS_MMX) vp8_copy_mem8x8 = vp8_copy_mem8x8_mmx;
-
     vp8_dc_only_idct_add = vp8_dc_only_idct_add_c;
     if (flags & HAS_MMX) vp8_dc_only_idct_add = vp8_dc_only_idct_add_mmx;
-
     vp8_denoiser_filter = vp8_denoiser_filter_c;
     if (flags & HAS_SSE2) vp8_denoiser_filter = vp8_denoiser_filter_sse2;
-
+    vp8_denoiser_filter_uv = vp8_denoiser_filter_uv_c;
+    if (flags & HAS_SSE2) vp8_denoiser_filter_uv = vp8_denoiser_filter_uv_sse2;
     vp8_dequant_idct_add = vp8_dequant_idct_add_c;
     if (flags & HAS_MMX) vp8_dequant_idct_add = vp8_dequant_idct_add_mmx;
-
     vp8_dequant_idct_add_uv_block = vp8_dequant_idct_add_uv_block_c;
     if (flags & HAS_MMX) vp8_dequant_idct_add_uv_block = vp8_dequant_idct_add_uv_block_mmx;
     if (flags & HAS_SSE2) vp8_dequant_idct_add_uv_block = vp8_dequant_idct_add_uv_block_sse2;
-
     vp8_dequant_idct_add_y_block = vp8_dequant_idct_add_y_block_c;
     if (flags & HAS_MMX) vp8_dequant_idct_add_y_block = vp8_dequant_idct_add_y_block_mmx;
     if (flags & HAS_SSE2) vp8_dequant_idct_add_y_block = vp8_dequant_idct_add_y_block_sse2;
-
     vp8_dequantize_b = vp8_dequantize_b_c;
     if (flags & HAS_MMX) vp8_dequantize_b = vp8_dequantize_b_mmx;
-
     vp8_diamond_search_sad = vp8_diamond_search_sad_c;
     if (flags & HAS_SSE3) vp8_diamond_search_sad = vp8_diamond_search_sadx4;
-
     vp8_fast_quantize_b = vp8_fast_quantize_b_c;
     if (flags & HAS_SSE2) vp8_fast_quantize_b = vp8_fast_quantize_b_sse2;
     if (flags & HAS_SSSE3) vp8_fast_quantize_b = vp8_fast_quantize_b_ssse3;
-
-
     vp8_filter_by_weight16x16 = vp8_filter_by_weight16x16_c;
     if (flags & HAS_SSE2) vp8_filter_by_weight16x16 = vp8_filter_by_weight16x16_sse2;
-
-
     vp8_filter_by_weight8x8 = vp8_filter_by_weight8x8_c;
     if (flags & HAS_SSE2) vp8_filter_by_weight8x8 = vp8_filter_by_weight8x8_sse2;
-
     vp8_full_search_sad = vp8_full_search_sad_c;
     if (flags & HAS_SSE3) vp8_full_search_sad = vp8_full_search_sadx3;
     if (flags & HAS_SSE4_1) vp8_full_search_sad = vp8_full_search_sadx8;
-
     vp8_get4x4sse_cs = vp8_get4x4sse_cs_c;
     if (flags & HAS_MMX) vp8_get4x4sse_cs = vp8_get4x4sse_cs_mmx;
-
     vp8_get_mb_ss = vp8_get_mb_ss_c;
     if (flags & HAS_MMX) vp8_get_mb_ss = vp8_get_mb_ss_mmx;
     if (flags & HAS_SSE2) vp8_get_mb_ss = vp8_get_mb_ss_sse2;
-
-
     vp8_loop_filter_bh = vp8_loop_filter_bh_c;
     if (flags & HAS_MMX) vp8_loop_filter_bh = vp8_loop_filter_bh_mmx;
     if (flags & HAS_SSE2) vp8_loop_filter_bh = vp8_loop_filter_bh_sse2;
-
     vp8_loop_filter_bv = vp8_loop_filter_bv_c;
     if (flags & HAS_MMX) vp8_loop_filter_bv = vp8_loop_filter_bv_mmx;
     if (flags & HAS_SSE2) vp8_loop_filter_bv = vp8_loop_filter_bv_sse2;
-
     vp8_loop_filter_mbh = vp8_loop_filter_mbh_c;
     if (flags & HAS_MMX) vp8_loop_filter_mbh = vp8_loop_filter_mbh_mmx;
     if (flags & HAS_SSE2) vp8_loop_filter_mbh = vp8_loop_filter_mbh_sse2;
-
     vp8_loop_filter_mbv = vp8_loop_filter_mbv_c;
     if (flags & HAS_MMX) vp8_loop_filter_mbv = vp8_loop_filter_mbv_mmx;
     if (flags & HAS_SSE2) vp8_loop_filter_mbv = vp8_loop_filter_mbv_sse2;
-
     vp8_loop_filter_simple_bh = vp8_loop_filter_bhs_c;
     if (flags & HAS_MMX) vp8_loop_filter_simple_bh = vp8_loop_filter_bhs_mmx;
     if (flags & HAS_SSE2) vp8_loop_filter_simple_bh = vp8_loop_filter_bhs_sse2;
-
     vp8_loop_filter_simple_bv = vp8_loop_filter_bvs_c;
     if (flags & HAS_MMX) vp8_loop_filter_simple_bv = vp8_loop_filter_bvs_mmx;
     if (flags & HAS_SSE2) vp8_loop_filter_simple_bv = vp8_loop_filter_bvs_sse2;
-
     vp8_loop_filter_simple_mbh = vp8_loop_filter_simple_horizontal_edge_c;
     if (flags & HAS_MMX) vp8_loop_filter_simple_mbh = vp8_loop_filter_simple_horizontal_edge_mmx;
     if (flags & HAS_SSE2) vp8_loop_filter_simple_mbh = vp8_loop_filter_simple_horizontal_edge_sse2;
-
     vp8_loop_filter_simple_mbv = vp8_loop_filter_simple_vertical_edge_c;
     if (flags & HAS_MMX) vp8_loop_filter_simple_mbv = vp8_loop_filter_simple_vertical_edge_mmx;
     if (flags & HAS_SSE2) vp8_loop_filter_simple_mbv = vp8_loop_filter_simple_vertical_edge_sse2;
-
     vp8_mbblock_error = vp8_mbblock_error_c;
     if (flags & HAS_MMX) vp8_mbblock_error = vp8_mbblock_error_mmx;
     if (flags & HAS_SSE2) vp8_mbblock_error = vp8_mbblock_error_xmm;
-
     vp8_mbpost_proc_across_ip = vp8_mbpost_proc_across_ip_c;
     if (flags & HAS_SSE2) vp8_mbpost_proc_across_ip = vp8_mbpost_proc_across_ip_xmm;
-
     vp8_mbpost_proc_down = vp8_mbpost_proc_down_c;
     if (flags & HAS_MMX) vp8_mbpost_proc_down = vp8_mbpost_proc_down_mmx;
     if (flags & HAS_SSE2) vp8_mbpost_proc_down = vp8_mbpost_proc_down_xmm;
-
     vp8_mbuverror = vp8_mbuverror_c;
     if (flags & HAS_MMX) vp8_mbuverror = vp8_mbuverror_mmx;
     if (flags & HAS_SSE2) vp8_mbuverror = vp8_mbuverror_xmm;
-
     vp8_mse16x16 = vp8_mse16x16_c;
     if (flags & HAS_MMX) vp8_mse16x16 = vp8_mse16x16_mmx;
     if (flags & HAS_SSE2) vp8_mse16x16 = vp8_mse16x16_wmt;
-
     vp8_plane_add_noise = vp8_plane_add_noise_c;
     if (flags & HAS_MMX) vp8_plane_add_noise = vp8_plane_add_noise_mmx;
     if (flags & HAS_SSE2) vp8_plane_add_noise = vp8_plane_add_noise_wmt;
-
     vp8_post_proc_down_and_across_mb_row = vp8_post_proc_down_and_across_mb_row_c;
     if (flags & HAS_SSE2) vp8_post_proc_down_and_across_mb_row = vp8_post_proc_down_and_across_mb_row_sse2;
-
-
-
-
     vp8_refining_search_sad = vp8_refining_search_sad_c;
     if (flags & HAS_SSE3) vp8_refining_search_sad = vp8_refining_search_sadx4;
-
     vp8_regular_quantize_b = vp8_regular_quantize_b_c;
     if (flags & HAS_SSE2) vp8_regular_quantize_b = vp8_regular_quantize_b_sse2;
-
-
+    if (flags & HAS_SSE4_1) vp8_regular_quantize_b = vp8_regular_quantize_b_sse4_1;
     vp8_sad16x16 = vp8_sad16x16_c;
     if (flags & HAS_MMX) vp8_sad16x16 = vp8_sad16x16_mmx;
     if (flags & HAS_SSE2) vp8_sad16x16 = vp8_sad16x16_wmt;
     if (flags & HAS_SSE3) vp8_sad16x16 = vp8_sad16x16_sse3;
-
     vp8_sad16x16x3 = vp8_sad16x16x3_c;
     if (flags & HAS_SSE3) vp8_sad16x16x3 = vp8_sad16x16x3_sse3;
     if (flags & HAS_SSSE3) vp8_sad16x16x3 = vp8_sad16x16x3_ssse3;
-
     vp8_sad16x16x4d = vp8_sad16x16x4d_c;
     if (flags & HAS_SSE3) vp8_sad16x16x4d = vp8_sad16x16x4d_sse3;
-
     vp8_sad16x16x8 = vp8_sad16x16x8_c;
     if (flags & HAS_SSE4_1) vp8_sad16x16x8 = vp8_sad16x16x8_sse4;
-
     vp8_sad16x8 = vp8_sad16x8_c;
     if (flags & HAS_MMX) vp8_sad16x8 = vp8_sad16x8_mmx;
     if (flags & HAS_SSE2) vp8_sad16x8 = vp8_sad16x8_wmt;
-
     vp8_sad16x8x3 = vp8_sad16x8x3_c;
     if (flags & HAS_SSE3) vp8_sad16x8x3 = vp8_sad16x8x3_sse3;
     if (flags & HAS_SSSE3) vp8_sad16x8x3 = vp8_sad16x8x3_ssse3;
-
     vp8_sad16x8x4d = vp8_sad16x8x4d_c;
     if (flags & HAS_SSE3) vp8_sad16x8x4d = vp8_sad16x8x4d_sse3;
-
     vp8_sad16x8x8 = vp8_sad16x8x8_c;
     if (flags & HAS_SSE4_1) vp8_sad16x8x8 = vp8_sad16x8x8_sse4;
-
     vp8_sad4x4 = vp8_sad4x4_c;
     if (flags & HAS_MMX) vp8_sad4x4 = vp8_sad4x4_mmx;
     if (flags & HAS_SSE2) vp8_sad4x4 = vp8_sad4x4_wmt;
-
     vp8_sad4x4x3 = vp8_sad4x4x3_c;
     if (flags & HAS_SSE3) vp8_sad4x4x3 = vp8_sad4x4x3_sse3;
-
     vp8_sad4x4x4d = vp8_sad4x4x4d_c;
     if (flags & HAS_SSE3) vp8_sad4x4x4d = vp8_sad4x4x4d_sse3;
-
     vp8_sad4x4x8 = vp8_sad4x4x8_c;
     if (flags & HAS_SSE4_1) vp8_sad4x4x8 = vp8_sad4x4x8_sse4;
-
     vp8_sad8x16 = vp8_sad8x16_c;
     if (flags & HAS_MMX) vp8_sad8x16 = vp8_sad8x16_mmx;
     if (flags & HAS_SSE2) vp8_sad8x16 = vp8_sad8x16_wmt;
-
     vp8_sad8x16x3 = vp8_sad8x16x3_c;
     if (flags & HAS_SSE3) vp8_sad8x16x3 = vp8_sad8x16x3_sse3;
-
     vp8_sad8x16x4d = vp8_sad8x16x4d_c;
     if (flags & HAS_SSE3) vp8_sad8x16x4d = vp8_sad8x16x4d_sse3;
-
     vp8_sad8x16x8 = vp8_sad8x16x8_c;
     if (flags & HAS_SSE4_1) vp8_sad8x16x8 = vp8_sad8x16x8_sse4;
-
     vp8_sad8x8 = vp8_sad8x8_c;
     if (flags & HAS_MMX) vp8_sad8x8 = vp8_sad8x8_mmx;
     if (flags & HAS_SSE2) vp8_sad8x8 = vp8_sad8x8_wmt;
-
     vp8_sad8x8x3 = vp8_sad8x8x3_c;
     if (flags & HAS_SSE3) vp8_sad8x8x3 = vp8_sad8x8x3_sse3;
-
     vp8_sad8x8x4d = vp8_sad8x8x4d_c;
     if (flags & HAS_SSE3) vp8_sad8x8x4d = vp8_sad8x8x4d_sse3;
-
     vp8_sad8x8x8 = vp8_sad8x8x8_c;
     if (flags & HAS_SSE4_1) vp8_sad8x8x8 = vp8_sad8x8x8_sse4;
-
     vp8_short_fdct4x4 = vp8_short_fdct4x4_c;
     if (flags & HAS_MMX) vp8_short_fdct4x4 = vp8_short_fdct4x4_mmx;
     if (flags & HAS_SSE2) vp8_short_fdct4x4 = vp8_short_fdct4x4_sse2;
-
     vp8_short_fdct8x4 = vp8_short_fdct8x4_c;
     if (flags & HAS_MMX) vp8_short_fdct8x4 = vp8_short_fdct8x4_mmx;
     if (flags & HAS_SSE2) vp8_short_fdct8x4 = vp8_short_fdct8x4_sse2;
-
     vp8_short_idct4x4llm = vp8_short_idct4x4llm_c;
     if (flags & HAS_MMX) vp8_short_idct4x4llm = vp8_short_idct4x4llm_mmx;
-
     vp8_short_inv_walsh4x4 = vp8_short_inv_walsh4x4_c;
     if (flags & HAS_MMX) vp8_short_inv_walsh4x4 = vp8_short_inv_walsh4x4_mmx;
     if (flags & HAS_SSE2) vp8_short_inv_walsh4x4 = vp8_short_inv_walsh4x4_sse2;
-
-
     vp8_short_walsh4x4 = vp8_short_walsh4x4_c;
     if (flags & HAS_SSE2) vp8_short_walsh4x4 = vp8_short_walsh4x4_sse2;
-
     vp8_sixtap_predict16x16 = vp8_sixtap_predict16x16_c;
     if (flags & HAS_MMX) vp8_sixtap_predict16x16 = vp8_sixtap_predict16x16_mmx;
     if (flags & HAS_SSE2) vp8_sixtap_predict16x16 = vp8_sixtap_predict16x16_sse2;
     if (flags & HAS_SSSE3) vp8_sixtap_predict16x16 = vp8_sixtap_predict16x16_ssse3;
-
     vp8_sixtap_predict4x4 = vp8_sixtap_predict4x4_c;
     if (flags & HAS_MMX) vp8_sixtap_predict4x4 = vp8_sixtap_predict4x4_mmx;
     if (flags & HAS_SSSE3) vp8_sixtap_predict4x4 = vp8_sixtap_predict4x4_ssse3;
-
     vp8_sixtap_predict8x4 = vp8_sixtap_predict8x4_c;
     if (flags & HAS_MMX) vp8_sixtap_predict8x4 = vp8_sixtap_predict8x4_mmx;
     if (flags & HAS_SSE2) vp8_sixtap_predict8x4 = vp8_sixtap_predict8x4_sse2;
     if (flags & HAS_SSSE3) vp8_sixtap_predict8x4 = vp8_sixtap_predict8x4_ssse3;
-
     vp8_sixtap_predict8x8 = vp8_sixtap_predict8x8_c;
     if (flags & HAS_MMX) vp8_sixtap_predict8x8 = vp8_sixtap_predict8x8_mmx;
     if (flags & HAS_SSE2) vp8_sixtap_predict8x8 = vp8_sixtap_predict8x8_sse2;
     if (flags & HAS_SSSE3) vp8_sixtap_predict8x8 = vp8_sixtap_predict8x8_ssse3;
-
     vp8_sub_pixel_mse16x16 = vp8_sub_pixel_mse16x16_c;
     if (flags & HAS_MMX) vp8_sub_pixel_mse16x16 = vp8_sub_pixel_mse16x16_mmx;
     if (flags & HAS_SSE2) vp8_sub_pixel_mse16x16 = vp8_sub_pixel_mse16x16_wmt;
-
     vp8_sub_pixel_variance16x16 = vp8_sub_pixel_variance16x16_c;
     if (flags & HAS_MMX) vp8_sub_pixel_variance16x16 = vp8_sub_pixel_variance16x16_mmx;
     if (flags & HAS_SSE2) vp8_sub_pixel_variance16x16 = vp8_sub_pixel_variance16x16_wmt;
     if (flags & HAS_SSSE3) vp8_sub_pixel_variance16x16 = vp8_sub_pixel_variance16x16_ssse3;
-
     vp8_sub_pixel_variance16x8 = vp8_sub_pixel_variance16x8_c;
     if (flags & HAS_MMX) vp8_sub_pixel_variance16x8 = vp8_sub_pixel_variance16x8_mmx;
     if (flags & HAS_SSE2) vp8_sub_pixel_variance16x8 = vp8_sub_pixel_variance16x8_wmt;
     if (flags & HAS_SSSE3) vp8_sub_pixel_variance16x8 = vp8_sub_pixel_variance16x8_ssse3;
-
     vp8_sub_pixel_variance4x4 = vp8_sub_pixel_variance4x4_c;
     if (flags & HAS_MMX) vp8_sub_pixel_variance4x4 = vp8_sub_pixel_variance4x4_mmx;
     if (flags & HAS_SSE2) vp8_sub_pixel_variance4x4 = vp8_sub_pixel_variance4x4_wmt;
-
     vp8_sub_pixel_variance8x16 = vp8_sub_pixel_variance8x16_c;
     if (flags & HAS_MMX) vp8_sub_pixel_variance8x16 = vp8_sub_pixel_variance8x16_mmx;
     if (flags & HAS_SSE2) vp8_sub_pixel_variance8x16 = vp8_sub_pixel_variance8x16_wmt;
-
     vp8_sub_pixel_variance8x8 = vp8_sub_pixel_variance8x8_c;
     if (flags & HAS_MMX) vp8_sub_pixel_variance8x8 = vp8_sub_pixel_variance8x8_mmx;
     if (flags & HAS_SSE2) vp8_sub_pixel_variance8x8 = vp8_sub_pixel_variance8x8_wmt;
-
     vp8_subtract_b = vp8_subtract_b_c;
     if (flags & HAS_MMX) vp8_subtract_b = vp8_subtract_b_mmx;
     if (flags & HAS_SSE2) vp8_subtract_b = vp8_subtract_b_sse2;
-
     vp8_subtract_mbuv = vp8_subtract_mbuv_c;
     if (flags & HAS_MMX) vp8_subtract_mbuv = vp8_subtract_mbuv_mmx;
     if (flags & HAS_SSE2) vp8_subtract_mbuv = vp8_subtract_mbuv_sse2;
-
     vp8_subtract_mby = vp8_subtract_mby_c;
     if (flags & HAS_MMX) vp8_subtract_mby = vp8_subtract_mby_mmx;
     if (flags & HAS_SSE2) vp8_subtract_mby = vp8_subtract_mby_sse2;
-
     vp8_variance16x16 = vp8_variance16x16_c;
     if (flags & HAS_MMX) vp8_variance16x16 = vp8_variance16x16_mmx;
     if (flags & HAS_SSE2) vp8_variance16x16 = vp8_variance16x16_wmt;
-
     vp8_variance16x8 = vp8_variance16x8_c;
     if (flags & HAS_MMX) vp8_variance16x8 = vp8_variance16x8_mmx;
     if (flags & HAS_SSE2) vp8_variance16x8 = vp8_variance16x8_wmt;
-
     vp8_variance4x4 = vp8_variance4x4_c;
     if (flags & HAS_MMX) vp8_variance4x4 = vp8_variance4x4_mmx;
     if (flags & HAS_SSE2) vp8_variance4x4 = vp8_variance4x4_wmt;
-
     vp8_variance8x16 = vp8_variance8x16_c;
     if (flags & HAS_MMX) vp8_variance8x16 = vp8_variance8x16_mmx;
     if (flags & HAS_SSE2) vp8_variance8x16 = vp8_variance8x16_wmt;
-
     vp8_variance8x8 = vp8_variance8x8_c;
     if (flags & HAS_MMX) vp8_variance8x8 = vp8_variance8x8_mmx;
     if (flags & HAS_SSE2) vp8_variance8x8 = vp8_variance8x8_wmt;
-
     vp8_variance_halfpixvar16x16_h = vp8_variance_halfpixvar16x16_h_c;
     if (flags & HAS_MMX) vp8_variance_halfpixvar16x16_h = vp8_variance_halfpixvar16x16_h_mmx;
     if (flags & HAS_SSE2) vp8_variance_halfpixvar16x16_h = vp8_variance_halfpixvar16x16_h_wmt;
-
     vp8_variance_halfpixvar16x16_hv = vp8_variance_halfpixvar16x16_hv_c;
     if (flags & HAS_MMX) vp8_variance_halfpixvar16x16_hv = vp8_variance_halfpixvar16x16_hv_mmx;
     if (flags & HAS_SSE2) vp8_variance_halfpixvar16x16_hv = vp8_variance_halfpixvar16x16_hv_wmt;
-
     vp8_variance_halfpixvar16x16_v = vp8_variance_halfpixvar16x16_v_c;
     if (flags & HAS_MMX) vp8_variance_halfpixvar16x16_v = vp8_variance_halfpixvar16x16_v_mmx;
     if (flags & HAS_SSE2) vp8_variance_halfpixvar16x16_v = vp8_variance_halfpixvar16x16_v_wmt;
