@@ -125,7 +125,7 @@ function write_target_definition {
   echo "      }," >> "$2"
   echo "      # TODO(pcc): Remove this once we properly support subtarget specific" >> "$2"
   echo "      # code generation in LLVM (http://llvm.org/PR19416)." >> "$2"
-  echo "      'cflags!': [ '-flto' ]," >> "$2"
+  echo "      'cflags!': [ '-flto', '-fsanitize=cfi-vptr', ]," >> "$2"
   elif [[ $4 == ssse3 || $4 == sse4.1 ]]; then
   echo "      'conditions': [" >> "$2"
   echo "        ['OS==\"win\" and clang==1', {" >> "$2"
