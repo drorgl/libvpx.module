@@ -447,9 +447,14 @@ static vpx_codec_err_t vp8e_set_config(vpx_codec_alg_priv_t       *ctx,
 {
     vpx_codec_err_t res;
 
-    if (((cfg->g_w != ctx->cfg.g_w) || (cfg->g_h != ctx->cfg.g_h))
-        && (cfg->g_lag_in_frames > 1 || cfg->g_pass != VPX_RC_ONE_PASS))
-        ERROR("Cannot change width or height after initialization");
+    if (cfg->g_w != ctx->cfg.g_w || cfg->g_h != ctx->cfg.g_h)
+    {
+        if (cfg->g_lag_in_frames > 1 || cfg->g_pass != VPX_RC_ONE_PASS)
+            ERROR("Cannot change width or height after initialization");
+        if ((ctx->cpi->initial_width && (int)cfg->g_w > ctx->cpi->initial_width) ||
+            (ctx->cpi->initial_height && (int)cfg->g_h > ctx->cpi->initial_height))
+            ERROR("Cannot increast width or height larger than their initial values");
+    }
 
     /* Prevent increasing lag_in_frames. This check is stricter than it needs
      * to be -- the limit is not increasing past the first lag_in_frames
@@ -1381,12 +1386,13 @@ CODEC_INTERFACE(vpx_codec_vp8_cx) =
         NULL,    /* vpx_codec_get_si_fn_t     get_si; */
         NULL,    /* vpx_codec_decode_fn_t     decode; */
         NULL,    /* vpx_codec_frame_get_fn_t  frame_get; */
+        NULL,    /* vpx_codec_set_fb_fn_t     set_fb_fn; */
     },
     {
         1,                  /* 1 cfg map */
-        vp8e_usage_cfg_map, /* vpx_codec_enc_cfg_map_t    peek_si; */
+        vp8e_usage_cfg_map, /* vpx_codec_enc_cfg_map_t    cfg_maps; */
         vp8e_encode,        /* vpx_codec_encode_fn_t      encode; */
-        vp8e_get_cxdata,    /* vpx_codec_get_cx_data_fn_t   frame_get; */
+        vp8e_get_cxdata,    /* vpx_codec_get_cx_data_fn_t   get_cx_data; */
         vp8e_set_config,
         NULL,
         vp8e_get_preview,

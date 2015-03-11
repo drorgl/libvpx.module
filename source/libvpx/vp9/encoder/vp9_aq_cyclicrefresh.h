@@ -18,6 +18,18 @@
 extern "C" {
 #endif
 
+// The segment ids used in cyclic refresh: from base (no boost) to increasing
+// boost (higher delta-qp).
+#define CR_SEGMENT_ID_BASE    0
+#define CR_SEGMENT_ID_BOOST1  1
+#define CR_SEGMENT_ID_BOOST2  2
+
+// Maximum rate target ratio for setting segment delta-qp.
+#define CR_MAX_RATE_TARGET_RATIO 4.0
+
+// Boost factor for rate target ratio, for segment CR_SEGMENT_ID_BOOST2.
+#define CR_BOOST2_FAC 1.7
+
 struct VP9_COMP;
 
 struct CYCLIC_REFRESH;
@@ -42,9 +54,8 @@ int vp9_cyclic_refresh_rc_bits_per_mb(const struct VP9_COMP *cpi, int i,
 // and segmentation map.
 void vp9_cyclic_refresh_update_segment(struct VP9_COMP *const cpi,
                                        MB_MODE_INFO *const mbmi,
-                                       int mi_row, int mi_col,
-                                       BLOCK_SIZE bsize, int use_rd,
-                                       int64_t rate_sb);
+                                       int mi_row, int mi_col, BLOCK_SIZE bsize,
+                                       int64_t rate, int64_t dist);
 
 // Update the segmentation map, and related quantities: cyclic refresh map,
 // refresh sb_index, and target number of blocks to be refreshed.

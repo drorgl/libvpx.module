@@ -183,8 +183,10 @@ static const arg_def_t recontest = ARG_DEF_ENUM(
     NULL, "test-decode", 1, "Test encode/decode mismatch", test_decode_enum);
 static const arg_def_t framerate = ARG_DEF(
     NULL, "fps", 1, "Stream frame rate (rate/scale)");
+static const arg_def_t use_webm = ARG_DEF(
+    NULL, "webm", 0, "Output WebM (default when WebM IO is enabled)");
 static const arg_def_t use_ivf = ARG_DEF(
-    NULL, "ivf", 0, "Output IVF (default is WebM if WebM IO is enabled)");
+    NULL, "ivf", 0, "Output IVF");
 static const arg_def_t out_part = ARG_DEF(
     "P", "output-partitions", 0,
     "Makes encoder output partitions. Requires IVF output!");
@@ -208,7 +210,7 @@ static const arg_def_t *main_args[] = {
   &debugmode,
   &outputfile, &codecarg, &passes, &pass_arg, &fpf_name, &limit, &skip,
   &deadline, &best_dl, &good_dl, &rt_dl,
-  &quietarg, &verbosearg, &psnrarg, &use_ivf, &out_part, &q_hist_n,
+  &quietarg, &verbosearg, &psnrarg, &use_webm, &use_ivf, &out_part, &q_hist_n,
   &rate_hist_n, &disable_warnings, &disable_warning_prompt,
   NULL
 };
@@ -396,6 +398,22 @@ static const arg_def_t frame_periodic_boost = ARG_DEF(
     NULL, "frame-boost", 1,
     "Enable frame periodic boost (0: off (default), 1: on)");
 
+static const struct arg_enum_list color_space_enum[] = {
+  { "unknown", VPX_CS_UNKNOWN },
+  { "bt601", VPX_CS_BT_601 },
+  { "bt709", VPX_CS_BT_709 },
+  { "smpte170", VPX_CS_SMPTE_170 },
+  { "smpte240", VPX_CS_SMPTE_240 },
+  { "bt2020", VPX_CS_BT_2020 },
+  { "reserved", VPX_CS_RESERVED },
+  { "sRGB", VPX_CS_SRGB },
+  { NULL, 0 }
+};
+
+static const arg_def_t input_color_space = ARG_DEF_ENUM(
+    NULL, "color-space", 1,
+    "The color space of input content:", color_space_enum);
+
 #if CONFIG_VP9 && CONFIG_VP9_HIGHBITDEPTH
 static const struct arg_enum_list bitdepth_enum[] = {
   {"8",  VPX_BITS_8},
@@ -427,7 +445,7 @@ static const arg_def_t *vp9_args[] = {
   &tune_ssim, &cq_level, &max_intra_rate_pct, &max_inter_rate_pct,
   &gf_cbr_boost_pct, &lossless,
   &frame_parallel_decoding, &aq_mode, &frame_periodic_boost,
-  &noise_sens, &tune_content,
+  &noise_sens, &tune_content, &input_color_space,
 #if CONFIG_VP9 && CONFIG_VP9_HIGHBITDEPTH
   &bitdeptharg, &inbitdeptharg,
 #endif
@@ -1050,14 +1068,19 @@ static int parse_stream_params(struct VpxEncoderConfig *global,
       continue;
     }
 
-    if (0) {
-    } else if (arg_match(&arg, &outputfile, argi)) {
+    if (arg_match(&arg, &outputfile, argi)) {
       config->out_fn = arg.val;
     } else if (arg_match(&arg, &fpf_name, argi)) {
       config->stats_fn = arg.val;
 #if CONFIG_FP_MB_STATS
     } else if (arg_match(&arg, &fpmbf_name, argi)) {
       config->fpmb_stats_fn = arg.val;
+#endif
+    } else if (arg_match(&arg, &use_webm, argi)) {
+#if CONFIG_WEBM_IO
+      config->write_webm = 1;
+#else
+      die("Error: --webm specified but webm is disabled.");
 #endif
     } else if (arg_match(&arg, &use_ivf, argi)) {
       config->write_webm = 0;

@@ -58,7 +58,6 @@ Advanced options:
   ${toggle_postproc_visualizer}   macro block / block level visualizers
   ${toggle_multi_res_encoding}    enable multiple-resolution encoding
   ${toggle_temporal_denoising}    enable temporal denoising and disable the spatial denoiser
-  ${toggle_vp9_highbitdepth}      enable 10/12 bit support in VP9
   ${toggle_vp9_temporal_denoising}
                                   enable vp9 temporal denoising
   ${toggle_webm_io}               enable input from and output to WebM container
@@ -129,6 +128,7 @@ all_platforms="${all_platforms} x86-darwin10-gcc"
 all_platforms="${all_platforms} x86-darwin11-gcc"
 all_platforms="${all_platforms} x86-darwin12-gcc"
 all_platforms="${all_platforms} x86-darwin13-gcc"
+all_platforms="${all_platforms} x86-darwin14-gcc"
 all_platforms="${all_platforms} x86-iphonesimulator-gcc"
 all_platforms="${all_platforms} x86-linux-gcc"
 all_platforms="${all_platforms} x86-linux-icc"
@@ -146,6 +146,7 @@ all_platforms="${all_platforms} x86_64-darwin10-gcc"
 all_platforms="${all_platforms} x86_64-darwin11-gcc"
 all_platforms="${all_platforms} x86_64-darwin12-gcc"
 all_platforms="${all_platforms} x86_64-darwin13-gcc"
+all_platforms="${all_platforms} x86_64-darwin14-gcc"
 all_platforms="${all_platforms} x86_64-iphonesimulator-gcc"
 all_platforms="${all_platforms} x86_64-linux-gcc"
 all_platforms="${all_platforms} x86_64-linux-icc"
@@ -162,6 +163,7 @@ all_platforms="${all_platforms} universal-darwin10-gcc"
 all_platforms="${all_platforms} universal-darwin11-gcc"
 all_platforms="${all_platforms} universal-darwin12-gcc"
 all_platforms="${all_platforms} universal-darwin13-gcc"
+all_platforms="${all_platforms} universal-darwin14-gcc"
 all_platforms="${all_platforms} generic-gnu"
 
 # all_targets is a list of all targets that can be configured
@@ -207,6 +209,7 @@ enable_feature install_libs
 
 enable_feature static
 enable_feature optimizations
+enable_feature dependency_tracking
 enable_feature fast_unaligned #allow unaligned accesses, if supported by hw
 enable_feature spatial_resampling
 enable_feature multithread
@@ -284,6 +287,7 @@ EXPERIMENT_LIST="
     emulate_hardware
 "
 CONFIG_LIST="
+    dependency_tracking
     external_build
     install_docs
     install_bins
@@ -342,6 +346,7 @@ CONFIG_LIST="
     ${EXPERIMENT_LIST}
 "
 CMDLINE_SELECT="
+    dependency_tracking
     external_build
     extra_warnings
     werror

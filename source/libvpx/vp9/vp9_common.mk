@@ -33,7 +33,7 @@ VP9_COMMON_SRCS-yes += common/vp9_entropymv.h
 VP9_COMMON_SRCS-yes += common/vp9_enums.h
 VP9_COMMON_SRCS-yes += common/vp9_idct.h
 VP9_COMMON_SRCS-yes += common/vp9_loopfilter.h
-VP9_COMMON_SRCS-yes += common/vp9_loopfilter_thread.h
+VP9_COMMON_SRCS-yes += common/vp9_thread_common.h
 VP9_COMMON_SRCS-yes += common/vp9_mv.h
 VP9_COMMON_SRCS-yes += common/vp9_onyxc_int.h
 VP9_COMMON_SRCS-yes += common/vp9_pred_common.h
@@ -57,7 +57,7 @@ VP9_COMMON_SRCS-yes += common/vp9_tile_common.h
 VP9_COMMON_SRCS-yes += common/vp9_tile_common.c
 VP9_COMMON_SRCS-yes += common/vp9_loopfilter.c
 VP9_COMMON_SRCS-yes += common/vp9_loopfilter_filters.c
-VP9_COMMON_SRCS-yes += common/vp9_loopfilter_thread.c
+VP9_COMMON_SRCS-yes += common/vp9_thread_common.c
 VP9_COMMON_SRCS-yes += common/vp9_mvref_common.c
 VP9_COMMON_SRCS-yes += common/vp9_mvref_common.h
 VP9_COMMON_SRCS-yes += common/vp9_quant_common.c
@@ -84,6 +84,7 @@ VP9_COMMON_SRCS-$(HAVE_SSSE3) += common/x86/vp9_subpixel_bilinear_ssse3.asm
 VP9_COMMON_SRCS-$(HAVE_AVX2) += common/x86/vp9_subpixel_8t_intrin_avx2.c
 VP9_COMMON_SRCS-$(HAVE_SSSE3) += common/x86/vp9_subpixel_8t_intrin_ssse3.c
 ifeq ($(CONFIG_VP9_POSTPROC),yes)
+VP9_COMMON_SRCS-$(HAVE_SSE2) += common/x86/vp9_mfqe_sse2.asm
 VP9_COMMON_SRCS-$(HAVE_SSE2) += common/x86/vp9_postproc_sse2.asm
 endif
 

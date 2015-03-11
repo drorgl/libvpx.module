@@ -18,7 +18,7 @@
 %define HAVE_SSSE3 1
 %define HAVE_SSE4_1 1
 %define HAVE_AVX 1
-%define HAVE_AVX2 0
+%define HAVE_AVX2 1
 %define HAVE_ALTIVEC 0
 %define HAVE_VPX_PORTS 1
 %define HAVE_STDINT_H 1
@@ -26,6 +26,7 @@
 %define HAVE_PTHREAD_H 1
 %define HAVE_SYS_MMAN_H 1
 %define HAVE_UNISTD_H 1
+%define CONFIG_DEPENDENCY_TRACKING 1
 %define CONFIG_EXTERNAL_BUILD 1
 %define CONFIG_INSTALL_DOCS 0
 %define CONFIG_INSTALL_BINS 1

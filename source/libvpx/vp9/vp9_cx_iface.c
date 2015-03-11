@@ -83,10 +83,13 @@ struct vpx_codec_alg_priv {
   size_t                  pending_frame_sizes[8];
   size_t                  pending_frame_magnitude;
   vpx_image_t             preview_img;
+  vpx_enc_frame_flags_t   next_frame_flags;
   vp8_postproc_cfg_t      preview_ppcfg;
   vpx_codec_pkt_list_decl(256) pkt_list;
   unsigned int                 fixed_kf_cntr;
   vpx_codec_priv_output_cx_pkt_cb_pair_t output_cx_pkt_cb;
+  // BufferPool that holds all reference frames.
+  BufferPool              *buffer_pool;
 };
 
 static VP9_REFFRAME ref_frame_to_vp9_reframe(vpx_ref_frame_type_t frame) {
@@ -524,9 +527,16 @@ static vpx_codec_err_t set_encoder_config(
 static vpx_codec_err_t encoder_set_config(vpx_codec_alg_priv_t *ctx,
                                           const vpx_codec_enc_cfg_t  *cfg) {
   vpx_codec_err_t res;
+  int force_key = 0;
 
-  if (cfg->g_w != ctx->cfg.g_w || cfg->g_h != ctx->cfg.g_h)
-    ERROR("Cannot change width or height after initialization");
+  if (cfg->g_w != ctx->cfg.g_w || cfg->g_h != ctx->cfg.g_h) {
+    if (cfg->g_lag_in_frames > 1 || cfg->g_pass != VPX_RC_ONE_PASS)
+      ERROR("Cannot change width or height after initialization");
+    if (!valid_ref_frame_size(ctx->cfg.g_w, ctx->cfg.g_h, cfg->g_w, cfg->g_h) ||
+        (ctx->cpi->initial_width && (int)cfg->g_w > ctx->cpi->initial_width) ||
+        (ctx->cpi->initial_height && (int)cfg->g_h > ctx->cpi->initial_height))
+      force_key = 1;
+  }
 
   // Prevent increasing lag_in_frames. This check is stricter than it needs
   // to be -- the limit is not increasing past the first lag_in_frames
@@ -542,6 +552,9 @@ static vpx_codec_err_t encoder_set_config(vpx_codec_alg_priv_t *ctx,
     set_encoder_config(&ctx->oxcf, &ctx->cfg, &ctx->extra_cfg);
     vp9_change_config(ctx->cpi, &ctx->oxcf);
   }
+
+  if (force_key)
+    ctx->next_frame_flags |= VPX_EFLAG_FORCE_KF;
 
   return res;
 }
@@ -725,6 +738,16 @@ static vpx_codec_err_t encoder_init(vpx_codec_ctx_t *ctx,
     ctx->priv = (vpx_codec_priv_t *)priv;
     ctx->priv->init_flags = ctx->init_flags;
     ctx->priv->enc.total_encoders = 1;
+    priv->buffer_pool =
+        (BufferPool *)vpx_calloc(1, sizeof(BufferPool));
+    if (priv->buffer_pool == NULL)
+      return VPX_CODEC_MEM_ERROR;
+
+#if CONFIG_MULTITHREAD
+    if (pthread_mutex_init(&priv->buffer_pool->pool_mutex, NULL)) {
+      return VPX_CODEC_MEM_ERROR;
+    }
+#endif
 
     if (ctx->config.enc) {
       // Update the reference to the config structure to an internal copy.
@@ -743,7 +766,7 @@ static vpx_codec_err_t encoder_init(vpx_codec_ctx_t *ctx,
       priv->oxcf.use_highbitdepth =
           (ctx->init_flags & VPX_CODEC_USE_HIGHBITDEPTH) ? 1 : 0;
 #endif
-      priv->cpi = vp9_create_compressor(&priv->oxcf);
+      priv->cpi = vp9_create_compressor(&priv->oxcf, priv->buffer_pool);
       if (priv->cpi == NULL)
         res = VPX_CODEC_MEM_ERROR;
       else
@@ -757,6 +780,10 @@ static vpx_codec_err_t encoder_init(vpx_codec_ctx_t *ctx,
 static vpx_codec_err_t encoder_destroy(vpx_codec_alg_priv_t *ctx) {
   free(ctx->cx_data);
   vp9_remove_compressor(ctx->cpi);
+#if CONFIG_MULTITHREAD
+  pthread_mutex_destroy(&ctx->buffer_pool->pool_mutex);
+#endif
+  vpx_free(ctx->buffer_pool);
   vpx_free(ctx);
   return VPX_CODEC_OK;
 }
@@ -955,10 +982,11 @@ static vpx_codec_err_t encoder_encode(vpx_codec_alg_priv_t  *ctx,
 
       // Store the original flags in to the frame buffer. Will extract the
       // key frame flag when we actually encode this frame.
-      if (vp9_receive_raw_frame(cpi, flags,
+      if (vp9_receive_raw_frame(cpi, flags | ctx->next_frame_flags,
                                 &sd, dst_time_stamp, dst_end_time_stamp)) {
         res = update_error_state(ctx, &cpi->common.error);
       }
+      ctx->next_frame_flags = 0;
     }
 
     cx_data = ctx->cx_data;
