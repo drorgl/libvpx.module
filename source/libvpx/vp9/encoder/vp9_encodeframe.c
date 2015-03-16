@@ -416,7 +416,7 @@ static int set_vt_partitioning(VP9_COMP *cpi,
   tree_to_node(data, bsize, &vt);
 
   // No 64x64 blocks on segments other than base (un-boosted) segment.
-  if (segment_id != CR_SEGMENT_ID_BASE && bsize == BLOCK_64X64)
+  if (cyclic_refresh_segment_id_boosted(segment_id) && bsize == BLOCK_64X64)
     return 0;
 
   // For bsize=bsize_min (16x16/8x8 for 8x8/4x4 downsampling), select if
@@ -481,7 +481,8 @@ static int set_vt_partitioning(VP9_COMP *cpi,
 
 void vp9_set_vbp_thresholds(VP9_COMP *cpi, int q) {
   SPEED_FEATURES *const sf = &cpi->sf;
-  if (sf->partition_search_type != VAR_BASED_PARTITION) {
+  if (sf->partition_search_type != VAR_BASED_PARTITION &&
+      sf->partition_search_type != REFERENCE_PARTITION) {
     return;
   } else {
     VP9_COMMON *const cm = &cpi->common;
@@ -513,12 +514,6 @@ void vp9_set_vbp_thresholds(VP9_COMP *cpi, int q) {
     cpi->vbp_bsize_min = (use_4x4_partition) ? BLOCK_8X8 : BLOCK_16X16;
   }
 }
-
-#if CONFIG_VP9_HIGHBITDEPTH
-#define GLOBAL_MOTION 0
-#else
-#define GLOBAL_MOTION 1
-#endif
 
 // This function chooses partitioning based on the variance between source and
 // reconstructed last, where variance is computed for down-sampled inputs.
@@ -563,21 +558,11 @@ static void choose_partitioning(VP9_COMP *cpi,
   if (!is_key_frame) {
     MB_MODE_INFO *mbmi = &xd->mi[0].src_mi->mbmi;
     unsigned int uv_sad;
-#if GLOBAL_MOTION
-    unsigned int y_sad;
-    BLOCK_SIZE bsize;
-#endif
     const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_buffer(cpi, LAST_FRAME);
-    assert(yv12 != NULL);
-    vp9_setup_pre_planes(xd, 0, yv12, mi_row, mi_col,
-        &cm->frame_refs[LAST_FRAME - 1].sf);
-    mbmi->ref_frame[0] = LAST_FRAME;
-    mbmi->ref_frame[1] = NONE;
-    mbmi->sb_type = BLOCK_64X64;
-    mbmi->mv[0].as_int = 0;
-    mbmi->interp_filter = BILINEAR;
 
-#if GLOBAL_MOTION
+    const YV12_BUFFER_CONFIG *yv12_g = get_ref_frame_buffer(cpi, GOLDEN_FRAME);
+    unsigned int y_sad, y_sad_g;
+    BLOCK_SIZE bsize;
     if (mi_row + 4 < cm->mi_rows && mi_col + 4 < cm->mi_cols)
       bsize = BLOCK_64X64;
     else if (mi_row + 4 < cm->mi_rows && mi_col + 4 >= cm->mi_cols)
@@ -587,31 +572,52 @@ static void choose_partitioning(VP9_COMP *cpi,
     else
       bsize = BLOCK_32X32;
 
+    assert(yv12 != NULL);
+
+    if (yv12_g && yv12_g != yv12) {
+      vp9_setup_pre_planes(xd, 0, yv12_g, mi_row, mi_col,
+                           &cm->frame_refs[GOLDEN_FRAME - 1].sf);
+      y_sad_g = cpi->fn_ptr[bsize].sdf(x->plane[0].src.buf,
+                                       x->plane[0].src.stride,
+                                       xd->plane[0].pre[0].buf,
+                                       xd->plane[0].pre[0].stride);
+    } else {
+      y_sad_g = UINT_MAX;
+    }
+
+    vp9_setup_pre_planes(xd, 0, yv12, mi_row, mi_col,
+                         &cm->frame_refs[LAST_FRAME - 1].sf);
+    mbmi->ref_frame[0] = LAST_FRAME;
+    mbmi->ref_frame[1] = NONE;
+    mbmi->sb_type = BLOCK_64X64;
+    mbmi->mv[0].as_int = 0;
+    mbmi->interp_filter = BILINEAR;
+
     y_sad = vp9_int_pro_motion_estimation(cpi, x, bsize);
-    x->pred_mv[LAST_FRAME] = mbmi->mv[0].as_mv;
-#endif
+    if (y_sad_g < y_sad) {
+      vp9_setup_pre_planes(xd, 0, yv12_g, mi_row, mi_col,
+                           &cm->frame_refs[GOLDEN_FRAME - 1].sf);
+      mbmi->ref_frame[0] = GOLDEN_FRAME;
+      mbmi->mv[0].as_int = 0;
+      y_sad = y_sad_g;
+    } else {
+      x->pred_mv[LAST_FRAME] = mbmi->mv[0].as_mv;
+    }
 
     vp9_build_inter_predictors_sb(xd, mi_row, mi_col, BLOCK_64X64);
 
     for (i = 1; i <= 2; ++i) {
       struct macroblock_plane  *p = &x->plane[i];
       struct macroblockd_plane *pd = &xd->plane[i];
-#if GLOBAL_MOTION
       const BLOCK_SIZE bs = get_plane_block_size(bsize, pd);
-#else
-      const BLOCK_SIZE bs = get_plane_block_size(BLOCK_64X64, pd);
-#endif
+
       if (bs == BLOCK_INVALID)
-        uv_sad = INT_MAX;
+        uv_sad = UINT_MAX;
       else
         uv_sad = cpi->fn_ptr[bs].sdf(p->src.buf, p->src.stride,
                                      pd->dst.buf, pd->dst.stride);
 
-#if GLOBAL_MOTION
-      x->color_sensitivity[i - 1] = uv_sad * 4 > y_sad;
-#else
-      x->color_sensitivity[i - 1] = (uv_sad > 512);
-#endif
+      x->color_sensitivity[i - 1] = uv_sad > (y_sad >> 2);
     }
 
     d = xd->plane[0].dst.buf;
@@ -1587,7 +1593,8 @@ static void encode_b_rt(VP9_COMP *cpi, ThreadData *td,
   update_state_rt(cpi, td, ctx, mi_row, mi_col, bsize);
 
 #if CONFIG_VP9_TEMPORAL_DENOISING
-  if (cpi->oxcf.noise_sensitivity > 0 && output_enabled) {
+  if (cpi->oxcf.noise_sensitivity > 0 && output_enabled &&
+      cpi->common.frame_type != KEY_FRAME) {
     vp9_denoiser_denoise(&cpi->denoiser, x, mi_row, mi_col,
                          MAX(BLOCK_8X8, bsize), ctx);
   }
@@ -3509,9 +3516,8 @@ static void encode_nonrd_sb_row(VP9_COMP *cpi,
         set_offsets(cpi, tile_info, x, mi_row, mi_col, BLOCK_64X64);
         if (cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ && cm->seg.enabled &&
             xd->mi[0].src_mi->mbmi.segment_id) {
-          auto_partition_range(cpi, tile_info, xd, mi_row, mi_col,
-                               &x->min_partition_size,
-                               &x->max_partition_size);
+          x->max_partition_size = BLOCK_64X64;
+          x->min_partition_size = BLOCK_8X8;
           nonrd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col,
                                BLOCK_64X64, &dummy_rdc, 1,
                                INT64_MAX, td->pc_root);
