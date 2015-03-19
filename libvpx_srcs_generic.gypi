@@ -294,7 +294,6 @@
     '<(libvpx_source)/vpx_mem/include/vpx_mem_intrnl.h',
     '<(libvpx_source)/vpx_mem/vpx_mem.c',
     '<(libvpx_source)/vpx_mem/vpx_mem.h',
-    '<(libvpx_source)/vpx_ports/asm_offsets.h',
     '<(libvpx_source)/vpx_ports/emmintrin_compat.h',
     '<(libvpx_source)/vpx_ports/mem.h',
     '<(libvpx_source)/vpx_ports/mem_ops.h',

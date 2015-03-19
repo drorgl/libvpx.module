@@ -345,7 +345,6 @@
     '<(libvpx_source)/vpx_mem/vpx_mem.h',
     '<(libvpx_source)/vpx_ports/arm.h',
     '<(libvpx_source)/vpx_ports/arm_cpudetect.c',
-    '<(libvpx_source)/vpx_ports/asm_offsets.h',
     '<(libvpx_source)/vpx_ports/emmintrin_compat.h',
     '<(libvpx_source)/vpx_ports/mem.h',
     '<(libvpx_source)/vpx_ports/mem_ops.h',

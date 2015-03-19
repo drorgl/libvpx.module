@@ -615,9 +615,9 @@ typedef struct {
 static const REF_MODE ref_mode_set[RT_INTER_MODES] = {
     {LAST_FRAME, ZEROMV},
     {LAST_FRAME, NEARESTMV},
+    {GOLDEN_FRAME, ZEROMV},
     {LAST_FRAME, NEARMV},
     {LAST_FRAME, NEWMV},
-    {GOLDEN_FRAME, ZEROMV},
     {GOLDEN_FRAME, NEARESTMV},
     {GOLDEN_FRAME, NEARMV},
     {GOLDEN_FRAME, NEWMV}
@@ -636,6 +636,7 @@ void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
   struct macroblockd_plane *const pd = &xd->plane[0];
   PREDICTION_MODE best_mode = ZEROMV;
   MV_REFERENCE_FRAME ref_frame, best_ref_frame = LAST_FRAME;
+  MV_REFERENCE_FRAME usable_ref_frame;
   TX_SIZE best_tx_size = TX_SIZES;
   INTERP_FILTER best_pred_filter = EIGHTTAP;
   int_mv frame_mv[MB_MODE_COUNT][MAX_REF_FRAMES];
@@ -718,14 +719,17 @@ void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
   mbmi->ref_frame[1] = NONE;
   mbmi->tx_size = MIN(max_txsize_lookup[bsize],
                       tx_mode_to_biggest_tx_size[cm->tx_mode]);
-  mbmi->interp_filter = cm->interp_filter == SWITCHABLE ?
-                        EIGHTTAP : cm->interp_filter;
 
 #if CONFIG_VP9_TEMPORAL_DENOISING
   vp9_denoiser_reset_frame_stats(ctx);
 #endif
-
-  for (ref_frame = LAST_FRAME; ref_frame <= GOLDEN_FRAME; ++ref_frame) {
+  if (cpi->rc.frames_since_golden == 0) {
+    ref_frame_skip_mask |= (1 << GOLDEN_FRAME);
+    usable_ref_frame = LAST_FRAME;
+  } else {
+    usable_ref_frame = GOLDEN_FRAME;
+  }
+  for (ref_frame = LAST_FRAME; ref_frame <= usable_ref_frame; ++ref_frame) {
     const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_buffer(cpi, ref_frame);
 
     x->pred_mv_sad[ref_frame] = INT_MAX;
@@ -760,28 +764,25 @@ void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
     }
   }
 
-  if (cpi->rc.frames_since_golden == 0)
-    ref_frame_skip_mask |= (1 << GOLDEN_FRAME);
-
   for (idx = 0; idx < RT_INTER_MODES; ++idx) {
     int rate_mv = 0;
     int mode_rd_thresh;
     int mode_index;
     int i;
     PREDICTION_MODE this_mode = ref_mode_set[idx].pred_mode;
-
-    ref_frame = ref_mode_set[idx].ref_frame;
-    mode_index = mode_idx[ref_frame][INTER_OFFSET(this_mode)];
-
-    i = (ref_frame == LAST_FRAME) ? GOLDEN_FRAME : LAST_FRAME;
-
-    if (!(cpi->ref_frame_flags & flag_list[ref_frame]))
+    if (!(cpi->sf.inter_mode_mask[bsize] & (1 << this_mode)))
       continue;
 
+    ref_frame = ref_mode_set[idx].ref_frame;
+    if (!(cpi->ref_frame_flags & flag_list[ref_frame]))
+      continue;
+    if (const_motion[ref_frame] && this_mode == NEARMV)
+      continue;
+
+    i = (ref_frame == LAST_FRAME) ? GOLDEN_FRAME : LAST_FRAME;
     if (cpi->ref_frame_flags & flag_list[i])
       if (x->pred_mv_sad[ref_frame] > (x->pred_mv_sad[i] << 1))
         ref_frame_skip_mask |= (1 << ref_frame);
-
     if (ref_frame_skip_mask & (1 << ref_frame))
       continue;
 
@@ -789,18 +790,10 @@ void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
     for (i = 0; i < MAX_MB_PLANE; i++)
       xd->plane[i].pre[0] = yv12_mb[ref_frame][i];
 
-    clamp_mv2(&frame_mv[NEARESTMV][ref_frame].as_mv, xd);
-    clamp_mv2(&frame_mv[NEARMV][ref_frame].as_mv, xd);
-
     mbmi->ref_frame[0] = ref_frame;
     set_ref_ptrs(cm, xd, ref_frame, NONE);
 
-    if (const_motion[ref_frame] && this_mode == NEARMV)
-      continue;
-
-    if (!(cpi->sf.inter_mode_mask[bsize] & (1 << this_mode)))
-      continue;
-
+    mode_index = mode_idx[ref_frame][INTER_OFFSET(this_mode)];
     mode_rd_thresh = best_mode_skip_txfm ?
             rd_threshes[mode_index] << 1 : rd_threshes[mode_index];
     if (rd_less_than_thresh(best_rdc.rdcost, mode_rd_thresh,
@@ -808,9 +801,6 @@ void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
       continue;
 
     if (this_mode == NEWMV) {
-      if (cpi->sf.partition_search_type != VAR_BASED_PARTITION
-          && best_rdc.rdcost < (int64_t) (1 << num_pels_log2_lookup[bsize]))
-        continue;
       if (ref_frame > LAST_FRAME) {
         int tmp_sad;
         int dis, cost_list[5];
@@ -845,8 +835,9 @@ void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
       }
     }
 
-    if (this_mode != NEARESTMV && frame_mv[this_mode][ref_frame].as_int ==
-        frame_mv[NEARESTMV][ref_frame].as_int)
+    if (this_mode != NEARESTMV &&
+        frame_mv[this_mode][ref_frame].as_int ==
+            frame_mv[NEARESTMV][ref_frame].as_int)
       continue;
 
     mbmi->mode = this_mode;
@@ -910,11 +901,11 @@ void vp9_pick_inter_mode(VP9_COMP *cpi, MACROBLOCK *x,
         free_pred_buffer(current_pred);
 
       mbmi->interp_filter = best_filter;
-      mbmi->tx_size = pf_tx_size[mbmi->interp_filter];
-      this_rdc.rate = pf_rate[mbmi->interp_filter];
-      this_rdc.dist = pf_dist[mbmi->interp_filter];
-      var_y = pf_var[mbmi->interp_filter];
-      sse_y = pf_sse[mbmi->interp_filter];
+      mbmi->tx_size = pf_tx_size[best_filter];
+      this_rdc.rate = pf_rate[best_filter];
+      this_rdc.dist = pf_dist[best_filter];
+      var_y = pf_var[best_filter];
+      sse_y = pf_sse[best_filter];
       x->skip_txfm[0] = skip_txfm;
     } else {
       mbmi->interp_filter = (filter_ref == SWITCHABLE) ? EIGHTTAP : filter_ref;
