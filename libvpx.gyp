@@ -13,7 +13,7 @@
         'asm_obj_extension': 'o',
       }],
       ['OS=="win"', {
-        'asm_obj_extension': 'obj',
+          'asm_obj_extension': 'obj',
       }],
       ['(target_arch=="ia32" or target_arch=="x64") and OS == "win" and OS_RUNTIME == "winrt"', {
         # set ysam_path variable before ../yasm/yasm_compile.gypi' is loaded in the include session
@@ -94,6 +94,7 @@
         {
           # This libvpx target contains both encoder and decoder.
           # Encoder is configured to be realtime only.
+          'msvs_disabled_warnings': [ 4456, 4457, ],
           'target_name': 'libvpx',
           'type': 'static_library',
           'variables': {
