@@ -17,7 +17,7 @@
 #  include <intrin.h>
 #  define USE_MSC_INTRIN
 # endif
-# define snprintf _snprintf
+# define libvpx_snprintf _snprintf
 #endif
 
 #ifdef __cplusplus
