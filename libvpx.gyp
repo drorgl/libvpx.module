@@ -77,10 +77,10 @@
     },
   },
   'conditions': [
-    ['target_arch=="ia32"', {
+    ['target_arch=="ia32" and winrt_platform!="win_phone"', {
       'includes': ['libvpx_srcs_x86_intrinsics.gypi', ],
     }],
-    ['target_arch=="x64" and msan==0', {
+    ['target_arch=="x64" and msan==0 and winrt_platform!="win_phone"', {
       'includes': ['libvpx_srcs_x86_64_intrinsics.gypi', ],
     }],
     [ '(target_arch=="arm" or target_arch=="armv7") and arm_neon==0 and OS=="android"', {
@@ -97,6 +97,7 @@
           'target_name': 'libvpx',
           'type': 'static_library',
           'variables': {
+            
             'yasm_output_path': '<(SHARED_INTERMEDIATE_DIR)/third_party/libvpx',
             'OS_CATEGORY%': '<(OS_CATEGORY)',
             'yasm_flags': [
@@ -121,7 +122,6 @@
             '../yasm/yasm_compile.gypi'
           ],
           'include_dirs': [
-            'source/config/<(OS_CATEGORY)/<(target_arch_full)',
             'source/config',
             '<(libvpx_source)',
             '<(libvpx_source)/vp8/common',
@@ -140,7 +140,7 @@
           # avoid this problem.
           'msvs_2010_disable_uldi_when_referenced': 1,
           'conditions': [
-            ['target_arch=="ia32"', {
+            ['target_arch=="ia32" and winrt_platform!="win_phone"', {
               'includes': [
                 'libvpx_srcs_x86.gypi',
               ],
@@ -156,10 +156,10 @@
                 'libvpx_intrinsics_avx2',
               ],
             }],
-            ['target_arch=="arm64"', {
+            ['target_arch=="arm64" and winrt_platform!="win_phone"', {
               'includes': [ 'libvpx_srcs_arm64.gypi', ],
             }],
-            ['target_arch=="x64"', {
+            ['target_arch=="x64" and winrt_platform!="win_phone"', {
               'conditions': [
                 ['msan==1', {
                   'includes': [ 'libvpx_srcs_generic.gypi', ],
@@ -179,6 +179,21 @@
                     'libvpx_intrinsics_avx2',
                   ],
                 }],
+              ],
+            }],
+            # General Windows
+            ['winrt_platform!="win_phone"', {
+              'include_dirs': [
+                'source/config/<(OS_CATEGORY)/<(target_arch_full)',
+              ],
+            }],
+            # Windows Phone ARM 
+            ['OS_RUNTIME=="winrt" and winrt_platform=="win_phone"', {
+              'includes': [
+                'libvpx_srcs_arm.gypi',
+              ],
+              'include_dirs': [
+                'source/config/<(OS_CATEGORY)/arm',
               ],
             }],
           ],
@@ -318,7 +333,7 @@
                   ],
                   'dependencies': [
                     'libvpx_intrinsics_neon',
-		  ],
+      ],
                   'cflags': [
                     '-Wa,-mfpu=neon',
                   ],
