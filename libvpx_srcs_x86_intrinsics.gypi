@@ -22,6 +22,7 @@
     },
     {
       'target_name': 'libvpx_intrinsics_sse2',
+      'msvs_disabled_warnings': [ 4456, 4457, ],
       'type': 'static_library',
       'include_dirs': [
         'source/config/<(OS_CATEGORY)/<(target_arch_full)',

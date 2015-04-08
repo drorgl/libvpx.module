@@ -93,10 +93,10 @@
       'targets': [
         {
           # This libvpx target contains both encoder and decoder.
-          # Encoder is configured to be realtime only.
-          'msvs_disabled_warnings': [ 4456, 4457, ],
+          # Encoder is configured to be realtime only.          
           'target_name': 'libvpx',
           'type': 'static_library',
+          'msvs_disabled_warnings': [ 4456, 4457, ],
           'variables': {
             'yasm_output_path': '<(SHARED_INTERMEDIATE_DIR)/third_party/libvpx',
             'OS_CATEGORY%': '<(OS_CATEGORY)',
