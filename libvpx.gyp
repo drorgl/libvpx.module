@@ -121,6 +121,9 @@
               }],
             ],
           },
+          'includes': [
+            '../yasm/yasm_compile.gypi'
+          ],
           'include_dirs': [
             'source/config/<(OS_CATEGORY)/<(target_arch_full)',
             'source/config',
@@ -186,12 +189,6 @@
             ['OS_RUNTIME=="winrt" and winrt_platform=="win_phone"', {
               'includes': [
                 'libvpx_srcs_generic.gypi',
-              ],
-            }],
-            # Windows Desktop and Windows RT Desktop
-            ['winrt_platform!="win_phone"', {
-              'includes': [
-                '../yasm/yasm_compile.gypi'
               ],
             }],
           ],
