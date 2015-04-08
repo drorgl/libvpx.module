@@ -38,6 +38,9 @@
           ['target_arch=="arm64"', {
             'target_arch_full': 'arm64',
           }],
+          ['OS_RUNTIME == "winrt" and winrt_platform=="win_phone"', {
+            'target_arch_full': 'arm',
+          }],
         ],
       }],
 
@@ -118,10 +121,8 @@
               }],
             ],
           },
-          'includes': [
-            '../yasm/yasm_compile.gypi'
-          ],
           'include_dirs': [
+            'source/config/<(OS_CATEGORY)/<(target_arch_full)',
             'source/config',
             '<(libvpx_source)',
             '<(libvpx_source)/vp8/common',
@@ -181,19 +182,16 @@
                 }],
               ],
             }],
-            # General Windows
-            ['winrt_platform!="win_phone"', {
-              'include_dirs': [
-                'source/config/<(OS_CATEGORY)/<(target_arch_full)',
-              ],
-            }],
-            # Windows Phone ARM 
+             # Windows Phone ARM 
             ['OS_RUNTIME=="winrt" and winrt_platform=="win_phone"', {
               'includes': [
-                'libvpx_srcs_arm.gypi',
+                'libvpx_srcs_generic.gypi',
               ],
-              'include_dirs': [
-                'source/config/<(OS_CATEGORY)/arm',
+            }],
+            # Windows Desktop and Windows RT Desktop
+            ['winrt_platform!="win_phone"', {
+              'includes': [
+                '../yasm/yasm_compile.gypi'
               ],
             }],
           ],
@@ -357,7 +355,7 @@
             }],
             ['OS == "ios"', {
               'xcode_settings': {
-                'OTHER_CFLAGS!': [
+                'OTHER_CFLAGS!': [   
                   # Breaks at least boolhuff_armv5te:token_high_bit_not_set_ev.
                   '-fstack-protector-all',  # Implies -fstack-protector
                 ],
