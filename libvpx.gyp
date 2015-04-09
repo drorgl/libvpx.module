@@ -39,7 +39,7 @@
             'target_arch_full': 'arm64',
           }],
           ['OS_RUNTIME == "winrt" and winrt_platform=="win_phone"', {
-            'target_arch_full': 'arm',
+            'target_arch_full': 'generic',
           }],
         ],
       }],
