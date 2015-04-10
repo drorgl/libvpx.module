@@ -34,8 +34,6 @@ extern "C" {
 #include <windows.h>  // NOLINT
 
 #ifdef WINRT
-#undef CreateSemaphore
-#undef CreateEvent
 #define InitializeCriticalSection(a) InitializeCriticalSectionEx(a, 0, 0)
 #define WaitForSingleObject(a, b) WaitForSingleObjectEx(a, b, FALSE)
 #define CreateSemaphore(a, b, c, d) CreateSemaphoreEx(a, b, c ,d, 0, SEMAPHORE_ALL_ACCESS)
