@@ -289,14 +289,6 @@
               '<(libvpx_source)',
             ],
           },
-          # We need to explicitly tell the assembler to look for
-          # .include directive files from the place where they're
-          # generated to.
-          'cflags': [
-            '-Wa,-I,<(shared_generated_dir)',
-            '-Wa,-I,<!(pwd)/source/config/<(OS_CATEGORY)/<(target_arch_full)',
-            '-Wa,-I,<!(pwd)/source/config',
-          ],
           'conditions': [
             # Libvpx optimizations for ARMv6 or ARMv7 without NEON.
             ['arm_neon==0', {
