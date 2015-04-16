@@ -1044,7 +1044,7 @@ void vp9_first_pass(VP9_COMP *cpi, const struct lookahead_entry *source) {
   if (0) {
     char filename[512];
     FILE *recon_file;
-    snprintf(filename, sizeof(filename), "enc%04d.yuv",
+	libvpx_snprintf(filename, sizeof(filename), "enc%04d.yuv",
              (int)cm->current_video_frame);
 
     if (cm->current_video_frame == 0)

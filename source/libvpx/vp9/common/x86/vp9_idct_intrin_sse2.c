@@ -3426,6 +3426,7 @@ void vp9_idct32x32_34_add_sse2(const int16_t *input, uint8_t *dest,
   col[29] = _mm_sub_epi16(stp1_2, stp1_29);
   col[30] = _mm_sub_epi16(stp1_1, stp1_30);
   col[31] = _mm_sub_epi16(stp1_0, stp1_31);
+#pragma warning (disable : 4456)
   for (i = 0; i < 4; i++) {
       const __m128i zero = _mm_setzero_si128();
       // Transpose 32x8 block to 8x32 block
