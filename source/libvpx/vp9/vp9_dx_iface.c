@@ -278,7 +278,7 @@ static void init_buffer_callbacks(vpx_codec_alg_priv_t *ctx) {
     VP9_COMMON *const cm = &frame_worker_data->pbi->common;
     BufferPool *const pool = cm->buffer_pool;
 
-    cm->new_fb_idx = -1;
+    cm->new_fb_idx = INVALID_IDX;
     cm->byte_alignment = ctx->byte_alignment;
 
     if (ctx->get_ext_fb_cb != NULL && ctx->release_ext_fb_cb != NULL) {
@@ -500,7 +500,6 @@ static vpx_codec_err_t decode_one(vpx_codec_alg_priv_t *ctx,
 
     check_resync(ctx, frame_worker_data->pbi);
   } else {
-    const VP9WorkerInterface *const winterface = vp9_get_worker_interface();
     VP9Worker *const worker = &ctx->frame_workers[ctx->next_submit_worker_id];
     FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
     // Copy context from last worker thread to next worker thread.

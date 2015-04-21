@@ -55,9 +55,27 @@ tr -s [:blank:] ' ' | cut -f6 -d\ )"
 delete="$(git diff-index --diff-filter=D $prev_hash | \
 tr -s [:blank:] ' ' | cut -f6 -d\ )"
 
-# Output the current commit hash.
+# Get the current commit hash.
 hash=$(git log -1 --format="%H")
+
+# README reminder.
+echo "Update README.chromium:"
+echo "==============="
+echo "Date: $(date +"%A %B %d %Y")"
+echo "Branch: master"
+echo "Commit: $hash"
+echo "==============="
+echo ""
+
+# Commit message header.
+echo "Commit message:"
+echo "==============="
+echo "libvpx: Pull from upstream"
+echo ""
+
+# Output the current commit hash.
 echo "Current HEAD: $hash"
+echo ""
 
 # Output log for upstream from current hash.
 if [ -n "$prev_hash" ]; then
@@ -66,6 +84,7 @@ if [ -n "$prev_hash" ]; then
                     --no-merges \
                     --topo-order \
                     --pretty="%h %s" \
+                    --max-count=20 \
                     $prev_hash..$hash)"
   if [ -z "$pretty_git_log" ]; then
     echo "No log found. Checking for reverts."
@@ -73,10 +92,20 @@ if [ -n "$prev_hash" ]; then
                       --no-merges \
                       --topo-order \
                       --pretty="%h %s" \
+                      --max-count=20 \
                       $hash..$prev_hash)"
   fi
   echo "$pretty_git_log"
+  # If it makes it to 20 then it's probably skipping even more.
+  if [ `echo "$pretty_git_log" | wc -l` -eq 20 ]; then
+    echo "<...>"
+  fi
 fi
+
+# Commit message footer.
+echo ""
+echo "TBR=tomfinegan@chromium.org"
+echo "==============="
 
 # Git is useless now, remove the local git repo.
 rm -rf .git

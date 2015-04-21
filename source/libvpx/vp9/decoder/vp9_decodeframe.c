@@ -934,7 +934,6 @@ static const uint8_t *decode_tiles(VP9Decoder *pbi,
     winterface->sync(&pbi->lf_worker);
     vp9_loop_filter_data_reset(lf_data, get_frame_new_buffer(cm), cm,
                                pbi->mb.plane);
-    vp9_loop_filter_frame_init(cm, cm->lf.filter_level);
   }
 
   assert(tile_rows <= 4);
@@ -1362,7 +1361,7 @@ static size_t read_uncompressed_header(VP9Decoder *pbi,
     pbi->refresh_frame_flags = (1 << REF_FRAMES) - 1;
 
     for (i = 0; i < REFS_PER_FRAME; ++i) {
-      cm->frame_refs[i].idx = -1;
+      cm->frame_refs[i].idx = INVALID_IDX;
       cm->frame_refs[i].buf = NULL;
     }
 
@@ -1927,7 +1926,7 @@ void dec_build_inter_predictors(VP9Decoder *const pbi, MACROBLOCKD *xd,
       // pixels of each superblock row can be changed by next superblock row.
        if (pbi->frame_parallel_decode)
          vp9_frameworker_wait(pbi->frame_worker_owner, ref_frame_buf,
-                              (y1 + 7) << (plane == 0 ? 0 : 1));
+                              MAX(0, (y1 + 7) << (plane == 0 ? 0 : 1)));
 
       // Skip border extension if block is inside the frame.
       if (x0 < 0 || x0 > frame_width - 1 || x1 < 0 || x1 > frame_width - 1 ||
@@ -1983,7 +1982,7 @@ void dec_build_inter_predictors(VP9Decoder *const pbi, MACROBLOCKD *xd,
       // pixels of each superblock row can be changed by next superblock row.
        if (pbi->frame_parallel_decode)
          vp9_frameworker_wait(pbi->frame_worker_owner, ref_frame_buf,
-                              (y1 + 7) << (plane == 0 ? 0 : 1));
+                              MAX(0, (y1 + 7) << (plane == 0 ? 0 : 1)));
     }
 #if CONFIG_VP9_HIGHBITDEPTH
     if (xd->cur_buf->flags & YV12_FLAG_HIGHBITDEPTH) {
