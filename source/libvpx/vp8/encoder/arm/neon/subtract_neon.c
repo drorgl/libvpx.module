@@ -103,7 +103,7 @@ void vp8_subtract_mbuv_neon(
         unsigned char *vpred,
         int pred_stride) {
     int i, j;
-    unsigned char *src_ptr, *pred_ptr;
+    unsigned char *src_ptr = NULL, *pred_ptr = NULL;
     uint8x8_t d0u8, d1u8, d2u8, d3u8, d4u8, d5u8, d6u8, d7u8;
     uint16x8_t q8u16, q9u16, q10u16, q11u16;
 

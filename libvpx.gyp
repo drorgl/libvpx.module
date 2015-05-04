@@ -39,7 +39,7 @@
             'target_arch_full': 'arm64',
           }],
           ['OS_RUNTIME == "winrt" and (winrt_platform=="win_phone" or winrt_platform=="win10_arm")', {
-            'target_arch_full': 'generic',
+            'target_arch_full': 'arm-neon',
           }],
         ],
       }],
@@ -92,7 +92,8 @@
       'includes': ['libvpx_srcs_arm_neon_cpu_detect_intrinsics.gypi', ],
     }],
     [ '(target_arch != "arm" and target_arch != "armv7") and \
-       (target_arch != "mipsel" and target_arch != "mips64el")', {
+       (target_arch != "mipsel" and target_arch != "mips64el") and \
+       not(OS_RUNTIME=="winrt" and (winrt_platform=="win_phone" or winrt_platform=="win10_arm"))', {
       'targets': [
         {
           # This libvpx target contains both encoder and decoder.
@@ -184,12 +185,6 @@
                     'libvpx_intrinsics_avx2',
                   ],
                 }],
-              ],
-            }],
-             # Windows Phone ARM 
-            ['OS_RUNTIME=="winrt" and (winrt_platform=="win_phone" or  winrt_platform=="win10_arm")', {
-              'includes': [
-                'libvpx_srcs_generic.gypi',
               ],
             }],
           ],
@@ -354,6 +349,65 @@
               },
             }],
           ],
+        },
+      ],
+    }],
+    ['OS_RUNTIME=="winrt" and (winrt_platform=="win_phone" or winrt_platform=="win10_arm")', {
+      'targets': [
+        {
+          # This libvpx target contains both encoder and decoder.
+          # Encoder is configured to be realtime only.
+          'target_name': 'libvpx',
+          'type': 'static_library',
+          
+          # Rule to convert .asm files to .S files.
+          'rules': [
+            {
+              'rule_name': 'convert_asm_For_WP',
+              'extension': 'asm',
+              'inputs': [
+              ],
+              'outputs': [
+                '<(shared_generated_dir)/<(RULE_INPUT_ROOT).S',
+              ],
+              'action': [
+                'cmd /c pushd <(libvpx_source)/../../ && type <(RULE_INPUT_PATH) | perl <(ads2armasm_ms_script) -chromium > <(shared_generated_dir)/<(RULE_INPUT_ROOT).S && popd & exit 0',
+              ],
+
+              'process_outputs_as_sources': 1,
+              'message': 'Convert libvpx asm file for WP ARM <(RULE_INPUT_PATH)',
+            },
+          ],
+
+          'variables': {
+            'variables': {
+              'ads2armasm_ms_script%': 'ads2armasm_ms.pl',
+            },
+            'ads2armasm_ms_script%': '<(ads2armasm_ms_script)',
+            # Location of the assembly conversion script.
+            'ads2armasm_ms_script_path': '<(libvpx_source)/build/make/<(ads2armasm_ms_script)',
+            'ads2armasm_ms_script_include': '<(libvpx_source)/build/make/thumb.pm',
+          },
+          'include_dirs': [
+            'source/config/<(OS_CATEGORY)/<(target_arch_full)',
+            'source/config',
+            '<(libvpx_source)',
+          ],
+          'direct_dependent_settings': {
+            'include_dirs': [
+              '<(libvpx_source)',
+            ],
+          },
+          # We need to explicitly tell the assembler to look for
+          # .include directive files from the place where they're
+          # generated to.
+          'cflags': [
+             '-Wa,-I,<(shared_generated_dir)',
+          ],
+          'includes': [
+            'libvpx_srcs_arm_neon.gypi',
+          ],
+          'msvs_prebuild': r'echo Preparing scripts for ASM files & xcopy /Y source\libvpx\build\make\ads2armasm_ms.pl & xcopy /Y source\libvpx\build\make\thumb.pm source\..',
         },
       ],
     }],

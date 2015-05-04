@@ -18,7 +18,11 @@ void idct_dequant_0_2x_neon(
     unsigned char *dst0;
     int i, a0, a1;
     int16x8x2_t q2Add;
+#if defined WINRT
+    int32x2_t d2s32 = { 0 }, d4s32 = { 0 };
+#else
     int32x2_t d2s32, d4s32;
+#endif
     uint8x8_t d2u8, d4u8;
     uint16x8_t q1u16, q2u16;
 
