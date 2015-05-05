@@ -38,7 +38,7 @@
           ['target_arch=="arm64"', {
             'target_arch_full': 'arm64',
           }],
-          ['OS_RUNTIME == "winrt" and winrt_platform=="win_phone"', {
+          ['OS_RUNTIME == "winrt" and (winrt_platform=="win_phone" or winrt_platform=="win10_arm")', {
             'target_arch_full': 'generic',
           }],
         ],
@@ -80,10 +80,10 @@
     },
   },
   'conditions': [
-    ['target_arch=="ia32" and winrt_platform!="win_phone"', {
+    ['target_arch=="ia32" and winrt_platform!="win_phone" and  winrt_platform!="win10_arm"', {
       'includes': ['libvpx_srcs_x86_intrinsics.gypi', ],
     }],
-    ['target_arch=="x64" and msan==0 and winrt_platform!="win_phone"', {
+    ['target_arch=="x64" and msan==0 and winrt_platform!="win_phone" and  winrt_platform!="win10_arm"', {
       'includes': ['libvpx_srcs_x86_64_intrinsics.gypi', ],
     }],
     [ '(target_arch=="arm" or target_arch=="armv7") and arm_neon==0 and OS=="android"', {
@@ -145,7 +145,7 @@
           # avoid this problem.
           'msvs_2010_disable_uldi_when_referenced': 1,
           'conditions': [
-            ['target_arch=="ia32" and winrt_platform!="win_phone"', {
+            ['target_arch=="ia32" and winrt_platform!="win_phone"  and  winrt_platform!="win10_arm"', {
               'includes': [
                 'libvpx_srcs_x86.gypi',
               ],
@@ -161,10 +161,10 @@
                 'libvpx_intrinsics_avx2',
               ],
             }],
-            ['target_arch=="arm64" and winrt_platform!="win_phone"', {
+            ['target_arch=="arm64" and winrt_platform!="win_phone" and  winrt_platform!="win10_arm"', {
               'includes': [ 'libvpx_srcs_arm64.gypi', ],
             }],
-            ['target_arch=="x64" and winrt_platform!="win_phone"', {
+            ['target_arch=="x64" and winrt_platform!="win_phone" and  winrt_platform!="win10_arm"', {
               'conditions': [
                 ['msan==1', {
                   'includes': [ 'libvpx_srcs_generic.gypi', ],
@@ -187,7 +187,7 @@
               ],
             }],
              # Windows Phone ARM 
-            ['OS_RUNTIME=="winrt" and winrt_platform=="win_phone"', {
+            ['OS_RUNTIME=="winrt" and (winrt_platform=="win_phone" or  winrt_platform=="win10_arm")', {
               'includes': [
                 'libvpx_srcs_generic.gypi',
               ],
