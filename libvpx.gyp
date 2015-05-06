@@ -309,17 +309,11 @@
           # .include directive files from the place where they're
           # generated to.
           'cflags': [
-             '-Wa,-I,<(shared_generated_dir)',
+            '-Wa,-I,<(shared_generated_dir)',
+            '-Wa,-I,<!(pwd)/source/config/<(OS_CATEGORY)/<(target_arch_full)',
+            '-Wa,-I,<!(pwd)/source/config',
           ],
           'conditions': [
-            # For Android WebView, the following pathc are not required and not
-            # allowed, because they generate the absolute path.
-            ['android_webview_build!=1', {
-              'cflags': [
-                '-Wa,-I,<!(pwd)/source/config/<(OS_CATEGORY)/<(target_arch_full)',
-                '-Wa,-I,<!(pwd)/source/config',
-              ],
-            }],
             # Libvpx optimizations for ARMv6 or ARMv7 without NEON.
             ['arm_neon==0', {
               'conditions': [
@@ -347,8 +341,8 @@
               ],
             }],
             ['OS == "android"', {
-              'includes': [
-                '../../build/android/cpufeatures.gypi',
+              'dependencies': [
+                '../../build/android/ndk.gyp:cpu_features',
               ],
             }],
             ['OS == "ios"', {

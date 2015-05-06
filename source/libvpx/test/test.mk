@@ -46,7 +46,7 @@ LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += vp9_ethread_test.cc
 
 LIBVPX_TEST_SRCS-yes                   += decode_test_driver.cc
 LIBVPX_TEST_SRCS-yes                   += decode_test_driver.h
-LIBVPX_TEST_SRCS-yes                   += encode_test_driver.cc
+LIBVPX_TEST_SRCS-$(CONFIG_ENCODERS)    += encode_test_driver.cc
 LIBVPX_TEST_SRCS-yes                   += encode_test_driver.h
 
 ## IVF writing.
@@ -130,13 +130,7 @@ LIBVPX_TEST_SRCS-yes                   += partial_idct_test.cc
 LIBVPX_TEST_SRCS-yes                   += superframe_test.cc
 LIBVPX_TEST_SRCS-yes                   += tile_independence_test.cc
 LIBVPX_TEST_SRCS-yes                   += vp9_boolcoder_test.cc
-
-# TODO(jbb): Remove this when the TODO(minghai): in vpx_encoder.h gets resolved.
-# This test fails because of a mismatch in the size of the vpx_codec_alg_priv
-# between encoder and decoder when this is enabled.
-ifneq ($(CONFIG_SPATIAL_SVC),yes)
 LIBVPX_TEST_SRCS-yes                   += vp9_encoder_parms_get_to_decoder.cc
-endif
 endif
 
 LIBVPX_TEST_SRCS-$(CONFIG_VP9)         += convolve_test.cc

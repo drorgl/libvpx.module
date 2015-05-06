@@ -13,9 +13,9 @@
 #include "third_party/googletest/src/include/gtest/gtest.h"
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
-#include "test/i420_video_source.h"
-#include "test/util.h"
 #include "test/md5_helper.h"
+#include "test/util.h"
+#include "test/y4m_video_source.h"
 
 namespace {
 class VP9EncoderThreadTest
@@ -24,6 +24,7 @@ class VP9EncoderThreadTest
  protected:
   VP9EncoderThreadTest()
       : EncoderTest(GET_PARAM(0)),
+        encoder_initialized_(false),
         tiles_(2),
         encoding_mode_(GET_PARAM(1)),
         set_cpu_used_(GET_PARAM(2)) {
@@ -57,9 +58,13 @@ class VP9EncoderThreadTest
     cfg_.rc_min_quantizer = 0;
   }
 
+  virtual void BeginPassHook(unsigned int /*pass*/) {
+    encoder_initialized_ = false;
+  }
+
   virtual void PreEncodeFrameHook(::libvpx_test::VideoSource *video,
                                   ::libvpx_test::Encoder *encoder) {
-    if (video->frame() == 0) {
+    if (!encoder_initialized_) {
       // Encode 4 column tiles.
       encoder->Control(VP9E_SET_TILE_COLUMNS, tiles_);
       encoder->Control(VP8E_SET_CPUUSED, set_cpu_used_);
@@ -70,7 +75,9 @@ class VP9EncoderThreadTest
         encoder->Control(VP8E_SET_ARNR_TYPE, 3);
       } else {
         encoder->Control(VP8E_SET_ENABLEAUTOALTREF, 0);
+        encoder->Control(VP9E_SET_AQ_MODE, 3);
       }
+      encoder_initialized_ = true;
     }
   }
 
@@ -90,6 +97,7 @@ class VP9EncoderThreadTest
     }
   }
 
+  bool encoder_initialized_;
   int tiles_;
   ::libvpx_test::TestMode encoding_mode_;
   int set_cpu_used_;
@@ -100,8 +108,7 @@ class VP9EncoderThreadTest
 TEST_P(VP9EncoderThreadTest, EncoderResultTest) {
   std::vector<std::string> single_thr_md5, multi_thr_md5;
 
-  ::libvpx_test::I420VideoSource video("niklas_1280_720_30.yuv", 1280, 720,
-                                       50, 1, 15, 20);
+  ::libvpx_test::Y4mVideoSource video("niklas_1280_720_30.y4m", 15, 20);
 
   cfg_.rc_target_bitrate = 1000;
 

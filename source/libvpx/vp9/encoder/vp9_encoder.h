@@ -17,6 +17,7 @@
 #include "vpx/internal/vpx_codec_internal.h"
 #include "vpx/vp8cx.h"
 
+#include "vp9/common/vp9_alloccommon.h"
 #include "vp9/common/vp9_ppflags.h"
 #include "vp9/common/vp9_entropymode.h"
 #include "vp9/common/vp9_thread_common.h"
@@ -47,7 +48,6 @@ extern "C" {
 #endif
 
 #define DEFAULT_GF_INTERVAL         10
-#define INVALID_REF_BUFFER_IDX      -1  // Marks an invalid reference buffer id.
 
 typedef struct {
   int nmvjointcost[MV_JOINTS];
@@ -266,6 +266,12 @@ typedef struct ThreadData {
 
 struct EncWorkerData;
 
+typedef struct ActiveMap {
+  int enabled;
+  int update;
+  unsigned char *map;
+} ActiveMap;
+
 typedef struct VP9_COMP {
   QUANTS quants;
   ThreadData td;
@@ -358,6 +364,7 @@ typedef struct VP9_COMP {
   int  segment_encode_breakout[MAX_SEGMENTS];
 
   CYCLIC_REFRESH *cyclic_refresh;
+  ActiveMap active_map;
 
   fractional_mv_step_fp *find_fractional_mv_step;
   vp9_full_search_fn_t full_search_sad;
@@ -517,8 +524,8 @@ static INLINE int frame_is_kf_gf_arf(const VP9_COMP *cpi) {
          (cpi->refresh_golden_frame && !cpi->rc.is_src_frame_alt_ref);
 }
 
-static INLINE int get_ref_frame_idx(const VP9_COMP *cpi,
-                                    MV_REFERENCE_FRAME ref_frame) {
+static INLINE int get_ref_frame_map_idx(const VP9_COMP *cpi,
+                                        MV_REFERENCE_FRAME ref_frame) {
   if (ref_frame == LAST_FRAME) {
     return cpi->lst_fb_idx;
   } else if (ref_frame == GOLDEN_FRAME) {
@@ -528,12 +535,19 @@ static INLINE int get_ref_frame_idx(const VP9_COMP *cpi,
   }
 }
 
+static INLINE int get_ref_frame_buf_idx(const VP9_COMP *const cpi,
+                                        int ref_frame) {
+  const VP9_COMMON *const cm = &cpi->common;
+  const int map_idx = get_ref_frame_map_idx(cpi, ref_frame);
+  return (map_idx != INVALID_IDX) ? cm->ref_frame_map[map_idx] : INVALID_IDX;
+}
+
 static INLINE YV12_BUFFER_CONFIG *get_ref_frame_buffer(
     VP9_COMP *cpi, MV_REFERENCE_FRAME ref_frame) {
   VP9_COMMON *const cm = &cpi->common;
-  BufferPool *const pool = cm->buffer_pool;
-  return &pool->frame_bufs[cm->ref_frame_map[get_ref_frame_idx(cpi, ref_frame)]]
-      .buf;
+  const int buf_idx = get_ref_frame_buf_idx(cpi, ref_frame);
+  return
+      buf_idx != INVALID_IDX ? &cm->buffer_pool->frame_bufs[buf_idx].buf : NULL;
 }
 
 static INLINE int get_token_alloc(int mb_rows, int mb_cols) {

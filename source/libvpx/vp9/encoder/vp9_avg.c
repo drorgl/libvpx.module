@@ -32,11 +32,13 @@ unsigned int vp9_avg_4x4_c(const uint8_t *s, int p) {
 void vp9_int_pro_row_c(int16_t *hbuf, uint8_t const *ref,
                        const int ref_stride, const int height) {
   int idx;
+  const int norm_factor = MAX(8, height >> 1);
   for (idx = 0; idx < 16; ++idx) {
     int i;
     hbuf[idx] = 0;
     for (i = 0; i < height; ++i)
       hbuf[idx] += ref[i * ref_stride];
+    hbuf[idx] /= norm_factor;
     ++ref;
   }
 }
@@ -49,13 +51,20 @@ int16_t vp9_int_pro_col_c(uint8_t const *ref, const int width) {
   return sum;
 }
 
-int vp9_vector_sad_c(int16_t const *ref, int16_t const *src,
-                     const int width) {
+int vp9_vector_var_c(int16_t const *ref, int16_t const *src,
+                     const int bwl) {
   int i;
-  int this_sad = 0;
-  for (i = 0; i < width; ++i)
-    this_sad += abs(ref[i] - src[i]);
-  return this_sad;
+  int width = 4 << bwl;
+  int sse = 0, mean = 0, var;
+
+  for (i = 0; i < width; ++i) {
+    int diff = ref[i] - src[i];
+    mean += diff;
+    sse += diff * diff;
+  }
+
+  var = sse - ((mean * mean) >> (bwl + 2));
+  return var;
 }
 
 #if CONFIG_VP9_HIGHBITDEPTH
