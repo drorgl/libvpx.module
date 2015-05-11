@@ -182,13 +182,8 @@ static INLINE void vp8_loop_filter_simple_vertical_edge_neon(
     int16x8_t q2s16, q13s16, q11s16;
     int8x8_t d28s8, d29s8;
     int8x16_t q2s8, q3s8, q10s8, q11s8, q14s8;
-#if defined WINRT
     uint8x8x4_t d0u8x4 = { 0 };  // d6, d7, d8, d9
     uint8x8x4_t d1u8x4 = { 0 };  // d10, d11, d12, d13
-#else
-    uint8x8x4_t d0u8x4;  // d6, d7, d8, d9
-    uint8x8x4_t d1u8x4;  // d10, d11, d12, d13
-#endif
     uint8x8x2_t d2u8x2;  // d12, d13
     uint8x8x2_t d3u8x2;  // d14, d15
 
