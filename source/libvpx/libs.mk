@@ -151,6 +151,7 @@ endif
 CODEC_EXPORTS-$(BUILD_LIBVPX) += vpx/exports_com
 CODEC_EXPORTS-$(CONFIG_ENCODERS) += vpx/exports_enc
 CODEC_EXPORTS-$(CONFIG_DECODERS) += vpx/exports_dec
+CODEC_EXPORTS-$(CONFIG_SPATIAL_SVC) += vpx/exports_enc_spatial_svc
 
 INSTALL-LIBS-yes += include/vpx/vpx_codec.h
 INSTALL-LIBS-yes += include/vpx/vpx_frame_buffer.h

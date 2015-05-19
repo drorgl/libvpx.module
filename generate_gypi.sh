@@ -218,6 +218,8 @@ function convert_srcs_to_project_files {
   local source_list=$(grep -E '(\.c|\.h|\.S|\.s|\.asm)$' $1)
 
   # Not sure why vpx_config is not included.
+  # Answer: Well, it should be included but this vpx_config.c resides in the root 
+  # 	 	of libvpx, which is invalid since we moved it to the appropriate config path.
   source_list=$(echo "$source_list" | grep -v 'vpx_config\.c')
 
   # The actual ARM files end in .asm. We have rules to translate them to .S
@@ -380,8 +382,10 @@ function gen_config_files {
     fi
   fi
 
-  cp vpx_config.* $BASE_DIR/$LIBVPX_CONFIG_DIR/$1
+  cp vpx_config.* $BASE_DIR/$LIBVPX_CONFIG_DIR/$1 > /dev/null
+  
   make_clean
+  
   rm -rf vpx_config.*
 }
 
@@ -393,21 +397,42 @@ cd $TEMP_DIR
 
 echo "Generate config files."
 all_platforms="--enable-external-build --enable-postproc --disable-install-srcs --enable-multi-res-encoding --enable-temporal-denoising --disable-unit-tests --disable-install-docs --disable-examples --enable-vp9-temporal-denoising --enable-vp9-postproc"
-gen_config_files linux/ia32 "--target=x86-linux-gcc --disable-ccache --enable-pic --enable-realtime-only ${all_platforms}"
-gen_config_files linux/x64 "--target=x86_64-linux-gcc --disable-ccache --enable-pic --enable-realtime-only ${all_platforms}"
-gen_config_files linux/arm "--target=armv6-linux-gcc --enable-pic --enable-realtime-only --disable-install-bins --disable-install-libs --disable-edsp ${all_platforms}"
-gen_config_files linux/arm-neon "--target=armv7-linux-gcc --enable-pic --enable-realtime-only --disable-edsp ${all_platforms}"
-gen_config_files linux/arm-neon-cpu-detect "--target=armv7-linux-gcc --enable-pic --enable-realtime-only --enable-runtime-cpu-detect --disable-edsp ${all_platforms}"
-gen_config_files linux/arm64 "--force-target=armv8-linux-gcc --enable-pic --enable-realtime-only --disable-edsp ${all_platforms}"
+echo "linux/ia32"
+gen_config_files linux/ia32 "--target=x86-linux-gcc --disable-ccache --enable-pic  ${all_platforms}"
+echo "linux/x64"
+gen_config_files linux/x64 "--target=x86_64-linux-gcc --disable-ccache --enable-pic  ${all_platforms}"
+echo "linux/arm"
+gen_config_files linux/arm "--target=armv6-linux-gcc --enable-pic  --disable-install-bins --disable-install-libs --disable-edsp ${all_platforms}"
+echo "linux/arm-neon"
+gen_config_files linux/arm-neon "--target=armv7-linux-gcc --enable-pic  --disable-edsp ${all_platforms}"
+echo "linux/arm-neon-cpu-detect"
+gen_config_files linux/arm-neon-cpu-detect "--target=armv7-linux-gcc --enable-pic  --enable-runtime-cpu-detect --disable-edsp ${all_platforms}"
+echo "linux/arm64"
+gen_config_files linux/arm64 "--force-target=armv8-linux-gcc --enable-pic  --disable-edsp ${all_platforms}"
+echo "linux/mipsel"
 gen_config_files linux/mipsel "--target=mips32-linux-gcc --disable-fast-unaligned ${all_platforms}"
+echo "linux/mipsel64el"
 gen_config_files linux/mips64el "--target=mips64-linux-gcc --disable-fast-unaligned ${all_platforms}"
-gen_config_files linux/generic "--target=generic-gnu --enable-pic --enable-realtime-only ${all_platforms}"
-gen_config_files win/ia32 "--target=x86-win32-vs12 --enable-realtime-only ${all_platforms}"
-gen_config_files win/x64 "--target=x86_64-win64-vs12 --enable-realtime-only ${all_platforms}"
-gen_config_files mac/ia32 "--target=x86-darwin9-gcc --enable-pic --enable-realtime-only ${all_platforms}"
-gen_config_files mac/x64 "--target=x86_64-darwin9-gcc --enable-pic --enable-realtime-only ${all_platforms}"
-gen_config_files nacl "--target=generic-gnu --enable-pic --enable-realtime-only ${all_platforms}"
+echo "linux/generic"
+gen_config_files linux/generic "--target=generic-gnu --enable-pic  ${all_platforms}"
 
+echo "win/ia32"
+gen_config_files win/ia32 "--target=x86-win32-vs12 ${all_platforms}"
+make vpx.def || true > /dev/null
+cp vpx.def $BASE_DIR/$LIBVPX_CONFIG_DIR/win/ia32 || true > /dev/null
+
+echo "win/x64"
+gen_config_files win/x64 "--target=x86_64-win64-vs12 ${all_platforms}"
+make vpx.def || true > /dev/null
+cp vpx.def $BASE_DIR/$LIBVPX_CONFIG_DIR/win/x64 || true > /dev/null
+
+echo "mac/ia32"
+gen_config_files mac/ia32 "--target=x86-darwin9-gcc --enable-pic  ${all_platforms}"
+echo "mac/x64"
+gen_config_files mac/x64 "--target=x86_64-darwin9-gcc --enable-pic  ${all_platforms}"
+echo "nacl"
+gen_config_files nacl "--target=generic-gnu --enable-pic ${all_platforms}"
+echo "done generating configs"
 echo "Remove temporary directory."
 cd $BASE_DIR
 rm -rf $TEMP_DIR
