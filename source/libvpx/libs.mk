@@ -190,7 +190,7 @@ ifeq ($(CONFIG_MSVS),yes)
 vpx.def: $(call enabled,CODEC_EXPORTS)
 	@echo "    [CREATE] $@"
 	$(qexec)$(SRC_PATH_BARE)/build/make/gen_msvs_def.sh\
-            --name=vpx\
+            --name=libvpx\
             --out=$@ $^
 CLEAN-OBJS += vpx.def
 

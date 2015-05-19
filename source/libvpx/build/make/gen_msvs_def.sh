@@ -54,7 +54,7 @@ text() {
 
 data() {
     for sym in "$@"; do
-        printf "  %-40s DATA\n" "$sym" >> ${outfile}
+        printf "  %-40s \n" "$sym" >> ${outfile}
     done
 }
 
