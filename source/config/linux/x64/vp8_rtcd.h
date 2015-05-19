@@ -425,6 +425,10 @@ void vp8_subtract_mby_mmx(short *diff, unsigned char *src, int src_stride, unsig
 void vp8_subtract_mby_sse2(short *diff, unsigned char *src, int src_stride, unsigned char *pred, int pred_stride);
 #define vp8_subtract_mby vp8_subtract_mby_sse2
 
+void vp8_temporal_filter_apply_c(unsigned char *frame1, unsigned int stride, unsigned char *frame2, unsigned int block_size, int strength, int filter_weight, unsigned int *accumulator, unsigned short *count);
+void vp8_temporal_filter_apply_sse2(unsigned char *frame1, unsigned int stride, unsigned char *frame2, unsigned int block_size, int strength, int filter_weight, unsigned int *accumulator, unsigned short *count);
+#define vp8_temporal_filter_apply vp8_temporal_filter_apply_sse2
+
 unsigned int vp8_variance16x16_c(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);
 unsigned int vp8_variance16x16_mmx(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);
 unsigned int vp8_variance16x16_wmt(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);

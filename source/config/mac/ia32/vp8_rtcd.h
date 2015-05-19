@@ -425,6 +425,10 @@ void vp8_subtract_mby_mmx(short *diff, unsigned char *src, int src_stride, unsig
 void vp8_subtract_mby_sse2(short *diff, unsigned char *src, int src_stride, unsigned char *pred, int pred_stride);
 RTCD_EXTERN void (*vp8_subtract_mby)(short *diff, unsigned char *src, int src_stride, unsigned char *pred, int pred_stride);
 
+void vp8_temporal_filter_apply_c(unsigned char *frame1, unsigned int stride, unsigned char *frame2, unsigned int block_size, int strength, int filter_weight, unsigned int *accumulator, unsigned short *count);
+void vp8_temporal_filter_apply_sse2(unsigned char *frame1, unsigned int stride, unsigned char *frame2, unsigned int block_size, int strength, int filter_weight, unsigned int *accumulator, unsigned short *count);
+RTCD_EXTERN void (*vp8_temporal_filter_apply)(unsigned char *frame1, unsigned int stride, unsigned char *frame2, unsigned int block_size, int strength, int filter_weight, unsigned int *accumulator, unsigned short *count);
+
 unsigned int vp8_variance16x16_c(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);
 unsigned int vp8_variance16x16_mmx(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);
 unsigned int vp8_variance16x16_wmt(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, unsigned int *sse);
@@ -694,6 +698,8 @@ static void setup_rtcd_internal(void)
     vp8_subtract_mby = vp8_subtract_mby_c;
     if (flags & HAS_MMX) vp8_subtract_mby = vp8_subtract_mby_mmx;
     if (flags & HAS_SSE2) vp8_subtract_mby = vp8_subtract_mby_sse2;
+    vp8_temporal_filter_apply = vp8_temporal_filter_apply_c;
+    if (flags & HAS_SSE2) vp8_temporal_filter_apply = vp8_temporal_filter_apply_sse2;
     vp8_variance16x16 = vp8_variance16x16_c;
     if (flags & HAS_MMX) vp8_variance16x16 = vp8_variance16x16_mmx;
     if (flags & HAS_SSE2) vp8_variance16x16 = vp8_variance16x16_wmt;
