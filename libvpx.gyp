@@ -5,8 +5,8 @@
 	'variables': {
 		'libvpx_build_vp9%': 1,
 		'libvpx_source%': 'source/libvpx',
-		#'library' : 'static_library',
-		'library' : 'shared_library',
+		'library' : 'static_library',
+		#'library' : 'shared_library',
 		# Disable LTO for neon targets
 		# crbug.com/408997
 		'use_lto%': 0,
@@ -95,10 +95,15 @@
 				'cflags':[
 					'-m64',
 					'-fPIC',
-					'-fvisibility=hidden',
+					
 				],
 				'ldflags':[
 					'-m64',
+				],
+			}],
+			['target_arch == "x64" and library == "static_library"',{
+				'cflags':[
+					'-fvisibility=hidden',
 				],
 			}],
 			['OS == "linux"',{
@@ -205,7 +210,7 @@
 					'libvpx_intrinsics_avx2',
 				  ],
 				  'conditions':[
-					['library == "static_library"',{
+					['library == "Xstatic_library"',{
 						'direct_dependent_settings': {
 							'dependencies':[
 								'libvpx_intrinsics_mmx',
@@ -246,7 +251,7 @@
 					  ],
 					  
 					  'conditions':[
-						['library == "static_library"',{
+						['library == "Xstatic_library"',{
 							'direct_dependent_settings': {
 								'dependencies':[
 									'libvpx_intrinsics_mmx',

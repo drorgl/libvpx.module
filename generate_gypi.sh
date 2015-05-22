@@ -400,7 +400,7 @@ all_platforms="--enable-external-build --enable-postproc --disable-install-srcs 
 echo "linux/ia32"
 gen_config_files linux/ia32 "--target=x86-linux-gcc --disable-ccache --enable-pic  ${all_platforms}"
 echo "linux/x64"
-gen_config_files linux/x64 "--target=x86_64-linux-gcc --disable-ccache --enable-pic  ${all_platforms}"
+gen_config_files linux/x64 "--target=x86_64-linux-gcc --disable-ccache --enable-pic  --enable-shared  ${all_platforms}"
 echo "linux/arm"
 gen_config_files linux/arm "--target=armv6-linux-gcc --enable-pic  --disable-install-bins --disable-install-libs --disable-edsp ${all_platforms}"
 echo "linux/arm-neon"
