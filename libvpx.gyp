@@ -75,8 +75,44 @@
 		},
 		
 		'configurations':{
-			'Debug':{},
-			'Release':{},
+			'Debug':{
+				'conditions': [
+				  ['target_arch=="x64"', {
+					'msvs_configuration_platform': 'x64',
+				  }],
+				],
+				'defines':[
+					'DEBUG',
+				],
+				'msvs_settings': {				
+					'VCLinkerTool' : {
+						'GenerateDebugInformation' : 'true',
+						'conditions':[
+							['target_arch=="x64"', {
+								'TargetMachine' : 17 # /MACHINE:X64
+							}],
+						],
+						
+					}
+				}
+			},
+			'Release':{
+				'conditions': [
+				  ['target_arch=="x64"', {
+					'msvs_configuration_platform': 'x64',
+				  }],
+				],
+				'msvs_settings': {				
+					'VCLinkerTool' : {
+						'conditions':[
+							['target_arch=="x64"', {
+								'TargetMachine' : 17 # /MACHINE:X64
+							}],
+						],
+						
+					}
+				}
+			},
 		},
 		
 		'conditions': [
@@ -141,7 +177,7 @@
 					'yasm_output_path': '<(SHARED_INTERMEDIATE_DIR)/third_party/libvpx',
 					'OS_CATEGORY%': '<(OS_CATEGORY)',
 					'yasm_flags': [
-						'-D', 'CHROMIUM',
+						'-DCHROMIUM',
 						'-I', 'source/config/<(OS_CATEGORY)/<(target_arch_full)',
 						'-I', 'source/config',
 						'-I', '<(libvpx_source)',
@@ -153,7 +189,7 @@
 					'conditions': [
 						['OS=="android"', {
 							'yasm_flags': [
-								'-D', '__ANDROID__',
+								'-D__ANDROID__',
 							],
 						}],
 					],
@@ -384,6 +420,9 @@
               '<(libvpx_source)',
             ],
           },
+		  'sources': [
+            'source/config/<(OS_CATEGORY)/<(target_arch_full)/vpx_config.c',
+          ],
           'conditions': [
             # Libvpx optimizations for ARMv6 or ARMv7 without NEON.
             ['arm_neon==0', {
