@@ -10,6 +10,11 @@
 		# Disable LTO for neon targets
 		# crbug.com/408997
 		'use_lto%': 0,
+		'os_posix' : "<!(node -e \"console.log((/^win/.test(process.platform) ? '0' : '1'))\")",
+		'msan': 0,
+		'use_system_yasm%' : "<!(node -e \"try{var x = require('child_process').spawnSync('yasm',[]);if (x.error){console.log(0);}else{console.log(1);}}catch(e){console.log(0)}\")",
+		
+		
 		'conditions': [
 			['os_posix==1', {
 				'asm_obj_extension': 'o',
