@@ -3,3 +3,4 @@
 /build.linux32/
 /build.linux64/
 /build.android/
+/node_modules
