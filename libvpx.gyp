@@ -5,6 +5,7 @@
 	'variables': {
 		'libvpx_build_vp9%': 1,
 		'libvpx_source%': 'source/libvpx',
+		'buildtype%': 'Official',
 		'library' : 'static_library',
 		#'library' : 'shared_library',
 		# Disable LTO for neon targets
