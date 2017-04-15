@@ -14,7 +14,7 @@
 		'os_posix' : "<!(node -e \"console.log((/^win/.test(process.platform) ? '0' : '1'))\")",
 		'msan': 0,
 		'use_system_yasm%' : "<!(node -e \"try{var x = require('child_process').spawnSync('yasm',[]);if (x.error){console.log(0);}else{console.log(1);}}catch(e){console.log(0)}\")",
-		'arm_neon%':"<!(node build_utils/test_cpuinfo_neon.js)",
+		'arm_neon':"<!(node build_utils/test_cpuinfo_neon.js)",
 		
 		'conditions': [
 			['os_posix==1', {
@@ -362,6 +362,7 @@
           'target_name': 'libvpx',
           'type': '<(library)',
 
+
 		  'cflags':[
 			 '-mfloat-abi=hard',
 			 '-marm',
@@ -437,6 +438,9 @@
           ],
           'conditions': [
             # Libvpx optimizations for ARMv6 or ARMv7 without NEON.
+	    ['arm_neon==1',{
+		'cflags':['-mfpu=neon'],
+            }],
             ['arm_neon==0', {
               'conditions': [
                 ['OS=="android"', {
