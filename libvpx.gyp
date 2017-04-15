@@ -9,6 +9,7 @@
 		#'library' : 'shared_library',
 		# Disable LTO for neon targets
 		# crbug.com/408997
+		"buildtype%" : "Official",
 		'use_lto%': 0,
 		'os_posix' : "<!(node -e \"console.log((/^win/.test(process.platform) ? '0' : '1'))\")",
 		'msan': 0,
@@ -361,10 +362,13 @@
           'target_name': 'libvpx',
           'type': '<(library)',
 
-	'cflags':[
-	   '-mfloat-abi=hard','-marm','-march=armv7-a',
-        ],	
 
+		  'cflags':[
+			 '-mfloat-abi=hard',
+			 '-marm',
+			 '-march=armv7-a',
+		  ],
+		  
           # Copy the script to the output folder so that we can use it with
           # absolute path.
           'copies': [{
