@@ -4,8 +4,9 @@
   "description": "libvpx module wrapper",
   "main": "include_dirs.js",
   "scripts": {
+	"install": "echo call standalone to build and install this module",
     "preinstall": "git submodule init && git submodule update || true",
-    "test": "node-gyp configure build",
+	"standalone": "node-gyp configure  && node-gyp build",
     "pack": "nnbu-pack -s"
   },
   "repository": {

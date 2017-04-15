@@ -1,0 +1,3 @@
+{
+    "includes":["libvpx.gyp"]
+}

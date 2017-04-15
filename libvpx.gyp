@@ -9,6 +9,7 @@
 		#'library' : 'shared_library',
 		# Disable LTO for neon targets
 		# crbug.com/408997
+		"buildtype%" : "Official",
 		'use_lto%': 0,
 		'os_posix' : "<!(node -e \"console.log((/^win/.test(process.platform) ? '0' : '1'))\")",
 		'msan': 0,
